@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { Button, Container, Card, Form, Row, Col, Image, Tab, Nav } from 'react-bootstrap'
 import { parseKle } from "./KLEParser"
 import { buildPlate } from "./PlateBuilder"
-import { otherPartsConfig, getDefaultEnabledParts } from "./otherPartsConfig"
+import { otherPartsConfig, getDefaultEnabledParts, resolveOtherPartForBuild } from "./otherPartsConfig"
 import { buildOtherPart, exportOtherPart } from "./OtherPartsBuilder"
 import Decimal from "decimal.js"
 import makerjs from 'makerjs'
@@ -30,9 +30,14 @@ function App() {
   const [unitHeight, setUnitHeight] = useState(19.05)
   const [kerf, setKerf] = useState(0)
 
-  // Other plate parts (stamps + registration) — independent of main plate export
+  // Other plate parts (stamps) — independent of main plate export
   const [enabledOtherParts, setEnabledOtherParts] = useState(() => getDefaultEnabledParts())
   const [otherPartOutputs, setOtherPartOutputs] = useState({})
+  // MX Hotswap fit: tight vs better-fit (used when the mx-hotswap group is enabled)
+  const defaultMxHotswapVariant = (
+    otherPartsConfig.find(p => p.id === 'mx-hotswap')?.defaultVariantId
+  ) || 'mx-hotswap-betterfit'
+  const [mxHotswapVariant, setMxHotswapVariant] = useState(defaultMxHotswapVariant)
 
   useEffect(() => {
 
@@ -101,10 +106,21 @@ function App() {
       }
 
       try {
-        const model = buildOtherPart(part, kleReturn, generatorOptions)
+        const variantId = part.id === 'mx-hotswap' ? mxHotswapVariant : null
+        const resolved = resolveOtherPartForBuild(part, variantId)
+        if (!resolved) {
+          continue
+        }
+        const model = buildOtherPart(resolved, kleReturn, generatorOptions)
         const exported = exportOtherPart(model)
         if (exported) {
-          nextOutputs[part.id] = exported
+          nextOutputs[part.id] = {
+            ...exported,
+            label: resolved.label,
+            description: resolved.description,
+            layerName: resolved.layerName,
+            downloadId: resolved.variantId || resolved.id,
+          }
         }
       } catch (error) {
         console.log(`Other part "${part.id}" failed:`, error)
@@ -117,6 +133,7 @@ function App() {
     unitWidth,
     unitHeight,
     enabledOtherParts,
+    mxHotswapVariant,
   ])
 
 
@@ -143,9 +160,16 @@ function App() {
           <Image fluid={true} src={logo} className="m-4" style={{ maxHeight: "100px" }} />
         </a>
 
-        <h1 style={{ textTransform: "none" }}>ai03 Plate Generator</h1>
-        <h5 className="pb-2">V2.0</h5>
-        <p>An advanced plate generator with filleting, kerf, exact dimensions, and a variety of cutouts.</p>
+        <h1 style={{ textTransform: "none" }}>YAKB CAD Helper</h1>
+        <h5 className="pb-2">Plate tools for 3D-printed keyboards</h5>
+        <p className="mb-2" style={{ maxWidth: "720px", margin: "0 auto" }}>
+          Built to make it easier to generate plates and helper layers for <strong>3D-printed keyboards</strong> that use
+          {' '}<strong>hotswap sockets</strong>. Based on the ai03 Plate Generator (YAKB) for accurate MX cutouts,
+          with extra stamp layers aimed at printed builds.
+        </p>
+        <p className="text-muted mb-0" style={{ maxWidth: "720px", margin: "0 auto" }}>
+          <strong>MX</strong> hotswap support is available now. <strong>Kailh Choc</strong> support is planned for a future update.
+        </p>
       </div>
 
       <Card className="rounded shadow overflow-hidden mb-5">
@@ -324,33 +348,53 @@ function App() {
             <Col lg={12}>
               <h3>Other plate parts</h3>
               <p className="mb-3">
-                Optional stamp layers and construction marks. Each enabled stamp is exported
-                separately from the main plate (its own preview, DXF, and SVG), and always
-                includes registration marks on the CONSTRUCTION layer for alignment.
+                Optional stamp layers for 3D-printed hotswap builds. Each enabled part is exported
+                separately from the main plate (its own preview, DXF, and SVG). Registration marks
+                are included automatically in the CAD exports for alignment.
               </p>
               <Form className="ms-3 me-3 text-start">
                 {otherPartsConfig.map(part => (
-                  <Form.Check
-                    key={part.id}
-                    type="checkbox"
-                    id={`other-part-${part.id}`}
-                    className="mb-2"
-                    checked={!!enabledOtherParts[part.id]}
-                    onChange={e => toggleOtherPart(part.id, e.target.checked)}
-                    label={
-                      <span>
-                        <strong>{part.label}</strong>
-                        {part.description ? (
-                          <span className="text-muted"> — {part.description}</span>
-                        ) : null}
-                        <span className="text-muted"> (layer: {part.layerName})</span>
-                      </span>
-                    }
-                  />
+                  <div key={part.id} className="mb-3">
+                    <Form.Check
+                      type="checkbox"
+                      id={`other-part-${part.id}`}
+                      className="mb-1"
+                      checked={!!enabledOtherParts[part.id]}
+                      onChange={e => toggleOtherPart(part.id, e.target.checked)}
+                      label={
+                        <span>
+                          <strong>{part.label}</strong>
+                          {part.description ? (
+                            <span className="text-muted"> — {part.description}</span>
+                          ) : null}
+                        </span>
+                      }
+                    />
+                    {part.type === 'variant-group' && part.variants && part.variants.length > 0 && (
+                      <Form.Group className="ms-4 mt-1" style={{ maxWidth: "280px" }}>
+                        <Form.Label className="small mb-1">Fit</Form.Label>
+                        <Form.Select
+                          size="sm"
+                          aria-label={`${part.label} fit`}
+                          value={part.id === 'mx-hotswap' ? mxHotswapVariant : part.defaultVariantId}
+                          disabled={!enabledOtherParts[part.id]}
+                          onChange={e => {
+                            if (part.id === 'mx-hotswap') {
+                              setMxHotswapVariant(e.target.value)
+                            }
+                          }}
+                        >
+                          {part.variants.map(v => (
+                            <option key={v.id} value={v.id}>{v.label}</option>
+                          ))}
+                        </Form.Select>
+                      </Form.Group>
+                    )}
+                  </div>
                 ))}
-                {otherPartsConfig.length === 1 && (
+                {otherPartsConfig.length === 0 && (
                   <p className="text-muted small mt-2 mb-0">
-                    Add <code>.json</code> stamp files under <code>src/stamps/</code> to list more parts here.
+                    Add <code>.json</code> stamp files under <code>src/stamps/</code> to list parts here.
                   </p>
                 )}
               </Form>
@@ -383,14 +427,18 @@ function App() {
 
       {otherPartsConfig.filter(part => enabledOtherParts[part.id]).map(part => {
         const output = otherPartOutputs[part.id]
+        const title = output?.label || part.label
+        const description = output?.description || part.description
+        const layerName = output?.layerName || part.layerName
+        const downloadId = output?.downloadId || part.id
         return (
           <Card key={part.id} className="p-0 rounded shadow bg-dark mb-5 overflow-hidden">
             <Card.Header>
-              <h3 className="mt-2 text-white">{part.label}</h3>
+              <h3 className="mt-2 text-white">{title}</h3>
               <p className="text-white-50 mb-0 small">
-                {part.description}
-                {part.layerName ? ` · layer ${part.layerName}` : ''}
-                {part.type !== 'generated' && !output ? ' · paste KLE data to generate stamp placement' : ''}
+                {description}
+                {layerName ? ` · layer ${layerName}` : ''}
+                {!output ? ' · paste KLE data to generate stamp placement' : ''}
               </p>
             </Card.Header>
             <Card.Body
@@ -403,7 +451,7 @@ function App() {
                 <Button
                   variant="light"
                   className="me-3"
-                  onClick={() => { downloadData(output.dxf, ".dxf", "plate-" + part.id) }}
+                  onClick={() => { downloadData(output.dxf, ".dxf", "plate-" + downloadId) }}
                 >
                   Download DXF
                 </Button>
@@ -413,7 +461,7 @@ function App() {
               {output && output.svg ? (
                 <Button
                   variant="light"
-                  onClick={() => { downloadData(output.svg, ".svg", "plate-" + part.id) }}
+                  onClick={() => { downloadData(output.svg, ".svg", "plate-" + downloadId) }}
                 >
                   Download SVG
                 </Button>
