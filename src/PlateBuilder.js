@@ -1,5 +1,6 @@
 import makerjs from 'makerjs'
 import Decimal from 'decimal.js'
+import { buildRegistrationMark } from './OtherPartsBuilder'
 
 import { SwitchMXBasic } from './cutouts/SwitchMXBasic'
 import { SwitchAlpsSKCM } from './cutouts/SwitchAlpsSKCM'
@@ -183,6 +184,9 @@ export function buildPlate(keysArray, generatorOptions) {
     }
 
     canvas.models["BoundingBox0"] = boundingBox
+
+    // Alignment marks for manufacturing (same CONSTRUCTION X used by other-parts stamps)
+    canvas.models["Registration"] = buildRegistrationMark('CONSTRUCTION')
 
     return canvas
 
