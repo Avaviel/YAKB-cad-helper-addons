@@ -324,8 +324,9 @@ function App() {
             <Col lg={12}>
               <h3>Other plate parts</h3>
               <p className="mb-3">
-                Optional stamp layers and construction marks. Each enabled part is exported
-                separately from the main plate (its own preview, DXF, and SVG).
+                Optional stamp layers and construction marks. Each enabled stamp is exported
+                separately from the main plate (its own preview, DXF, and SVG), and always
+                includes registration marks on the CONSTRUCTION layer for alignment.
               </p>
               <Form className="ms-3 me-3 text-start">
                 {otherPartsConfig.map(part => (

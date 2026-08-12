@@ -92,6 +92,9 @@ function applyLayer(model, layerName) {
 /**
  * Build a stamp part by placing the stamp template at every key center,
  * using the same origin / rotation logic as switch cutouts in PlateBuilder.
+ *
+ * Always appends a registration X at (-100, -100) on the CONSTRUCTION layer
+ * so each stamp export is alignable on its own.
  */
 export function buildStampPart(stampData, keysArray, generatorOptions, layerName) {
   const template = stampJsonToModel(stampData, layerName)
@@ -125,18 +128,26 @@ export function buildStampPart(stampData, keysArray, generatorOptions, layerName
     id += 1
   }
 
+  // Stamp geometry on its own layer…
   applyLayer(canvas, layerName)
+
+  // …then add registration marks (do not paint them with the stamp layer name)
+  canvas.models.Registration = buildRegistrationMark('CONSTRUCTION')
+
   return canvas
 }
 
 /**
  * Build an other-part model from a config entry.
  * Returns null if the part cannot be built yet (e.g. stamp with no keys).
+ *
+ * Stamp exports always include registration marks (CONSTRUCTION layer) together
+ * with the stamped geometry. The standalone "registration" part is still available.
  */
 export function buildOtherPart(partConfig, keysArray, generatorOptions) {
   if (partConfig.type === 'generated') {
     if (partConfig.generator === 'registrationX') {
-      return buildRegistrationMark(partConfig.layerName)
+      return buildRegistrationMark(partConfig.layerName || 'CONSTRUCTION')
     }
     throw new Error(`Unknown generated part generator: ${partConfig.generator}`)
   }

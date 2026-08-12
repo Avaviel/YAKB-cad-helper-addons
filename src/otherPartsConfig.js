@@ -48,7 +48,7 @@ function loadStampEntries() {
       return {
         id,
         label,
-        description: `Stamp pattern from ${filename}`,
+        description: `Stamp pattern from ${filename} (includes registration marks on CONSTRUCTION)`,
         file: `stamps/${filename}`,
         defaultEnabled: false,
         layerName,
@@ -62,7 +62,7 @@ function loadStampEntries() {
 const registrationEntry = {
   id: 'registration',
   label: 'Registration Marks',
-  description: 'Alignment X at (-100, -100)',
+  description: 'Alignment X at (-100, -100) only — also auto-included on every stamp export',
   type: 'generated',
   generator: 'registrationX',
   defaultEnabled: true,
