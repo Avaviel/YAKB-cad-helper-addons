@@ -41,15 +41,19 @@ export function stampJsonToModel(stampData, layerName) {
 }
 
 /**
- * Simple registration X (two crossed lines) centered at (-100, -100).
+ * Simple registration X (two crossed lines).
+ * Center defaults to (-100, -100); pass x/y in millimeters to relocate.
  */
-export function buildRegistrationMark(layerName = 'CONSTRUCTION') {
-  const cx = -100
-  const cy = -100
+export function buildRegistrationMark(layerName = 'CONSTRUCTION', x = -100, y = -100) {
+  const cx = Number(x)
+  const cy = Number(y)
   const half = 5
 
-  const line1 = new makerjs.paths.Line([cx - half, cy - half], [cx + half, cy + half])
-  const line2 = new makerjs.paths.Line([cx - half, cy + half], [cx + half, cy - half])
+  const safeX = Number.isFinite(cx) ? cx : -100
+  const safeY = Number.isFinite(cy) ? cy : -100
+
+  const line1 = new makerjs.paths.Line([safeX - half, safeY - half], [safeX + half, safeY + half])
+  const line2 = new makerjs.paths.Line([safeX - half, safeY + half], [safeX + half, safeY - half])
   line1.layer = layerName
   line2.layer = layerName
 
@@ -59,6 +63,18 @@ export function buildRegistrationMark(layerName = 'CONSTRUCTION') {
       registrationX2: line2,
     },
     layer: layerName,
+  }
+}
+
+/** Read registration center from generatorOptions (mm), with defaults. */
+export function getRegistrationCenter(generatorOptions) {
+  const xRaw = generatorOptions?.registrationX
+  const yRaw = generatorOptions?.registrationY
+  const x = xRaw instanceof Decimal ? xRaw.toNumber() : Number(xRaw)
+  const y = yRaw instanceof Decimal ? yRaw.toNumber() : Number(yRaw)
+  return {
+    x: Number.isFinite(x) ? x : -100,
+    y: Number.isFinite(y) ? y : -100,
   }
 }
 
@@ -93,8 +109,8 @@ function applyLayer(model, layerName) {
  * Build a stamp part by placing the stamp template at every key center,
  * using the same origin / rotation logic as switch cutouts in PlateBuilder.
  *
- * Always appends a registration X at (-100, -100) on the CONSTRUCTION layer
- * so each stamp export is alignable on its own.
+ * Always appends a registration X on the CONSTRUCTION layer so each stamp
+ * export is alignable on its own. Position comes from generatorOptions.
  */
 export function buildStampPart(stampData, keysArray, generatorOptions, layerName) {
   const template = stampJsonToModel(stampData, layerName)
@@ -132,7 +148,8 @@ export function buildStampPart(stampData, keysArray, generatorOptions, layerName
   applyLayer(canvas, layerName)
 
   // …then add registration marks (do not paint them with the stamp layer name)
-  canvas.models.Registration = buildRegistrationMark('CONSTRUCTION')
+  const reg = getRegistrationCenter(generatorOptions)
+  canvas.models.Registration = buildRegistrationMark('CONSTRUCTION', reg.x, reg.y)
 
   return canvas
 }
@@ -147,7 +164,8 @@ export function buildStampPart(stampData, keysArray, generatorOptions, layerName
 export function buildOtherPart(partConfig, keysArray, generatorOptions) {
   if (partConfig.type === 'generated') {
     if (partConfig.generator === 'registrationX') {
-      return buildRegistrationMark(partConfig.layerName || 'CONSTRUCTION')
+      const reg = getRegistrationCenter(generatorOptions)
+      return buildRegistrationMark(partConfig.layerName || 'CONSTRUCTION', reg.x, reg.y)
     }
     throw new Error(`Unknown generated part generator: ${partConfig.generator}`)
   }

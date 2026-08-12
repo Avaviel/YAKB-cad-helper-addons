@@ -13,7 +13,7 @@ import Decimal from "decimal.js"
 import makerjs from 'makerjs'
 import fileDownload from 'js-file-download'
 import logo from './logo.png'
-import { DataHelpPane, SwitchCutoutPane, OtherCutoutPane, AdvancedPane, AboutPane } from './HelpPanes'
+import { DataHelpPane, SwitchCutoutPane, OtherCutoutPane, AdvancedPane, RegistrationHelpPane, AboutPane } from './HelpPanes'
 
 
 function App() {
@@ -39,6 +39,9 @@ function App() {
   const [stampSwitchFamily, setStampSwitchFamily] = useState(defaultSwitchFamilyId)
   const [stampFit, setStampFit] = useState(defaultFitId)
   const [otherPartOutputs, setOtherPartOutputs] = useState([])
+  // Registration mark center in millimeters (shared by main plate + all stamps)
+  const [registrationX, setRegistrationX] = useState(-100)
+  const [registrationY, setRegistrationY] = useState(-100)
 
   const selectedFamily = switchFamilies.find(f => f.id === stampSwitchFamily) || switchFamilies[0]
   const stampPartsToGenerate = getPartsForSelection(stampSwitchFamily, stampFit)
@@ -59,6 +62,8 @@ function App() {
           unitWidth: new Decimal(unitWidth),
           unitHeight: new Decimal(unitHeight),
           kerf: new Decimal(kerf),
+          registrationX: new Decimal(registrationX),
+          registrationY: new Decimal(registrationY),
         })
 
         const previewSvgData = makerjs.exporter.toSVG(plateData, { stroke: 'white', strokeWidth: '0.5mm', svgAttrs: { width: '100%', height: '100%' } })
@@ -91,7 +96,9 @@ function App() {
     acousticRadius,
     unitWidth,
     unitHeight,
-    kerf
+    kerf,
+    registrationX,
+    registrationY,
   ])
 
   // Always generate the stamp pack for the selected switch family + fit (no checkboxes)
@@ -100,6 +107,8 @@ function App() {
     const generatorOptions = {
       unitWidth: new Decimal(unitWidth),
       unitHeight: new Decimal(unitHeight),
+      registrationX: new Decimal(registrationX),
+      registrationY: new Decimal(registrationY),
     }
 
     const parts = getPartsForSelection(stampSwitchFamily, stampFit)
@@ -138,6 +147,8 @@ function App() {
     unitHeight,
     stampSwitchFamily,
     stampFit,
+    registrationX,
+    registrationY,
   ])
 
 
@@ -395,6 +406,35 @@ function App() {
                     </Form.Text>
                   </Col>
                 </Row>
+                <Row>
+                  <Col md={12} className="mb-2">
+                    <Form.Label className="mb-1">Registration mark location (mm)</Form.Label>
+                    <Form.Text className="d-block text-muted mb-2">
+                      Alignment X on the CONSTRUCTION layer, shared by the main plate and every stamp download.
+                      Default (−100, −100) sits outside a typical plate.
+                    </Form.Text>
+                  </Col>
+                  <Col md={6} className="mb-3">
+                    <Form.Label>X</Form.Label>
+                    <Form.Control
+                      type="number"
+                      step="0.1"
+                      value={registrationX}
+                      onChange={e => setRegistrationX(e.target.value === '' ? 0 : Number(e.target.value))}
+                      aria-label="registration-x"
+                    />
+                  </Col>
+                  <Col md={6} className="mb-3">
+                    <Form.Label>Y</Form.Label>
+                    <Form.Control
+                      type="number"
+                      step="0.1"
+                      value={registrationY}
+                      onChange={e => setRegistrationY(e.target.value === '' ? 0 : Number(e.target.value))}
+                      aria-label="registration-y"
+                    />
+                  </Col>
+                </Row>
                 <p className="text-muted small mb-0">
                   Always generated for this selection:{' '}
                   {stampPartsToGenerate.map(p => p.label).join(' · ') || '—'}
@@ -489,6 +529,9 @@ function App() {
                   <Nav.Link eventKey="advanced">Advanced</Nav.Link>
                 </Nav.Item>
                 <Nav.Item className="me-0">
+                  <Nav.Link eventKey="registration">Registration marks</Nav.Link>
+                </Nav.Item>
+                <Nav.Item className="me-0">
                   <Nav.Link eventKey="about">About</Nav.Link>
                 </Nav.Item>
               </Nav>
@@ -506,6 +549,9 @@ function App() {
                 </Tab.Pane>
                 <Tab.Pane eventKey="advanced" style={{ textAlign: "left" }}>
                   <AdvancedPane />
+                </Tab.Pane>
+                <Tab.Pane eventKey="registration" style={{ textAlign: "left" }}>
+                  <RegistrationHelpPane />
                 </Tab.Pane>
                 <Tab.Pane eventKey="about" style={{ textAlign: "left" }}>
                   <AboutPane />

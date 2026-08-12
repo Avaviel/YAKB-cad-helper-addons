@@ -186,7 +186,21 @@ export function buildPlate(keysArray, generatorOptions) {
     canvas.models["BoundingBox0"] = boundingBox
 
     // Alignment marks for manufacturing (same CONSTRUCTION X used by other-parts stamps)
-    canvas.models["Registration"] = buildRegistrationMark('CONSTRUCTION')
+    const regX = generatorOptions.registrationX != null
+      ? (generatorOptions.registrationX instanceof Decimal
+        ? generatorOptions.registrationX.toNumber()
+        : Number(generatorOptions.registrationX))
+      : -100
+    const regY = generatorOptions.registrationY != null
+      ? (generatorOptions.registrationY instanceof Decimal
+        ? generatorOptions.registrationY.toNumber()
+        : Number(generatorOptions.registrationY))
+      : -100
+    canvas.models["Registration"] = buildRegistrationMark(
+      'CONSTRUCTION',
+      Number.isFinite(regX) ? regX : -100,
+      Number.isFinite(regY) ? regY : -100
+    )
 
     return canvas
 
