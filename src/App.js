@@ -2,6 +2,8 @@ import { useState, useEffect } from "react"
 import { Button, Container, Card, Form, Row, Col, Image, Tab, Nav } from 'react-bootstrap'
 import { parseKle } from "./KLEParser"
 import { buildPlate } from "./PlateBuilder"
+import { otherPartsConfig, getDefaultEnabledParts } from "./otherPartsConfig"
+import { buildOtherPart, exportOtherPart } from "./OtherPartsBuilder"
 import Decimal from "decimal.js"
 import makerjs from 'makerjs'
 import fileDownload from 'js-file-download'
@@ -27,6 +29,10 @@ function App() {
   const [unitWidth, setUnitWidth] = useState(19.05)
   const [unitHeight, setUnitHeight] = useState(19.05)
   const [kerf, setKerf] = useState(0)
+
+  // Other plate parts (stamps + registration) — independent of main plate export
+  const [enabledOtherParts, setEnabledOtherParts] = useState(() => getDefaultEnabledParts())
+  const [otherPartOutputs, setOtherPartOutputs] = useState({})
 
   useEffect(() => {
 
@@ -79,12 +85,53 @@ function App() {
     kerf
   ])
 
+  // Separate effect: generate enabled other-plate parts without touching main plate logic
+  useEffect(() => {
+    const kleReturn = parseKle(kleText)
+    const generatorOptions = {
+      unitWidth: new Decimal(unitWidth),
+      unitHeight: new Decimal(unitHeight),
+    }
 
-  const downloadData = (fileData, extension) => {
+    const nextOutputs = {}
+
+    for (const part of otherPartsConfig) {
+      if (!enabledOtherParts[part.id]) {
+        continue
+      }
+
+      try {
+        const model = buildOtherPart(part, kleReturn, generatorOptions)
+        const exported = exportOtherPart(model)
+        if (exported) {
+          nextOutputs[part.id] = exported
+        }
+      } catch (error) {
+        console.log(`Other part "${part.id}" failed:`, error)
+      }
+    }
+
+    setOtherPartOutputs(nextOutputs)
+  }, [
+    kleText,
+    unitWidth,
+    unitHeight,
+    enabledOtherParts,
+  ])
+
+
+  const downloadData = (fileData, extension, namePrefix = "plate") => {
 
     const date = new Date(Date.now())
-    fileDownload(fileData, "plate-" + date.toISOString() + extension)
+    fileDownload(fileData, namePrefix + "-" + date.toISOString() + extension)
 
+  }
+
+  const toggleOtherPart = (partId, checked) => {
+    setEnabledOtherParts(prev => ({
+      ...prev,
+      [partId]: checked,
+    }))
   }
 
 
@@ -271,6 +318,46 @@ function App() {
         </Card.Body>
       </Card>
 
+      <Card className="rounded shadow overflow-hidden mb-5">
+        <Card.Body>
+          <Row>
+            <Col lg={12}>
+              <h3>Other plate parts</h3>
+              <p className="mb-3">
+                Optional stamp layers and construction marks. Each enabled part is exported
+                separately from the main plate (its own preview, DXF, and SVG).
+              </p>
+              <Form className="ms-3 me-3 text-start">
+                {otherPartsConfig.map(part => (
+                  <Form.Check
+                    key={part.id}
+                    type="checkbox"
+                    id={`other-part-${part.id}`}
+                    className="mb-2"
+                    checked={!!enabledOtherParts[part.id]}
+                    onChange={e => toggleOtherPart(part.id, e.target.checked)}
+                    label={
+                      <span>
+                        <strong>{part.label}</strong>
+                        {part.description ? (
+                          <span className="text-muted"> — {part.description}</span>
+                        ) : null}
+                        <span className="text-muted"> (layer: {part.layerName})</span>
+                      </span>
+                    }
+                  />
+                ))}
+                {otherPartsConfig.length === 1 && (
+                  <p className="text-muted small mt-2 mb-0">
+                    Add <code>.json</code> stamp files under <code>src/stamps/</code> to list more parts here.
+                  </p>
+                )}
+              </Form>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
+
       <Card className="p-0 rounded shadow bg-dark mb-5 overflow-hidden">
         <Card.Header>
           <h3 className="mt-2 text-white">Preview and Download</h3>
@@ -292,6 +379,50 @@ function App() {
           }
         </Card.Footer>
       </Card>
+
+      {otherPartsConfig.filter(part => enabledOtherParts[part.id]).map(part => {
+        const output = otherPartOutputs[part.id]
+        return (
+          <Card key={part.id} className="p-0 rounded shadow bg-dark mb-5 overflow-hidden">
+            <Card.Header>
+              <h3 className="mt-2 text-white">{part.label}</h3>
+              <p className="text-white-50 mb-0 small">
+                {part.description}
+                {part.layerName ? ` · layer ${part.layerName}` : ''}
+                {part.type !== 'generated' && !output ? ' · paste KLE data to generate stamp placement' : ''}
+              </p>
+            </Card.Header>
+            <Card.Body
+              className="bg-dark p-4"
+              style={{ height: "30vh", minHeight: "250px" }}
+              dangerouslySetInnerHTML={{ __html: output ? output.previewSvg : '' }}
+            />
+            <Card.Footer>
+              {output && output.dxf ? (
+                <Button
+                  variant="light"
+                  className="me-3"
+                  onClick={() => { downloadData(output.dxf, ".dxf", "plate-" + part.id) }}
+                >
+                  Download DXF
+                </Button>
+              ) : (
+                <Button variant="light" className="me-3" disabled>Download DXF</Button>
+              )}
+              {output && output.svg ? (
+                <Button
+                  variant="light"
+                  onClick={() => { downloadData(output.svg, ".svg", "plate-" + part.id) }}
+                >
+                  Download SVG
+                </Button>
+              ) : (
+                <Button variant="light" disabled>Download SVG</Button>
+              )}
+            </Card.Footer>
+          </Card>
+        )
+      })}
 
 
 
