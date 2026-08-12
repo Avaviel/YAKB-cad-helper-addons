@@ -2,7 +2,12 @@ import { useState, useEffect } from "react"
 import { Button, Container, Card, Form, Row, Col, Image, Tab, Nav } from 'react-bootstrap'
 import { parseKle } from "./KLEParser"
 import { buildPlate } from "./PlateBuilder"
-import { otherPartsConfig, getDefaultEnabledParts, resolveOtherPartForBuild } from "./otherPartsConfig"
+import {
+  switchFamilies,
+  defaultSwitchFamilyId,
+  defaultFitId,
+  getPartsForSelection,
+} from "./otherPartsConfig"
 import { buildOtherPart, exportOtherPart } from "./OtherPartsBuilder"
 import Decimal from "decimal.js"
 import makerjs from 'makerjs'
@@ -30,14 +35,13 @@ function App() {
   const [unitHeight, setUnitHeight] = useState(19.05)
   const [kerf, setKerf] = useState(0)
 
-  // Other plate parts (stamps) — independent of main plate export
-  const [enabledOtherParts, setEnabledOtherParts] = useState(() => getDefaultEnabledParts())
-  const [otherPartOutputs, setOtherPartOutputs] = useState({})
-  // MX Hotswap fit: tight vs better-fit (used when the mx-hotswap group is enabled)
-  const defaultMxHotswapVariant = (
-    otherPartsConfig.find(p => p.id === 'mx-hotswap')?.defaultVariantId
-  ) || 'mx-hotswap-betterfit'
-  const [mxHotswapVariant, setMxHotswapVariant] = useState(defaultMxHotswapVariant)
+  // Other plate parts: switch family + fit selectors; always export the full stamp set
+  const [stampSwitchFamily, setStampSwitchFamily] = useState(defaultSwitchFamilyId)
+  const [stampFit, setStampFit] = useState(defaultFitId)
+  const [otherPartOutputs, setOtherPartOutputs] = useState([])
+
+  const selectedFamily = switchFamilies.find(f => f.id === stampSwitchFamily) || switchFamilies[0]
+  const stampPartsToGenerate = getPartsForSelection(stampSwitchFamily, stampFit)
 
   useEffect(() => {
 
@@ -90,7 +94,7 @@ function App() {
     kerf
   ])
 
-  // Separate effect: generate enabled other-plate parts without touching main plate logic
+  // Always generate the stamp pack for the selected switch family + fit (no checkboxes)
   useEffect(() => {
     const kleReturn = parseKle(kleText)
     const generatorOptions = {
@@ -98,32 +102,32 @@ function App() {
       unitHeight: new Decimal(unitHeight),
     }
 
-    const nextOutputs = {}
+    const parts = getPartsForSelection(stampSwitchFamily, stampFit)
+    const nextOutputs = []
 
-    for (const part of otherPartsConfig) {
-      if (!enabledOtherParts[part.id]) {
-        continue
-      }
-
+    for (const part of parts) {
       try {
-        const variantId = part.id === 'mx-hotswap' ? mxHotswapVariant : null
-        const resolved = resolveOtherPartForBuild(part, variantId)
-        if (!resolved) {
-          continue
-        }
-        const model = buildOtherPart(resolved, kleReturn, generatorOptions)
+        const model = buildOtherPart(part, kleReturn, generatorOptions)
         const exported = exportOtherPart(model)
-        if (exported) {
-          nextOutputs[part.id] = {
-            ...exported,
-            label: resolved.label,
-            description: resolved.description,
-            layerName: resolved.layerName,
-            downloadId: resolved.variantId || resolved.id,
-          }
-        }
+        nextOutputs.push({
+          id: part.id,
+          label: part.label,
+          description: part.description,
+          layerName: part.layerName,
+          downloadId: part.id,
+          ...(exported || {}),
+          ready: !!exported,
+        })
       } catch (error) {
         console.log(`Other part "${part.id}" failed:`, error)
+        nextOutputs.push({
+          id: part.id,
+          label: part.label,
+          description: part.description,
+          layerName: part.layerName,
+          downloadId: part.id,
+          ready: false,
+        })
       }
     }
 
@@ -132,8 +136,8 @@ function App() {
     kleText,
     unitWidth,
     unitHeight,
-    enabledOtherParts,
-    mxHotswapVariant,
+    stampSwitchFamily,
+    stampFit,
   ])
 
 
@@ -144,11 +148,14 @@ function App() {
 
   }
 
-  const toggleOtherPart = (partId, checked) => {
-    setEnabledOtherParts(prev => ({
-      ...prev,
-      [partId]: checked,
-    }))
+  const handleStampFamilyChange = (familyId) => {
+    setStampSwitchFamily(familyId)
+    const family = switchFamilies.find(f => f.id === familyId)
+    if (family?.defaultFitId) {
+      setStampFit(family.defaultFitId)
+    } else if (family?.fits?.length) {
+      setStampFit(family.fits[0].id)
+    }
   }
 
 
@@ -348,55 +355,50 @@ function App() {
             <Col lg={12}>
               <h3>Other plate parts</h3>
               <p className="mb-3">
-                Optional stamp layers for 3D-printed hotswap builds. Each enabled part is exported
-                separately from the main plate (its own preview, DXF, and SVG). Registration marks
-                are included automatically in the CAD exports for alignment.
+                Helper stamp layers for 3D-printed hotswap builds. Choose the switch family and
+                hotswap fit — downloads always include back cut, hole cuts, switchplace extrude,
+                and the selected hotswap stamp (each with its own preview / DXF / SVG).
               </p>
               <Form className="ms-3 me-3 text-start">
-                {otherPartsConfig.map(part => (
-                  <div key={part.id} className="mb-3">
-                    <Form.Check
-                      type="checkbox"
-                      id={`other-part-${part.id}`}
-                      className="mb-1"
-                      checked={!!enabledOtherParts[part.id]}
-                      onChange={e => toggleOtherPart(part.id, e.target.checked)}
-                      label={
-                        <span>
-                          <strong>{part.label}</strong>
-                          {part.description ? (
-                            <span className="text-muted"> — {part.description}</span>
-                          ) : null}
-                        </span>
-                      }
-                    />
-                    {part.type === 'variant-group' && part.variants && part.variants.length > 0 && (
-                      <Form.Group className="ms-4 mt-1" style={{ maxWidth: "280px" }}>
-                        <Form.Label className="small mb-1">Fit</Form.Label>
-                        <Form.Select
-                          size="sm"
-                          aria-label={`${part.label} fit`}
-                          value={part.id === 'mx-hotswap' ? mxHotswapVariant : part.defaultVariantId}
-                          disabled={!enabledOtherParts[part.id]}
-                          onChange={e => {
-                            if (part.id === 'mx-hotswap') {
-                              setMxHotswapVariant(e.target.value)
-                            }
-                          }}
-                        >
-                          {part.variants.map(v => (
-                            <option key={v.id} value={v.id}>{v.label}</option>
-                          ))}
-                        </Form.Select>
-                      </Form.Group>
-                    )}
-                  </div>
-                ))}
-                {otherPartsConfig.length === 0 && (
-                  <p className="text-muted small mt-2 mb-0">
-                    Add <code>.json</code> stamp files under <code>src/stamps/</code> to list parts here.
-                  </p>
-                )}
+                <Row>
+                  <Col md={6} className="mb-3">
+                    <Form.Label>Switch type</Form.Label>
+                    <Form.Select
+                      aria-label="stamp-switch-type"
+                      value={stampSwitchFamily}
+                      onChange={e => handleStampFamilyChange(e.target.value)}
+                    >
+                      {switchFamilies.map(family => (
+                        <option key={family.id} value={family.id} disabled={!!family.disabled}>
+                          {family.label}{family.disabled ? ' (coming soon)' : ''}
+                        </option>
+                      ))}
+                    </Form.Select>
+                    <Form.Text className="text-muted">
+                      MX is available now. Kailh Choc is planned for a future update.
+                    </Form.Text>
+                  </Col>
+                  <Col md={6} className="mb-3">
+                    <Form.Label>Hotswap fit</Form.Label>
+                    <Form.Select
+                      aria-label="stamp-hotswap-fit"
+                      value={stampFit}
+                      onChange={e => setStampFit(e.target.value)}
+                      disabled={!selectedFamily?.fits?.length}
+                    >
+                      {(selectedFamily?.fits || []).map(fit => (
+                        <option key={fit.id} value={fit.id}>{fit.label}</option>
+                      ))}
+                    </Form.Select>
+                    <Form.Text className="text-muted">
+                      Clearance for the MX hotswap socket stamp only.
+                    </Form.Text>
+                  </Col>
+                </Row>
+                <p className="text-muted small mb-0">
+                  Always generated for this selection:{' '}
+                  {stampPartsToGenerate.map(p => p.label).join(' · ') || '—'}
+                </p>
               </Form>
             </Col>
           </Row>
@@ -425,53 +427,46 @@ function App() {
         </Card.Footer>
       </Card>
 
-      {otherPartsConfig.filter(part => enabledOtherParts[part.id]).map(part => {
-        const output = otherPartOutputs[part.id]
-        const title = output?.label || part.label
-        const description = output?.description || part.description
-        const layerName = output?.layerName || part.layerName
-        const downloadId = output?.downloadId || part.id
-        return (
-          <Card key={part.id} className="p-0 rounded shadow bg-dark mb-5 overflow-hidden">
-            <Card.Header>
-              <h3 className="mt-2 text-white">{title}</h3>
-              <p className="text-white-50 mb-0 small">
-                {description}
-                {layerName ? ` · layer ${layerName}` : ''}
-                {!output ? ' · paste KLE data to generate stamp placement' : ''}
-              </p>
-            </Card.Header>
-            <Card.Body
-              className="bg-dark p-4"
-              style={{ height: "30vh", minHeight: "250px" }}
-              dangerouslySetInnerHTML={{ __html: output ? output.previewSvg : '' }}
-            />
-            <Card.Footer>
-              {output && output.dxf ? (
-                <Button
-                  variant="light"
-                  className="me-3"
-                  onClick={() => { downloadData(output.dxf, ".dxf", "plate-" + downloadId) }}
-                >
-                  Download DXF
-                </Button>
-              ) : (
-                <Button variant="light" className="me-3" disabled>Download DXF</Button>
-              )}
-              {output && output.svg ? (
-                <Button
-                  variant="light"
-                  onClick={() => { downloadData(output.svg, ".svg", "plate-" + downloadId) }}
-                >
-                  Download SVG
-                </Button>
-              ) : (
-                <Button variant="light" disabled>Download SVG</Button>
-              )}
-            </Card.Footer>
-          </Card>
-        )
-      })}
+      {otherPartOutputs.map(output => (
+        <Card key={output.id} className="p-0 rounded shadow bg-dark mb-5 overflow-hidden">
+          <Card.Header>
+            <h3 className="mt-2 text-white">{output.label}</h3>
+            <p className="text-white-50 mb-0 small">
+              {output.description}
+              {output.layerName ? ` · layer ${output.layerName}` : ''}
+              {!output.ready ? ' · paste KLE data to generate stamp placement' : ''}
+            </p>
+          </Card.Header>
+          <Card.Body
+            className="bg-dark p-4"
+            style={{ height: "30vh", minHeight: "250px" }}
+            dangerouslySetInnerHTML={{ __html: output.ready ? output.previewSvg : '' }}
+          />
+          <Card.Footer>
+            {output.ready && output.dxf ? (
+              <Button
+                variant="light"
+                className="me-3"
+                onClick={() => { downloadData(output.dxf, ".dxf", "plate-" + output.downloadId) }}
+              >
+                Download DXF
+              </Button>
+            ) : (
+              <Button variant="light" className="me-3" disabled>Download DXF</Button>
+            )}
+            {output.ready && output.svg ? (
+              <Button
+                variant="light"
+                onClick={() => { downloadData(output.svg, ".svg", "plate-" + output.downloadId) }}
+              >
+                Download SVG
+              </Button>
+            ) : (
+              <Button variant="light" disabled>Download SVG</Button>
+            )}
+          </Card.Footer>
+        </Card>
+      ))}
 
 
 
