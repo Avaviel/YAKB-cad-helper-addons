@@ -1,0 +1,14 @@
+{
+  "files": {
+    "main.css": "/YAKB-cad-helper-addons/static/css/main.c032dc63.css",
+    "main.js": "/YAKB-cad-helper-addons/static/js/main.cc9c272a.js",
+    "static/media/logo.png": "/YAKB-cad-helper-addons/static/media/logo.111b0e8963b731411cfd.png",
+    "index.html": "/YAKB-cad-helper-addons/index.html",
+    "main.c032dc63.css.map": "/YAKB-cad-helper-addons/static/css/main.c032dc63.css.map",
+    "main.cc9c272a.js.map": "/YAKB-cad-helper-addons/static/js/main.cc9c272a.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.c032dc63.css",
+    "static/js/main.cc9c272a.js"
+  ]
+}
