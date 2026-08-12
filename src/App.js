@@ -39,12 +39,20 @@ function App() {
   const [stampSwitchFamily, setStampSwitchFamily] = useState(defaultSwitchFamilyId)
   const [stampFit, setStampFit] = useState(defaultFitId)
   const [otherPartOutputs, setOtherPartOutputs] = useState([])
-  // Registration mark center in millimeters (shared by main plate + all stamps)
-  const [registrationX, setRegistrationX] = useState(-100)
-  const [registrationY, setRegistrationY] = useState(-100)
+  // Registration mark center in millimeters (strings so users can type "-" / intermediate values)
+  const [registrationX, setRegistrationX] = useState('-100')
+  const [registrationY, setRegistrationY] = useState('-100')
 
   const selectedFamily = switchFamilies.find(f => f.id === stampSwitchFamily) || switchFamilies[0]
   const stampPartsToGenerate = getPartsForSelection(stampSwitchFamily, stampFit)
+
+  const parseRegCoord = (raw, fallback = -100) => {
+    if (raw === '' || raw === '-' || raw === '.' || raw === '-.') {
+      return fallback
+    }
+    const n = Number(raw)
+    return Number.isFinite(n) ? n : fallback
+  }
 
   useEffect(() => {
 
@@ -62,8 +70,8 @@ function App() {
           unitWidth: new Decimal(unitWidth),
           unitHeight: new Decimal(unitHeight),
           kerf: new Decimal(kerf),
-          registrationX: new Decimal(registrationX),
-          registrationY: new Decimal(registrationY),
+          registrationX: new Decimal(parseRegCoord(registrationX)),
+          registrationY: new Decimal(parseRegCoord(registrationY)),
         })
 
         const previewSvgData = makerjs.exporter.toSVG(plateData, { stroke: 'white', strokeWidth: '0.5mm', svgAttrs: { width: '100%', height: '100%' } })
@@ -107,8 +115,8 @@ function App() {
     const generatorOptions = {
       unitWidth: new Decimal(unitWidth),
       unitHeight: new Decimal(unitHeight),
-      registrationX: new Decimal(registrationX),
-      registrationY: new Decimal(registrationY),
+      registrationX: new Decimal(parseRegCoord(registrationX)),
+      registrationY: new Decimal(parseRegCoord(registrationY)),
     }
 
     const parts = getPartsForSelection(stampSwitchFamily, stampFit)
@@ -417,20 +425,31 @@ function App() {
                   <Col md={6} className="mb-3">
                     <Form.Label>X</Form.Label>
                     <Form.Control
-                      type="number"
-                      step="0.1"
+                      type="text"
+                      inputMode="decimal"
                       value={registrationX}
-                      onChange={e => setRegistrationX(e.target.value === '' ? 0 : Number(e.target.value))}
+                      onChange={e => {
+                        const v = e.target.value
+                        // Allow empty, minus, digits, and one decimal point while typing
+                        if (v === '' || /^-?\d*\.?\d*$/.test(v)) {
+                          setRegistrationX(v)
+                        }
+                      }}
                       aria-label="registration-x"
                     />
                   </Col>
                   <Col md={6} className="mb-3">
                     <Form.Label>Y</Form.Label>
                     <Form.Control
-                      type="number"
-                      step="0.1"
+                      type="text"
+                      inputMode="decimal"
                       value={registrationY}
-                      onChange={e => setRegistrationY(e.target.value === '' ? 0 : Number(e.target.value))}
+                      onChange={e => {
+                        const v = e.target.value
+                        if (v === '' || /^-?\d*\.?\d*$/.test(v)) {
+                          setRegistrationY(v)
+                        }
+                      }}
                       aria-label="registration-y"
                     />
                   </Col>

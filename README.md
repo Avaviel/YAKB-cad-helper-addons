@@ -33,16 +33,3 @@ Not just a generic plate tool — it’s specifically to make **hotswap + 3D-pri
 ## Upstream
 
 Based on [ai03-2725/yet-another-keyboard-builder](https://github.com/ai03-2725/yet-another-keyboard-builder). See their CONTRIBUTING.md for cutout contribution guidelines on the original project.
-
-## Local development
-
-```bash
-npm install
-npm start
-```
-
-Publish GitHub Pages from this repo:
-
-```bash
-npm run deploy
-```
