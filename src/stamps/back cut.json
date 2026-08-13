@@ -1,6 +1,6 @@
 {
   "source": "back cut.dxf",
-  "pathCount": 28,
+  "pathCount": 32,
   "paths": {
     "line0": {
       "type": "line",
@@ -293,6 +293,47 @@
       "radius": 1.9999999999999574,
       "startAngle": 0,
       "endAngle": 0.7751933735084873
+    },
+    "cornerSW": {
+      "type": "arc",
+      "origin": [
+        -6.5,
+        -6.5
+      ],
+      "radius": 1.5,
+      "startAngle": 3.141592653589793,
+      "endAngle": 4.71238898038469
+    },
+    "cornerSE": {
+      "type": "arc",
+      "origin": [
+        6.5,
+        -6.5
+      ],
+      "radius": 1.5,
+      "startAngle": 4.71238898038469,
+      "endAngle": 6.283185307179586
+    },
+    "cornerNE": {
+      "type": "arc",
+      "origin": [
+        6.5,
+        6.5
+      ],
+      "radius": 1.5,
+      "startAngle": 0,
+      "endAngle": 1.5707963267948966
+    },
+    "cornerNW": {
+      "type": "arc",
+      "origin": [
+        -6.5,
+        6.5
+      ],
+      "radius": 1.5,
+      "startAngle": 1.5707963267948966,
+      "endAngle": 3.141592653589793
     }
-  }
+  },
+  "cornerNote": "Added four outer R1.5 quarter-circle corners for solid outline (tangent to ±8 sides)"
 }
