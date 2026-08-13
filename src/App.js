@@ -6,9 +6,15 @@ import {
   switchFamilies,
   defaultSwitchFamilyId,
   defaultFitId,
-  getPartsForSelection,
+  getExportAssemblies,
+  getExportSummary,
 } from "./otherPartsConfig"
-import { buildOtherPart, exportOtherPart } from "./OtherPartsBuilder"
+import {
+  buildExportAssembly,
+  exportOtherPart,
+  makeDownloadFilename,
+  sanitizeFilenamePart,
+} from "./OtherPartsBuilder"
 import Decimal from "decimal.js"
 import makerjs from 'makerjs'
 import fileDownload from 'js-file-download'
@@ -19,9 +25,8 @@ import { DataHelpPane, SwitchCutoutPane, OtherCutoutPane, AdvancedPane, Registra
 function App() {
 
   const [kleText, setKleText] = useState("")
-  const [previewSvg, setPreviewSvg] = useState(null)
-  const [plateSvg, setPlateSvg] = useState(null)
-  const [plateDxf, setPlateDxf] = useState(null)
+  // Keyboard title used in download filenames (e.g. Macropad.SwitchPlate.xxx.dxf)
+  const [keyboardTitle, setKeyboardTitle] = useState("Keyboard")
 
   const [switchCutoutType, setSwitchCutoutType] = useState("mx-basic")
   const [stabilizerCutoutType, setStabilizerCutoutType] = useState("mx-basic")
@@ -35,18 +40,18 @@ function App() {
   const [unitHeight, setUnitHeight] = useState(19.05)
   const [kerf, setKerf] = useState(0)
 
-  // Other plate parts: switch family + fit selectors; always export the full stamp set
+  // Other plate parts: switch family + fit selectors; export Switch Plate + MX Plate assemblies
   const [stampSwitchFamily, setStampSwitchFamily] = useState(defaultSwitchFamilyId)
   const [stampFit, setStampFit] = useState(defaultFitId)
   // Left-right mirror of stamp geometry only (registration stays at absolute X/Y)
   const [mirrorStamps, setMirrorStamps] = useState(false)
-  const [otherPartOutputs, setOtherPartOutputs] = useState([])
+  const [partOutputs, setPartOutputs] = useState([])
   // Registration mark center in millimeters (strings so users can type "-" / intermediate values)
   const [registrationX, setRegistrationX] = useState('-100')
   const [registrationY, setRegistrationY] = useState('-100')
 
   const selectedFamily = switchFamilies.find(f => f.id === stampSwitchFamily) || switchFamilies[0]
-  const stampPartsToGenerate = getPartsForSelection(stampSwitchFamily, stampFit)
+  const exportSummary = getExportSummary(stampSwitchFamily, stampFit)
 
   const parseRegCoord = (raw, fallback = -100) => {
     if (raw === '' || raw === '-' || raw === '.' || raw === '-.') {
@@ -56,46 +61,63 @@ function App() {
     return Number.isFinite(n) ? n : fallback
   }
 
+  // Build Switch Plate + MX Plate multi-layer assemblies (and their previews/downloads)
   useEffect(() => {
-
     const kleReturn = parseKle(kleText)
-
-    if (kleReturn && kleReturn.length > 0) {
-      try {
-        const plateData = buildPlate(kleReturn, {
-          switchCutoutType: switchCutoutType,
-          stabilizerCutoutType: stabilizerCutoutType,
-          acousticCutoutType: acousticCutoutType,
-          switchFilletRadius: new Decimal(switchRadius),
-          stabilizerFilletRadius: new Decimal(stabilizerRadius),
-          acousticFilletRadius: new Decimal(acousticRadius),
-          unitWidth: new Decimal(unitWidth),
-          unitHeight: new Decimal(unitHeight),
-          kerf: new Decimal(kerf),
-          registrationX: new Decimal(parseRegCoord(registrationX)),
-          registrationY: new Decimal(parseRegCoord(registrationY)),
-        })
-
-        const previewSvgData = makerjs.exporter.toSVG(plateData, { stroke: 'white', strokeWidth: '0.5mm', svgAttrs: { width: '100%', height: '100%' } })
-        setPreviewSvg(previewSvgData)
-        const svgData = makerjs.exporter.toSVG(plateData, { units: makerjs.unitType.Millimeter })
-        setPlateSvg(svgData)
-        const dxfData = makerjs.exporter.toDXF(plateData, { units: makerjs.unitType.Millimeter })
-        setPlateDxf(dxfData)
-
-      } catch (error) {
-        console.log(error)
-        setPreviewSvg(null)
-        setPlateSvg(null)
-        setPlateDxf(null)
-      }
-
-    } else {
-      setPreviewSvg(null)
-      setPlateSvg(null)
-      setPlateDxf(null)
+    const generatorOptions = {
+      switchCutoutType: switchCutoutType,
+      stabilizerCutoutType: stabilizerCutoutType,
+      acousticCutoutType: acousticCutoutType,
+      switchFilletRadius: new Decimal(switchRadius),
+      stabilizerFilletRadius: new Decimal(stabilizerRadius),
+      acousticFilletRadius: new Decimal(acousticRadius),
+      unitWidth: new Decimal(unitWidth),
+      unitHeight: new Decimal(unitHeight),
+      kerf: new Decimal(kerf),
+      registrationX: new Decimal(parseRegCoord(registrationX)),
+      registrationY: new Decimal(parseRegCoord(registrationY)),
+      mirrorStamps: !!mirrorStamps,
     }
 
+    const assemblies = getExportAssemblies(stampSwitchFamily, stampFit)
+    const nextOutputs = []
+
+    let mainPlateModel = null
+    if (kleReturn && kleReturn.length > 0) {
+      try {
+        mainPlateModel = buildPlate(kleReturn, generatorOptions)
+      } catch (error) {
+        console.log('Main plate build failed:', error)
+      }
+    }
+
+    for (const assembly of assemblies) {
+      try {
+        const model = (kleReturn && kleReturn.length > 0)
+          ? buildExportAssembly(assembly, kleReturn, generatorOptions, mainPlateModel)
+          : null
+        const exported = exportOtherPart(model)
+        nextOutputs.push({
+          id: assembly.id,
+          label: assembly.label,
+          description: assembly.description,
+          layerSummary: assembly.layerSummary,
+          ...(exported || {}),
+          ready: !!exported,
+        })
+      } catch (error) {
+        console.log(`Assembly "${assembly.id}" failed:`, error)
+        nextOutputs.push({
+          id: assembly.id,
+          label: assembly.label,
+          description: assembly.description,
+          layerSummary: assembly.layerSummary,
+          ready: false,
+        })
+      }
+    }
+
+    setPartOutputs(nextOutputs)
   }, [
     kleText,
     switchCutoutType,
@@ -107,55 +129,6 @@ function App() {
     unitWidth,
     unitHeight,
     kerf,
-    registrationX,
-    registrationY,
-  ])
-
-  // Always generate the stamp pack for the selected switch family + fit (no checkboxes)
-  useEffect(() => {
-    const kleReturn = parseKle(kleText)
-    const generatorOptions = {
-      unitWidth: new Decimal(unitWidth),
-      unitHeight: new Decimal(unitHeight),
-      registrationX: new Decimal(parseRegCoord(registrationX)),
-      registrationY: new Decimal(parseRegCoord(registrationY)),
-      mirrorStamps: !!mirrorStamps,
-    }
-
-    const parts = getPartsForSelection(stampSwitchFamily, stampFit)
-    const nextOutputs = []
-
-    for (const part of parts) {
-      try {
-        const model = buildOtherPart(part, kleReturn, generatorOptions)
-        const exported = exportOtherPart(model)
-        nextOutputs.push({
-          id: part.id,
-          label: part.label,
-          description: part.description,
-          layerName: part.layerName,
-          downloadId: part.id,
-          ...(exported || {}),
-          ready: !!exported,
-        })
-      } catch (error) {
-        console.log(`Other part "${part.id}" failed:`, error)
-        nextOutputs.push({
-          id: part.id,
-          label: part.label,
-          description: part.description,
-          layerName: part.layerName,
-          downloadId: part.id,
-          ready: false,
-        })
-      }
-    }
-
-    setOtherPartOutputs(nextOutputs)
-  }, [
-    kleText,
-    unitWidth,
-    unitHeight,
     stampSwitchFamily,
     stampFit,
     mirrorStamps,
@@ -164,11 +137,9 @@ function App() {
   ])
 
 
-  const downloadData = (fileData, extension, namePrefix = "plate") => {
-
-    const date = new Date(Date.now())
-    fileDownload(fileData, namePrefix + "-" + date.toISOString() + extension)
-
+  const downloadPart = (fileData, extension, partName) => {
+    const filename = makeDownloadFilename(keyboardTitle, partName, extension)
+    fileDownload(fileData, filename)
   }
 
   const handleStampFamilyChange = (familyId) => {
@@ -208,6 +179,19 @@ function App() {
             <Col xl={5} className="pt-3 pb-0 ps-4 pe-4">
               <h3>KLE Data</h3>
               <p>Please see the info block at the bottom for features such as rotating stabilizers.</p>
+              <Form className="mt-3 mb-3 text-start">
+                <Form.Label>Keyboard title</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={keyboardTitle}
+                  placeholder="e.g. Macropad"
+                  onChange={e => setKeyboardTitle(e.target.value)}
+                  aria-label="keyboard-title"
+                />
+                <Form.Text className="text-muted">
+                  Used in download names: <code>Title.PartName.unique.dxf</code>
+                </Form.Text>
+              </Form>
             </Col>
             <Col xl={7}>
               <Form>
@@ -378,9 +362,9 @@ function App() {
             <Col lg={12}>
               <h3>Other plate parts</h3>
               <p className="mb-3">
-                Helper stamp layers for 3D-printed hotswap builds. Choose the switch family and
-                hotswap fit — downloads always include back cut, hole cuts, switchplace extrude,
-                and the selected hotswap stamp (each with its own preview / DXF / SVG).
+                Helper layers for 3D-printed hotswap builds. Exports two multi-layer files:
+                <strong> Switch Plate</strong> (switch cutouts + back cut + switchplace extrude)
+                and <strong>MX Plate</strong> (hotswap + hole cuts). Choose switch family and fit below.
               </p>
               <Form className="ms-3 me-3 text-start">
                 <Row>
@@ -441,7 +425,7 @@ function App() {
                   <Col md={12} className="mb-2">
                     <Form.Label className="mb-1">Registration mark location (mm)</Form.Label>
                     <Form.Text className="d-block text-muted mb-2">
-                      Alignment X on the CONSTRUCTION layer, shared by the main plate and every stamp download.
+                      Alignment X on the CONSTRUCTION layer, shared by Switch Plate and MX Plate downloads.
                       Default (−100, −100) sits outside a typical plate.
                     </Form.Text>
                   </Col>
@@ -478,8 +462,9 @@ function App() {
                   </Col>
                 </Row>
                 <p className="text-muted small mb-0">
-                  Always generated for this selection:{' '}
-                  {stampPartsToGenerate.map(p => p.label).join(' · ') || '—'}
+                  Exports: {exportSummary || '—'}
+                  {' '}· files like{' '}
+                  <code>{sanitizeFilenamePart(keyboardTitle || 'Keyboard')}.SwitchPlate.abc123.dxf</code>
                 </p>
               </Form>
             </Col>
@@ -487,36 +472,14 @@ function App() {
         </Card.Body>
       </Card>
 
-      <Card className="p-0 rounded shadow bg-dark mb-5 overflow-hidden">
-        <Card.Header>
-          <h3 className="mt-2 text-white">Preview and Download</h3>
-
-        </Card.Header>
-        <Card.Body className="bg-dark p-4" style={{ height: "30vh", minHeight: "250px" }} dangerouslySetInnerHTML={{ __html: previewSvg }}></Card.Body>
-        <Card.Footer>
-          {plateDxf &&
-            <Button variant="light" className="me-3" onClick={() => { downloadData(plateDxf, ".dxf") }}>Download DXF</Button>
-          }
-          {plateSvg &&
-            <Button variant="light" onClick={() => { downloadData(plateSvg, ".svg") }}>Download SVG</Button>
-          }
-          {!plateDxf &&
-            <Button variant="light" className="me-3" disabled>Download DXF</Button>
-          }
-          {!plateSvg &&
-            <Button variant="light" disabled>Download SVG</Button>
-          }
-        </Card.Footer>
-      </Card>
-
-      {otherPartOutputs.map(output => (
+      {partOutputs.map(output => (
         <Card key={output.id} className="p-0 rounded shadow bg-dark mb-5 overflow-hidden">
           <Card.Header>
             <h3 className="mt-2 text-white">{output.label}</h3>
             <p className="text-white-50 mb-0 small">
               {output.description}
-              {output.layerName ? ` · layer ${output.layerName}` : ''}
-              {!output.ready ? ' · paste KLE data to generate stamp placement' : ''}
+              {output.layerSummary ? ` · layers ${output.layerSummary}` : ''}
+              {!output.ready ? ' · paste KLE data to generate' : ''}
             </p>
           </Card.Header>
           <Card.Body
@@ -529,7 +492,7 @@ function App() {
               <Button
                 variant="light"
                 className="me-3"
-                onClick={() => { downloadData(output.dxf, ".dxf", "plate-" + output.downloadId) }}
+                onClick={() => { downloadPart(output.dxf, ".dxf", output.id) }}
               >
                 Download DXF
               </Button>
@@ -539,7 +502,7 @@ function App() {
             {output.ready && output.svg ? (
               <Button
                 variant="light"
-                onClick={() => { downloadData(output.svg, ".svg", "plate-" + output.downloadId) }}
+                onClick={() => { downloadPart(output.svg, ".svg", output.id) }}
               >
                 Download SVG
               </Button>

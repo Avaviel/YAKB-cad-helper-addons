@@ -120,60 +120,73 @@ export const switchFamilies = [
   // },
 ]
 
-/** Shared stamps always exported for 3D-print hotswap workflows. */
-const ALWAYS_STAMP_SPECS = [
-  {
-    id: 'back-cut',
-    label: 'Back cut',
-    description: 'Back-side cut stamp (always included)',
-  },
-  {
-    id: 'hole-cuts',
-    label: 'Hole cuts',
-    description: 'Hole cut stamp (always included)',
-  },
-  {
-    id: 'switchplace-extrude',
-    label: 'Switchplace extrude',
-    description: 'Switch placement / extrude stamp (always included)',
-  },
-]
-
 /**
- * Resolve the list of stamp parts to generate for the current switch family + fit.
- * Order: hotswap (selected fit), then always-on stamps.
+ * Multi-layer export assemblies for the 3D-print workflow.
+ *
+ * SwitchPlate = original switch cutouts + back cut + switchplace extrude
+ * MXPlate     = selected MX hotswap stamp + hole cuts
+ *
+ * FUTURE — Kailh Choc: add a ChocPlate (or rename MXPlate generically) assembly
+ * with Choc hotswap + related stamps; keep SwitchPlate structure.
  */
-export function getPartsForSelection(switchFamilyId, fitId) {
+export function getExportAssemblies(switchFamilyId, fitId) {
   const family = switchFamilies.find(f => f.id === switchFamilyId) || switchFamilies[0]
-  if (!family) {
-    return []
-  }
+  const fit = (family?.fits || []).find(f => f.id === fitId)
+    || (family?.fits || []).find(f => f.id === family?.defaultFitId)
+    || (family?.fits || [])[0]
 
-  const fit = (family.fits || []).find(f => f.id === fitId)
-    || (family.fits || []).find(f => f.id === family.defaultFitId)
-    || (family.fits || [])[0]
-
-  const parts = []
-
-  if (fit && fit.hotswapStampId) {
-    const hotswap = stampOrNull(
+  const backCut = stampOrNull('back-cut', 'Back cut', 'Back-side cut stamp')
+  const switchplace = stampOrNull(
+    'switchplace-extrude',
+    'Switchplace extrude',
+    'Switch placement / extrude stamp'
+  )
+  const holeCuts = stampOrNull('hole-cuts', 'Hole cuts', 'Hole cut stamp')
+  const hotswap = fit?.hotswapStampId
+    ? stampOrNull(
       fit.hotswapStampId,
       `MX Hotswap (${fit.label})`,
-      `Hotswap socket stamp — ${fit.label.toLowerCase()} clearance`
+      `Hotswap socket — ${fit.label.toLowerCase()} clearance`
     )
-    if (hotswap) {
-      parts.push(hotswap)
-    }
-  }
+    : null
 
-  for (const spec of ALWAYS_STAMP_SPECS) {
-    const stamp = stampOrNull(spec.id, spec.label, spec.description)
-    if (stamp) {
-      parts.push(stamp)
-    }
-  }
+  const assemblies = []
 
-  return parts
+  // Part 1: Switch Plate (main cutouts + back cut + switchplace extrude)
+  assemblies.push({
+    id: 'SwitchPlate',
+    label: 'Switch Plate',
+    description: 'Main switch cutouts, back cut, and switchplace extrude (multi-layer DXF)',
+    includeMainPlate: true,
+    mainPlateLayerName: 'SWITCH_PLATE',
+    stamps: [
+      backCut && { ...backCut, modelKey: 'BackCut', layerName: 'BACK_CUT' },
+      switchplace && { ...switchplace, modelKey: 'SwitchplaceExtrude', layerName: 'SWITCHPLACE_EXTRUDE' },
+    ].filter(Boolean),
+    layerSummary: 'SWITCH_PLATE · BACK_CUT · SWITCHPLACE_EXTRUDE · CONSTRUCTION',
+  })
+
+  // Part 2: MX Plate (hotswap + hole cuts) — rename path when Choc lands
+  assemblies.push({
+    id: 'MXPlate',
+    label: 'MX Plate',
+    description: `Hotswap (${fit?.label || 'fit'}) and hole cuts (multi-layer DXF)`,
+    includeMainPlate: false,
+    stamps: [
+      hotswap && { ...hotswap, modelKey: 'MXHotswap', layerName: hotswap.layerName || 'MX_HOTSWAP' },
+      holeCuts && { ...holeCuts, modelKey: 'HoleCuts', layerName: 'HOLE_CUTS' },
+    ].filter(Boolean),
+    layerSummary: `${hotswap?.layerName || 'HOTSWAP'} · HOLE_CUTS · CONSTRUCTION`,
+  })
+
+  return assemblies
+}
+
+/** Short summary of what will be exported (for UI helper text). */
+export function getExportSummary(switchFamilyId, fitId) {
+  return getExportAssemblies(switchFamilyId, fitId)
+    .map(a => a.label)
+    .join(' · ')
 }
 
 export const defaultSwitchFamilyId = switchFamilies[0]?.id || 'mx'

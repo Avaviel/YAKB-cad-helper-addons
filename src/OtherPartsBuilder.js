@@ -109,17 +109,15 @@ function applyLayer(model, layerName) {
  * Build a stamp part by placing the stamp template at every key center,
  * using the same origin / rotation logic as switch cutouts in PlateBuilder.
  *
- * Always appends a registration X on the CONSTRUCTION layer so each stamp
- * export is alignable on its own. Position comes from generatorOptions.
+ * @param {boolean} includeRegistration - when false, omit CONSTRUCTION marks
+ *   (used when assembling multi-layer part files that share one registration set)
  *
- * Optional generatorOptions.mirrorStamps: left-right mirror of stamp geometry only
- * (makerjs mirror about Y axis). Registration marks are NEVER mirrored — they stay
- * at the absolute (registrationX, registrationY) position so layers still align.
+ * Optional generatorOptions.mirrorStamps: left-right mirror of stamp geometry only.
+ * Registration marks are NEVER mirrored.
  *
- * FUTURE (Kailh Choc): when Choc hotswap / related stamps are added, they must use
- * this same mirrorStamps option and the same registration non-mirror rule.
+ * FUTURE (Kailh Choc): same mirrorStamps + non-mirrored registration rules.
  */
-export function buildStampPart(stampData, keysArray, generatorOptions, layerName) {
+export function buildStampPart(stampData, keysArray, generatorOptions, layerName, includeRegistration = true) {
   let template = stampJsonToModel(stampData, layerName)
 
   // Left-right flip of the stamp pattern (not registration)
@@ -161,10 +159,10 @@ export function buildStampPart(stampData, keysArray, generatorOptions, layerName
   // Stamp geometry on its own layer…
   applyLayer(canvas, layerName)
 
-  // …then add registration marks (do not paint them with the stamp layer name;
-  // do not mirror — absolute position for multi-layer alignment)
-  const reg = getRegistrationCenter(generatorOptions)
-  canvas.models.Registration = buildRegistrationMark('CONSTRUCTION', reg.x, reg.y)
+  if (includeRegistration) {
+    const reg = getRegistrationCenter(generatorOptions)
+    canvas.models.Registration = buildRegistrationMark('CONSTRUCTION', reg.x, reg.y)
+  }
 
   return canvas
 }
@@ -172,9 +170,6 @@ export function buildStampPart(stampData, keysArray, generatorOptions, layerName
 /**
  * Build an other-part model from a config entry.
  * Returns null if the part cannot be built yet (e.g. stamp with no keys).
- *
- * Stamp exports always include registration marks (CONSTRUCTION layer) together
- * with the stamped geometry. The standalone "registration" part is still available.
  */
 export function buildOtherPart(partConfig, keysArray, generatorOptions) {
   if (partConfig.type === 'generated') {
@@ -198,8 +193,68 @@ export function buildOtherPart(partConfig, keysArray, generatorOptions) {
     partConfig.stampData,
     keysArray,
     generatorOptions,
-    partConfig.layerName
+    partConfig.layerName,
+    true
   )
+}
+
+/**
+ * Strip registration sub-models so assemblies can share a single CONSTRUCTION mark.
+ */
+function stripRegistration(model) {
+  if (!model) {
+    return model
+  }
+  const clone = makerjs.model.clone(model)
+  if (clone.models && clone.models.Registration) {
+    delete clone.models.Registration
+  }
+  return clone
+}
+
+/**
+ * Build a multi-layer export assembly (e.g. SwitchPlate or MXPlate).
+ * @param {object} assembly - from getExportAssemblies()
+ * @param {Array} keysArray - parsed KLE keys
+ * @param {object} generatorOptions
+ * @param {object|null} mainPlateModel - buildPlate() result when includeMainPlate
+ */
+export function buildExportAssembly(assembly, keysArray, generatorOptions, mainPlateModel) {
+  if (!keysArray || keysArray.length === 0) {
+    return null
+  }
+
+  const canvas = { models: {} }
+
+  if (assembly.includeMainPlate) {
+    if (!mainPlateModel) {
+      return null
+    }
+    const plate = stripRegistration(mainPlateModel)
+    applyLayer(plate, assembly.mainPlateLayerName || 'SWITCH_PLATE')
+    canvas.models.SwitchCutouts = plate
+  }
+
+  for (const stamp of assembly.stamps || []) {
+    if (!stamp.stampData) {
+      continue
+    }
+    const stampModel = buildStampPart(
+      stamp.stampData,
+      keysArray,
+      generatorOptions,
+      stamp.layerName,
+      false
+    )
+    // Model key safe for DXF nesting
+    const key = stamp.modelKey || stamp.id.replace(/[^a-zA-Z0-9_]/g, '_')
+    canvas.models[key] = stampModel
+  }
+
+  const reg = getRegistrationCenter(generatorOptions)
+  canvas.models.Registration = buildRegistrationMark('CONSTRUCTION', reg.x, reg.y)
+
+  return canvas
 }
 
 /**
@@ -219,4 +274,27 @@ export function exportOtherPart(model) {
   const dxf = makerjs.exporter.toDXF(model, { units: makerjs.unitType.Millimeter })
 
   return { previewSvg, svg, dxf }
+}
+
+/** Sanitize one filename segment (Title / PartName). */
+export function sanitizeFilenamePart(value, fallback = 'Untitled') {
+  const cleaned = String(value ?? '')
+    .trim()
+    .replace(/[^\w\-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '')
+    .slice(0, 48)
+  return cleaned || fallback
+}
+
+/**
+ * Download name: Title.PartName.unique.ext
+ * e.g. Macropad.SwitchPlate.lm9k2a.dxf
+ */
+export function makeDownloadFilename(keyboardTitle, partName, extension) {
+  const title = sanitizeFilenamePart(keyboardTitle, 'Untitled')
+  const part = sanitizeFilenamePart(partName, 'Part')
+  const unique = Date.now().toString(36)
+  const ext = extension.startsWith('.') ? extension : `.${extension}`
+  return `${title}.${part}.${unique}${ext}`
 }
