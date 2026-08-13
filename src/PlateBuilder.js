@@ -1,6 +1,5 @@
 import makerjs from 'makerjs'
 import Decimal from 'decimal.js'
-import { buildRegistrationMark } from './OtherPartsBuilder'
 
 import { SwitchMXBasic } from './cutouts/SwitchMXBasic'
 import { SwitchAlpsSKCM } from './cutouts/SwitchAlpsSKCM'
@@ -185,22 +184,7 @@ export function buildPlate(keysArray, generatorOptions) {
 
     canvas.models["BoundingBox0"] = boundingBox
 
-    // Alignment marks for manufacturing (same CONSTRUCTION X used by other-parts stamps)
-    const regX = generatorOptions.registrationX != null
-      ? (generatorOptions.registrationX instanceof Decimal
-        ? generatorOptions.registrationX.toNumber()
-        : Number(generatorOptions.registrationX))
-      : -100
-    const regY = generatorOptions.registrationY != null
-      ? (generatorOptions.registrationY instanceof Decimal
-        ? generatorOptions.registrationY.toNumber()
-        : Number(generatorOptions.registrationY))
-      : -100
-    canvas.models["Registration"] = buildRegistrationMark(
-      'CONSTRUCTION',
-      Number.isFinite(regX) ? regX : -100,
-      Number.isFinite(regY) ? regY : -100
-    )
+    // Registration / CONSTRUCTION marks removed — layers are already co-aligned.
 
     return canvas
 

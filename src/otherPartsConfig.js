@@ -135,7 +135,7 @@ export const switchFamilies = [
  *   Link-BACK_CUT
  *   Link-HOLE_CUTS
  *   Link-MX_HOTSWAP_BF | Link-MX_HOTSWAP_TIGHT  — selected hotswap fit
- *   CONSTRUCTION      — registration marks (once)
+ *   (no CONSTRUCTION — registration removed; layers share origin)
  *
  * FUTURE — Kailh Choc: add Link-CHOC_* (or similar) layers; keep Top-* + one download.
  */
@@ -174,13 +174,12 @@ export function getExportAssembly(switchFamilyId, fitId) {
     'Link-BACK_CUT',
     'Link-HOLE_CUTS',
     hotswapLayer,
-    'CONSTRUCTION',
   ]
 
   return {
     id: 'FullExport',
     label: 'Plate export',
-    description: 'All drawings in one file on separate layers (Top + Link + CONSTRUCTION)',
+    description: 'All drawings in one multi-layer DXF/SVG (Top + Link layers)',
     includeMainPlate: true,
     mainPlateLayerName: 'Top-SWITCH_PLATE',
     stamps,

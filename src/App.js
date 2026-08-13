@@ -42,26 +42,15 @@ function App() {
   // Stamp options: switch family + fit; one multi-layer export
   const [stampSwitchFamily, setStampSwitchFamily] = useState(defaultSwitchFamilyId)
   const [stampFit, setStampFit] = useState(defaultFitId)
-  // Left-right mirror of stamp geometry only (registration stays at absolute X/Y)
+  // Left-right mirror of stamp geometry only
   const [mirrorStamps, setMirrorStamps] = useState(false)
   // Single full export (preview + dxf + svg)
   const [exportOutput, setExportOutput] = useState(null)
-  // Registration mark center in millimeters (strings so users can type "-" / intermediate values)
-  const [registrationX, setRegistrationX] = useState('-100')
-  const [registrationY, setRegistrationY] = useState('-100')
 
   const selectedFamily = switchFamilies.find(f => f.id === stampSwitchFamily) || switchFamilies[0]
   const exportSummary = getExportSummary(stampSwitchFamily, stampFit)
 
-  const parseRegCoord = (raw, fallback = -100) => {
-    if (raw === '' || raw === '-' || raw === '.' || raw === '-.') {
-      return fallback
-    }
-    const n = Number(raw)
-    return Number.isFinite(n) ? n : fallback
-  }
-
-  // Build one multi-layer DXF/SVG: Top + Link layers + CONSTRUCTION
+  // Build one multi-layer DXF/SVG: Top + Link layers (no registration)
   useEffect(() => {
     const kleReturn = parseKle(kleText)
     const generatorOptions = {
@@ -74,8 +63,6 @@ function App() {
       unitWidth: new Decimal(unitWidth),
       unitHeight: new Decimal(unitHeight),
       kerf: new Decimal(kerf),
-      registrationX: new Decimal(parseRegCoord(registrationX)),
-      registrationY: new Decimal(parseRegCoord(registrationY)),
       mirrorStamps: !!mirrorStamps,
     }
 
@@ -128,8 +115,6 @@ function App() {
     stampSwitchFamily,
     stampFit,
     mirrorStamps,
-    registrationX,
-    registrationY,
   ])
 
 
@@ -361,7 +346,6 @@ function App() {
                 One multi-layer DXF/SVG with all drawings on separate layers.
                 <strong> Top-*</strong> = switch plate related;
                 <strong> Link-*</strong> = secondary plate (MX now; Choc later).
-                Registration stays on <code>CONSTRUCTION</code>.
               </p>
               <Form className="ms-3 me-3 text-start">
                 <Row>
@@ -410,57 +394,16 @@ function App() {
                         <span>
                           <strong>Mirror stamps</strong>
                           <span className="text-muted">
-                            {' '}— left-right flip of stamp geometry (hotswap, hole cuts, etc.).
-                            Registration marks stay at the X/Y below so layers still align.
+                            {' '}— left-right flip of stamp geometry (hotswap, hole cuts, back cut, dots).
                           </span>
                         </span>
                       }
                     />
                   </Col>
                 </Row>
-                <Row>
-                  <Col md={12} className="mb-2">
-                    <Form.Label className="mb-1">Registration mark location (mm)</Form.Label>
-                    <Form.Text className="d-block text-muted mb-2">
-                      Alignment X on the CONSTRUCTION layer in the single export.
-                      Default (−100, −100) sits outside a typical plate.
-                    </Form.Text>
-                  </Col>
-                  <Col md={6} className="mb-3">
-                    <Form.Label>X</Form.Label>
-                    <Form.Control
-                      type="text"
-                      inputMode="decimal"
-                      value={registrationX}
-                      onChange={e => {
-                        const v = e.target.value
-                        // Allow empty, minus, digits, and one decimal point while typing
-                        if (v === '' || /^-?\d*\.?\d*$/.test(v)) {
-                          setRegistrationX(v)
-                        }
-                      }}
-                      aria-label="registration-x"
-                    />
-                  </Col>
-                  <Col md={6} className="mb-3">
-                    <Form.Label>Y</Form.Label>
-                    <Form.Control
-                      type="text"
-                      inputMode="decimal"
-                      value={registrationY}
-                      onChange={e => {
-                        const v = e.target.value
-                        if (v === '' || /^-?\d*\.?\d*$/.test(v)) {
-                          setRegistrationY(v)
-                        }
-                      }}
-                      aria-label="registration-y"
-                    />
-                  </Col>
-                </Row>
                 <p className="text-muted small mb-0">
                   Layers: {exportSummary || '—'}
-                  {' '}· file like{' '}
+                  {' '}· one file like{' '}
                   <code>{sanitizeFilenamePart(keyboardTitle || 'Keyboard')}.abc123.dxf</code>
                 </p>
               </Form>

@@ -143,41 +143,11 @@ export function RegistrationHelpPane() {
         <div>
             <h2>Registration marks</h2>
             <p>
-                Registration marks are small alignment crosses drawn on the <code>CONSTRUCTION</code> layer.
-                They help you line up multiple exports (main plate, hotswap stamps, back cut, hole cuts, and so on)
-                in CAD or when stacking layers for a <strong>3D-printed</strong> multi-part keyboard.
-            </p>
-            <br />
-            <h4>Where they appear</h4>
-            <p>
-                A registration X is added automatically to:
-            </p>
-            <ul>
-                <li>The main plate preview / DXF / SVG</li>
-                <li>Every other-plate-part stamp export</li>
-            </ul>
-            <p>
-                They are <em>not</em> a separate download option — they ride along with those files so each layer
-                can be aligned to the same reference point.
-            </p>
-            <br />
-            <h4>Position (X / Y)</h4>
-            <p>
-                By default the mark is centered at <code>(−100, −100)</code> millimeters (outside a typical plate
-                so it does not collide with switch cutouts).
-                You can move it under <strong>Other plate parts → Registration mark location</strong>.
-                Use the same X/Y for every file in a set so all layers share one origin.
-            </p>
-            <br />
-            <h4>Tips</h4>
-            <p>
-                Keep the mark outside the plate outline if you only want a shared alignment origin.
-                If your CAM software ignores non-cutting layers, put the mark on a construction/guide layer
-                (this tool already labels it <code>CONSTRUCTION</code>).
+                <strong>Removed.</strong> All geometry is exported in a single multi-layer file with a shared origin,
+                so a separate alignment cross on a <code>CONSTRUCTION</code> layer is no longer generated.
             </p>
             <p>
-                <strong>Mirror stamps</strong> only flips stamp cut geometry left-right.
-                Registration marks are never mirrored, so multi-layer alignment still matches the same X/Y.
+                Layers (Top-* and Link-*) line up as drawn. Use CAD layer visibility to work on each part.
             </p>
         </div>
     )

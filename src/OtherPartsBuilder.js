@@ -159,6 +159,7 @@ export function buildStampPart(stampData, keysArray, generatorOptions, layerName
   // Stamp geometry on its own layer…
   applyLayer(canvas, layerName)
 
+  // Registration omitted by default (geometry is co-aligned). Kept only if explicitly requested.
   if (includeRegistration) {
     const reg = getRegistrationCenter(generatorOptions)
     canvas.models.Registration = buildRegistrationMark('CONSTRUCTION', reg.x, reg.y)
@@ -251,9 +252,7 @@ export function buildExportAssembly(assembly, keysArray, generatorOptions, mainP
     canvas.models[key] = stampModel
   }
 
-  // Single registration set — never duplicate as CONSTRUCTION (1)
-  const reg = getRegistrationCenter(generatorOptions)
-  canvas.models.Registration = buildRegistrationMark('CONSTRUCTION', reg.x, reg.y)
+  // No CONSTRUCTION / registration — all layers share the same origin already.
 
   return canvas
 }
