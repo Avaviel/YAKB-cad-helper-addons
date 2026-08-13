@@ -280,7 +280,7 @@ export function exportOtherPart(model) {
 export function sanitizeFilenamePart(value, fallback = 'Untitled') {
   const cleaned = String(value ?? '')
     .trim()
-    .replace(/[^\w\-]+/g, '_')
+    .replace(/[^\w-]+/g, '_')
     .replace(/_+/g, '_')
     .replace(/^_|_$/g, '')
     .slice(0, 48)

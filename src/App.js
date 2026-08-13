@@ -16,7 +16,6 @@ import {
   sanitizeFilenamePart,
 } from "./OtherPartsBuilder"
 import Decimal from "decimal.js"
-import makerjs from 'makerjs'
 import fileDownload from 'js-file-download'
 import logo from './logo.png'
 import { DataHelpPane, SwitchCutoutPane, OtherCutoutPane, AdvancedPane, RegistrationHelpPane, AboutPane } from './HelpPanes'
