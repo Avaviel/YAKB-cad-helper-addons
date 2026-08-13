@@ -6,7 +6,7 @@ import {
   switchFamilies,
   defaultSwitchFamilyId,
   defaultFitId,
-  getExportAssemblies,
+  getExportAssembly,
   getExportSummary,
 } from "./otherPartsConfig"
 import {
@@ -24,7 +24,7 @@ import { DataHelpPane, SwitchCutoutPane, OtherCutoutPane, AdvancedPane, Registra
 function App() {
 
   const [kleText, setKleText] = useState("")
-  // Keyboard title used in download filenames (e.g. Macropad.SwitchPlate.xxx.dxf)
+  // Keyboard title used in download filenames (e.g. Macropad.lm9k2a.dxf)
   const [keyboardTitle, setKeyboardTitle] = useState("Keyboard")
 
   const [switchCutoutType, setSwitchCutoutType] = useState("mx-basic")
@@ -39,12 +39,13 @@ function App() {
   const [unitHeight, setUnitHeight] = useState(19.05)
   const [kerf, setKerf] = useState(0)
 
-  // Other plate parts: switch family + fit selectors; export Switch Plate + MX Plate assemblies
+  // Stamp options: switch family + fit; one multi-layer export
   const [stampSwitchFamily, setStampSwitchFamily] = useState(defaultSwitchFamilyId)
   const [stampFit, setStampFit] = useState(defaultFitId)
   // Left-right mirror of stamp geometry only (registration stays at absolute X/Y)
   const [mirrorStamps, setMirrorStamps] = useState(false)
-  const [partOutputs, setPartOutputs] = useState([])
+  // Single full export (preview + dxf + svg)
+  const [exportOutput, setExportOutput] = useState(null)
   // Registration mark center in millimeters (strings so users can type "-" / intermediate values)
   const [registrationX, setRegistrationX] = useState('-100')
   const [registrationY, setRegistrationY] = useState('-100')
@@ -60,7 +61,7 @@ function App() {
     return Number.isFinite(n) ? n : fallback
   }
 
-  // Build Switch Plate + MX Plate multi-layer assemblies (and their previews/downloads)
+  // Build one multi-layer DXF/SVG: Top + Link layers + CONSTRUCTION
   useEffect(() => {
     const kleReturn = parseKle(kleText)
     const generatorOptions = {
@@ -78,45 +79,41 @@ function App() {
       mirrorStamps: !!mirrorStamps,
     }
 
-    const assemblies = getExportAssemblies(stampSwitchFamily, stampFit)
-    const nextOutputs = []
+    const assembly = getExportAssembly(stampSwitchFamily, stampFit)
 
-    let mainPlateModel = null
-    if (kleReturn && kleReturn.length > 0) {
-      try {
-        mainPlateModel = buildPlate(kleReturn, generatorOptions)
-      } catch (error) {
-        console.log('Main plate build failed:', error)
-      }
+    if (!kleReturn || kleReturn.length === 0) {
+      setExportOutput({
+        id: assembly.id,
+        label: assembly.label,
+        description: assembly.description,
+        layerSummary: assembly.layerSummary,
+        ready: false,
+      })
+      return
     }
 
-    for (const assembly of assemblies) {
-      try {
-        const model = (kleReturn && kleReturn.length > 0)
-          ? buildExportAssembly(assembly, kleReturn, generatorOptions, mainPlateModel)
-          : null
-        const exported = exportOtherPart(model)
-        nextOutputs.push({
-          id: assembly.id,
-          label: assembly.label,
-          description: assembly.description,
-          layerSummary: assembly.layerSummary,
-          ...(exported || {}),
-          ready: !!exported,
-        })
-      } catch (error) {
-        console.log(`Assembly "${assembly.id}" failed:`, error)
-        nextOutputs.push({
-          id: assembly.id,
-          label: assembly.label,
-          description: assembly.description,
-          layerSummary: assembly.layerSummary,
-          ready: false,
-        })
-      }
+    try {
+      const mainPlateModel = buildPlate(kleReturn, generatorOptions)
+      const model = buildExportAssembly(assembly, kleReturn, generatorOptions, mainPlateModel)
+      const exported = exportOtherPart(model)
+      setExportOutput({
+        id: assembly.id,
+        label: assembly.label,
+        description: assembly.description,
+        layerSummary: assembly.layerSummary,
+        ...(exported || {}),
+        ready: !!exported,
+      })
+    } catch (error) {
+      console.log('Export build failed:', error)
+      setExportOutput({
+        id: assembly.id,
+        label: assembly.label,
+        description: assembly.description,
+        layerSummary: assembly.layerSummary,
+        ready: false,
+      })
     }
-
-    setPartOutputs(nextOutputs)
   }, [
     kleText,
     switchCutoutType,
@@ -136,8 +133,8 @@ function App() {
   ])
 
 
-  const downloadPart = (fileData, extension, partName) => {
-    const filename = makeDownloadFilename(keyboardTitle, partName, extension)
+  const downloadExport = (fileData, extension) => {
+    const filename = makeDownloadFilename(keyboardTitle, extension)
     fileDownload(fileData, filename)
   }
 
@@ -188,7 +185,7 @@ function App() {
                   aria-label="keyboard-title"
                 />
                 <Form.Text className="text-muted">
-                  Used in download names: <code>Title.PartName.unique.dxf</code>
+                  Used in download names: <code>Title.unique.dxf</code>
                 </Form.Text>
               </Form>
             </Col>
@@ -361,9 +358,10 @@ function App() {
             <Col lg={12}>
               <h3>Other plate parts</h3>
               <p className="mb-3">
-                Helper layers for 3D-printed hotswap builds. Exports two multi-layer files:
-                <strong> Switch Plate</strong> (switch cutouts + back cut + switchplace extrude)
-                and <strong>MX Plate</strong> (hotswap + hole cuts). Choose switch family and fit below.
+                One multi-layer DXF/SVG with all drawings on separate layers.
+                <strong> Top-*</strong> = switch plate related;
+                <strong> Link-*</strong> = secondary plate (MX now; Choc later).
+                Registration stays on <code>CONSTRUCTION</code>.
               </p>
               <Form className="ms-3 me-3 text-start">
                 <Row>
@@ -424,7 +422,7 @@ function App() {
                   <Col md={12} className="mb-2">
                     <Form.Label className="mb-1">Registration mark location (mm)</Form.Label>
                     <Form.Text className="d-block text-muted mb-2">
-                      Alignment X on the CONSTRUCTION layer, shared by Switch Plate and MX Plate downloads.
+                      Alignment X on the CONSTRUCTION layer in the single export.
                       Default (−100, −100) sits outside a typical plate.
                     </Form.Text>
                   </Col>
@@ -461,9 +459,9 @@ function App() {
                   </Col>
                 </Row>
                 <p className="text-muted small mb-0">
-                  Exports: {exportSummary || '—'}
-                  {' '}· files like{' '}
-                  <code>{sanitizeFilenamePart(keyboardTitle || 'Keyboard')}.SwitchPlate.abc123.dxf</code>
+                  Layers: {exportSummary || '—'}
+                  {' '}· file like{' '}
+                  <code>{sanitizeFilenamePart(keyboardTitle || 'Keyboard')}.abc123.dxf</code>
                 </p>
               </Form>
             </Col>
@@ -471,46 +469,44 @@ function App() {
         </Card.Body>
       </Card>
 
-      {partOutputs.map(output => (
-        <Card key={output.id} className="p-0 rounded shadow bg-dark mb-5 overflow-hidden">
-          <Card.Header>
-            <h3 className="mt-2 text-white">{output.label}</h3>
-            <p className="text-white-50 mb-0 small">
-              {output.description}
-              {output.layerSummary ? ` · layers ${output.layerSummary}` : ''}
-              {!output.ready ? ' · paste KLE data to generate' : ''}
-            </p>
-          </Card.Header>
-          <Card.Body
-            className="bg-dark p-4"
-            style={{ height: "30vh", minHeight: "250px" }}
-            dangerouslySetInnerHTML={{ __html: output.ready ? output.previewSvg : '' }}
-          />
-          <Card.Footer>
-            {output.ready && output.dxf ? (
-              <Button
-                variant="light"
-                className="me-3"
-                onClick={() => { downloadPart(output.dxf, ".dxf", output.id) }}
-              >
-                Download DXF
-              </Button>
-            ) : (
-              <Button variant="light" className="me-3" disabled>Download DXF</Button>
-            )}
-            {output.ready && output.svg ? (
-              <Button
-                variant="light"
-                onClick={() => { downloadPart(output.svg, ".svg", output.id) }}
-              >
-                Download SVG
-              </Button>
-            ) : (
-              <Button variant="light" disabled>Download SVG</Button>
-            )}
-          </Card.Footer>
-        </Card>
-      ))}
+      <Card className="p-0 rounded shadow bg-dark mb-5 overflow-hidden">
+        <Card.Header>
+          <h3 className="mt-2 text-white">{exportOutput?.label || 'Plate export'}</h3>
+          <p className="text-white-50 mb-0 small">
+            {exportOutput?.description || ''}
+            {exportOutput?.layerSummary ? ` · ${exportOutput.layerSummary}` : ''}
+            {exportOutput && !exportOutput.ready ? ' · paste KLE data to generate' : ''}
+          </p>
+        </Card.Header>
+        <Card.Body
+          className="bg-dark p-4"
+          style={{ height: "30vh", minHeight: "250px" }}
+          dangerouslySetInnerHTML={{ __html: exportOutput?.ready ? exportOutput.previewSvg : '' }}
+        />
+        <Card.Footer>
+          {exportOutput?.ready && exportOutput.dxf ? (
+            <Button
+              variant="light"
+              className="me-3"
+              onClick={() => { downloadExport(exportOutput.dxf, ".dxf") }}
+            >
+              Download DXF
+            </Button>
+          ) : (
+            <Button variant="light" className="me-3" disabled>Download DXF</Button>
+          )}
+          {exportOutput?.ready && exportOutput.svg ? (
+            <Button
+              variant="light"
+              onClick={() => { downloadExport(exportOutput.svg, ".svg") }}
+            >
+              Download SVG
+            </Button>
+          ) : (
+            <Button variant="light" disabled>Download SVG</Button>
+          )}
+        </Card.Footer>
+      </Card>
 
 
 

@@ -97,11 +97,14 @@ export const switchFamilies = [
         id: 'betterfit',
         label: 'Better fit',
         hotswapStampId: 'mx-hotswap-betterfit',
+        // DXF layer for the Link (secondary) plate hotswap geometry
+        hotswapLayerName: 'Link-MX_HOTSWAP_BF',
       },
       {
         id: 'tight',
         label: 'Tight',
         hotswapStampId: 'mx-hotswap-tight',
+        hotswapLayerName: 'Link-MX_HOTSWAP_TIGHT',
       },
     ],
     defaultFitId: 'betterfit',
@@ -112,7 +115,7 @@ export const switchFamilies = [
   // {
   //   id: 'choc',
   //   label: 'Kailh Choc',
-  //   description: 'Coming later — enable supportsMirror + fits when stamps land',
+  //   description: 'Coming later — Link-* layers for Choc hotswap + related stamps',
   //   fits: [],
   //   defaultFitId: null,
   //   disabled: true,
@@ -121,15 +124,22 @@ export const switchFamilies = [
 ]
 
 /**
- * Multi-layer export assemblies for the 3D-print workflow.
+ * Single multi-layer export: all geometry in one DXF/SVG, different layer names.
  *
- * SwitchPlate = original switch cutouts + back cut + switchplace extrude
- * MXPlate     = selected MX hotswap stamp + hole cuts
+ * Top-*  = primary / switch-plate related
+ * Link-* = secondary plate (named "Link" so it can be MX now, Choc later)
  *
- * FUTURE — Kailh Choc: add a ChocPlate (or rename MXPlate generically) assembly
- * with Choc hotswap + related stamps; keep SwitchPlate structure.
+ * Layers:
+ *   Top-SWITCH_PLATE  — original switch/stab/acoustic cutouts + bounding box
+ *   Top-Dots          — former switchplace extrude
+ *   Link-BACK_CUT
+ *   Link-HOLE_CUTS
+ *   Link-MX_HOTSWAP_BF | Link-MX_HOTSWAP_TIGHT  — selected hotswap fit
+ *   CONSTRUCTION      — registration marks (once)
+ *
+ * FUTURE — Kailh Choc: add Link-CHOC_* (or similar) layers; keep Top-* + one download.
  */
-export function getExportAssemblies(switchFamilyId, fitId) {
+export function getExportAssembly(switchFamilyId, fitId) {
   const family = switchFamilies.find(f => f.id === switchFamilyId) || switchFamilies[0]
   const fit = (family?.fits || []).find(f => f.id === fitId)
     || (family?.fits || []).find(f => f.id === family?.defaultFitId)
@@ -138,55 +148,54 @@ export function getExportAssemblies(switchFamilyId, fitId) {
   const backCut = stampOrNull('back-cut', 'Back cut', 'Back-side cut stamp')
   const switchplace = stampOrNull(
     'switchplace-extrude',
-    'Switchplace extrude',
-    'Switch placement / extrude stamp'
+    'Top Dots',
+    'Switchplace / dots stamp (Top-Dots layer)'
   )
   const holeCuts = stampOrNull('hole-cuts', 'Hole cuts', 'Hole cut stamp')
+  const hotswapLayer = fit?.hotswapLayerName || 'Link-MX_HOTSWAP'
   const hotswap = fit?.hotswapStampId
     ? stampOrNull(
       fit.hotswapStampId,
-      `MX Hotswap (${fit.label})`,
+      `Hotswap (${fit.label})`,
       `Hotswap socket — ${fit.label.toLowerCase()} clearance`
     )
     : null
 
-  const assemblies = []
+  const stamps = [
+    hotswap && { ...hotswap, modelKey: 'LinkHotswap', layerName: hotswapLayer },
+    holeCuts && { ...holeCuts, modelKey: 'LinkHoleCuts', layerName: 'Link-HOLE_CUTS' },
+    backCut && { ...backCut, modelKey: 'LinkBackCut', layerName: 'Link-BACK_CUT' },
+    switchplace && { ...switchplace, modelKey: 'TopDots', layerName: 'Top-Dots' },
+  ].filter(Boolean)
 
-  // Part 1: Switch Plate (main cutouts + back cut + switchplace extrude)
-  assemblies.push({
-    id: 'SwitchPlate',
-    label: 'Switch Plate',
-    description: 'Main switch cutouts, back cut, and switchplace extrude (multi-layer DXF)',
+  const layerList = [
+    'Top-SWITCH_PLATE',
+    'Top-Dots',
+    'Link-BACK_CUT',
+    'Link-HOLE_CUTS',
+    hotswapLayer,
+    'CONSTRUCTION',
+  ]
+
+  return {
+    id: 'FullExport',
+    label: 'Plate export',
+    description: 'All drawings in one file on separate layers (Top + Link + CONSTRUCTION)',
     includeMainPlate: true,
-    mainPlateLayerName: 'SWITCH_PLATE',
-    stamps: [
-      backCut && { ...backCut, modelKey: 'BackCut', layerName: 'BACK_CUT' },
-      switchplace && { ...switchplace, modelKey: 'SwitchplaceExtrude', layerName: 'SWITCHPLACE_EXTRUDE' },
-    ].filter(Boolean),
-    layerSummary: 'SWITCH_PLATE · BACK_CUT · SWITCHPLACE_EXTRUDE · CONSTRUCTION',
-  })
-
-  // Part 2: MX Plate (hotswap + hole cuts) — rename path when Choc lands
-  assemblies.push({
-    id: 'MXPlate',
-    label: 'MX Plate',
-    description: `Hotswap (${fit?.label || 'fit'}) and hole cuts (multi-layer DXF)`,
-    includeMainPlate: false,
-    stamps: [
-      hotswap && { ...hotswap, modelKey: 'MXHotswap', layerName: hotswap.layerName || 'MX_HOTSWAP' },
-      holeCuts && { ...holeCuts, modelKey: 'HoleCuts', layerName: 'HOLE_CUTS' },
-    ].filter(Boolean),
-    layerSummary: `${hotswap?.layerName || 'HOTSWAP'} · HOLE_CUTS · CONSTRUCTION`,
-  })
-
-  return assemblies
+    mainPlateLayerName: 'Top-SWITCH_PLATE',
+    stamps,
+    layerSummary: layerList.join(' · '),
+  }
 }
 
-/** Short summary of what will be exported (for UI helper text). */
+/** @deprecated use getExportAssembly — kept as thin wrapper for callers */
+export function getExportAssemblies(switchFamilyId, fitId) {
+  return [getExportAssembly(switchFamilyId, fitId)]
+}
+
+/** Short summary of layers for UI helper text. */
 export function getExportSummary(switchFamilyId, fitId) {
-  return getExportAssemblies(switchFamilyId, fitId)
-    .map(a => a.label)
-    .join(' · ')
+  return getExportAssembly(switchFamilyId, fitId)?.layerSummary || '—'
 }
 
 export const defaultSwitchFamilyId = switchFamilies[0]?.id || 'mx'

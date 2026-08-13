@@ -213,8 +213,8 @@ function stripRegistration(model) {
 }
 
 /**
- * Build a multi-layer export assembly (e.g. SwitchPlate or MXPlate).
- * @param {object} assembly - from getExportAssemblies()
+ * Build one multi-layer export (all drawings, separate DXF layers).
+ * @param {object} assembly - from getExportAssembly()
  * @param {Array} keysArray - parsed KLE keys
  * @param {object} generatorOptions
  * @param {object|null} mainPlateModel - buildPlate() result when includeMainPlate
@@ -231,8 +231,8 @@ export function buildExportAssembly(assembly, keysArray, generatorOptions, mainP
       return null
     }
     const plate = stripRegistration(mainPlateModel)
-    applyLayer(plate, assembly.mainPlateLayerName || 'SWITCH_PLATE')
-    canvas.models.SwitchCutouts = plate
+    applyLayer(plate, assembly.mainPlateLayerName || 'Top-SWITCH_PLATE')
+    canvas.models.TopSwitchPlate = plate
   }
 
   for (const stamp of assembly.stamps || []) {
@@ -246,11 +246,12 @@ export function buildExportAssembly(assembly, keysArray, generatorOptions, mainP
       stamp.layerName,
       false
     )
-    // Model key safe for DXF nesting
+    // Model key safe for DXF nesting (layer name is what CAM cares about)
     const key = stamp.modelKey || stamp.id.replace(/[^a-zA-Z0-9_]/g, '_')
     canvas.models[key] = stampModel
   }
 
+  // Single registration set — never duplicate as CONSTRUCTION (1)
   const reg = getRegistrationCenter(generatorOptions)
   canvas.models.Registration = buildRegistrationMark('CONSTRUCTION', reg.x, reg.y)
 
@@ -288,13 +289,13 @@ export function sanitizeFilenamePart(value, fallback = 'Untitled') {
 }
 
 /**
- * Download name: Title.PartName.unique.ext
- * e.g. Macropad.SwitchPlate.lm9k2a.dxf
+ * Download name: Title.unique.ext
+ * e.g. Macropad.lm9k2a.dxf
+ * Unique suffix is generated per click so re-downloads never collide.
  */
-export function makeDownloadFilename(keyboardTitle, partName, extension) {
+export function makeDownloadFilename(keyboardTitle, extension) {
   const title = sanitizeFilenamePart(keyboardTitle, 'Untitled')
-  const part = sanitizeFilenamePart(partName, 'Part')
   const unique = Date.now().toString(36)
   const ext = extension.startsWith('.') ? extension : `.${extension}`
-  return `${title}.${part}.${unique}${ext}`
+  return `${title}.${unique}${ext}`
 }
