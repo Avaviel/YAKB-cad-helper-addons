@@ -38,6 +38,8 @@ function App() {
   // Other plate parts: switch family + fit selectors; always export the full stamp set
   const [stampSwitchFamily, setStampSwitchFamily] = useState(defaultSwitchFamilyId)
   const [stampFit, setStampFit] = useState(defaultFitId)
+  // Left-right mirror of stamp geometry only (registration stays at absolute X/Y)
+  const [mirrorStamps, setMirrorStamps] = useState(false)
   const [otherPartOutputs, setOtherPartOutputs] = useState([])
   // Registration mark center in millimeters (strings so users can type "-" / intermediate values)
   const [registrationX, setRegistrationX] = useState('-100')
@@ -117,6 +119,7 @@ function App() {
       unitHeight: new Decimal(unitHeight),
       registrationX: new Decimal(parseRegCoord(registrationX)),
       registrationY: new Decimal(parseRegCoord(registrationY)),
+      mirrorStamps: !!mirrorStamps,
     }
 
     const parts = getPartsForSelection(stampSwitchFamily, stampFit)
@@ -155,6 +158,7 @@ function App() {
     unitHeight,
     stampSwitchFamily,
     stampFit,
+    mirrorStamps,
     registrationX,
     registrationY,
   ])
@@ -412,6 +416,25 @@ function App() {
                     <Form.Text className="text-muted">
                       Clearance for the MX hotswap socket stamp only.
                     </Form.Text>
+                  </Col>
+                </Row>
+                <Row>
+                  <Col md={12} className="mb-3">
+                    <Form.Check
+                      type="checkbox"
+                      id="mirror-stamps"
+                      checked={mirrorStamps}
+                      onChange={e => setMirrorStamps(e.target.checked)}
+                      label={
+                        <span>
+                          <strong>Mirror stamps</strong>
+                          <span className="text-muted">
+                            {' '}— left-right flip of stamp geometry (hotswap, hole cuts, etc.).
+                            Registration marks stay at the X/Y below so layers still align.
+                          </span>
+                        </span>
+                      }
+                    />
                   </Col>
                 </Row>
                 <Row>

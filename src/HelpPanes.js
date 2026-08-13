@@ -175,6 +175,10 @@ export function RegistrationHelpPane() {
                 If your CAM software ignores non-cutting layers, put the mark on a construction/guide layer
                 (this tool already labels it <code>CONSTRUCTION</code>).
             </p>
+            <p>
+                <strong>Mirror stamps</strong> only flips stamp cut geometry left-right.
+                Registration marks are never mirrored, so multi-layer alignment still matches the same X/Y.
+            </p>
         </div>
     )
 }

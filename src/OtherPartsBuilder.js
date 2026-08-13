@@ -111,9 +111,23 @@ function applyLayer(model, layerName) {
  *
  * Always appends a registration X on the CONSTRUCTION layer so each stamp
  * export is alignable on its own. Position comes from generatorOptions.
+ *
+ * Optional generatorOptions.mirrorStamps: left-right mirror of stamp geometry only
+ * (makerjs mirror about Y axis). Registration marks are NEVER mirrored — they stay
+ * at the absolute (registrationX, registrationY) position so layers still align.
+ *
+ * FUTURE (Kailh Choc): when Choc hotswap / related stamps are added, they must use
+ * this same mirrorStamps option and the same registration non-mirror rule.
  */
 export function buildStampPart(stampData, keysArray, generatorOptions, layerName) {
-  const template = stampJsonToModel(stampData, layerName)
+  let template = stampJsonToModel(stampData, layerName)
+
+  // Left-right flip of the stamp pattern (not registration)
+  if (generatorOptions && generatorOptions.mirrorStamps) {
+    template = makerjs.model.mirror(template, true, false)
+    applyLayer(template, layerName)
+  }
+
   const canvas = { models: {} }
   let id = 0
 
@@ -147,7 +161,8 @@ export function buildStampPart(stampData, keysArray, generatorOptions, layerName
   // Stamp geometry on its own layer…
   applyLayer(canvas, layerName)
 
-  // …then add registration marks (do not paint them with the stamp layer name)
+  // …then add registration marks (do not paint them with the stamp layer name;
+  // do not mirror — absolute position for multi-layer alignment)
   const reg = getRegistrationCenter(generatorOptions)
   canvas.models.Registration = buildRegistrationMark('CONSTRUCTION', reg.x, reg.y)
 

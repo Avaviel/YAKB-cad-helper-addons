@@ -2,6 +2,12 @@
 // such as "stamps tools") and builds stamp catalogs for the other-parts UI.
 // Stamp conversion tools live under stamps/stamps tools/ and must not be imported.
 // Registration is never a UI option (it is embedded in CAD exports only).
+//
+// Mirror option (App → Other plate parts → Mirror stamps):
+//   Left-right flips stamp geometry only. Registration marks stay at absolute X/Y.
+// FUTURE — Kailh Choc: when Choc stamps / hotswap variants are added, wire them
+// through the same switchFamilies + fits model AND keep the mirrorStamps option
+// (Choc will need the same left-right flip control as MX).
 
 function filenameToId(filename) {
   return filename
@@ -75,6 +81,10 @@ function stampOrNull(id, labelOverride, descriptionOverride) {
  * Switch families available in the other-parts selector.
  * Always-on stamps (back cut, hole cuts, switchplace extrude) export for every family.
  * Hotswap fit chooses which MX hotswap stamp is included.
+ *
+ * FUTURE — Kailh Choc: add a family entry with fits + hotswapStampId values, and ensure
+ * the UI Mirror stamps toggle still applies (same generatorOptions.mirrorStamps path).
+ * Registration must remain non-mirrored for Choc stamps as well.
  */
 export const switchFamilies = [
   {
@@ -95,15 +105,18 @@ export const switchFamilies = [
       },
     ],
     defaultFitId: 'betterfit',
+    // Stamps that were authored reversed and corrected in JSON; mirror toggle still useful
+    supportsMirror: true,
   },
   // Placeholder for future Kailh Choc support (not selectable until stamps exist)
   // {
   //   id: 'choc',
   //   label: 'Kailh Choc',
-  //   description: 'Coming later',
+  //   description: 'Coming later — enable supportsMirror + fits when stamps land',
   //   fits: [],
   //   defaultFitId: null,
   //   disabled: true,
+  //   supportsMirror: true, // REQUIRED when Choc is enabled
   // },
 ]
 
