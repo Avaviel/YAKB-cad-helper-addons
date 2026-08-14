@@ -1,13 +1,15 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Button, Container, Card, Form, Row, Col, Image, Tab, Nav } from 'react-bootstrap'
-import { parseKle, readLayerNotes, writeLayerNotes } from "./KLEParser"
-import { buildPlate } from "./PlateBuilder"
+import { parseKle, readKleLayerState, writeKleLayerState } from "./KLEParser"
+import { buildPlate, zoneOutlineDefaults } from "./PlateBuilder"
 import {
   switchFamilies,
   defaultSwitchFamilyId,
   defaultFitId,
   getExportAssembly,
   getExportSummary,
+  defaultShellFromPlate,
+  defaultShellFromSelf,
 } from "./otherPartsConfig"
 import {
   buildExportAssembly,
@@ -28,6 +30,7 @@ function App() {
   // Keyboard title used in download filenames (e.g. Macropad.lm9k2a.dxf)
   const [keyboardTitle, setKeyboardTitle] = useState("Keyboard")
   const [layerNotes, setLayerNotes] = useState({})
+  const [layerOutlines, setLayerOutlines] = useState({})
 
   const [switchCutoutType, setSwitchCutoutType] = useState("mx-basic")
   const [stabilizerCutoutType, setStabilizerCutoutType] = useState("mx-basic")
@@ -51,6 +54,19 @@ function App() {
 
   const selectedFamily = switchFamilies.find(f => f.id === stampSwitchFamily) || switchFamilies[0]
   const exportSummary = getExportSummary(stampSwitchFamily, stampFit)
+  const exportAssembly = getExportAssembly(stampSwitchFamily, stampFit)
+  const zoneDefaults = useMemo(() => {
+    const parsed = parseKle(kleText)
+    return zoneOutlineDefaults((parsed && parsed.outlines) || [])
+  }, [kleText])
+
+  const outlineField = (id, field, fallback) => {
+    const saved = layerOutlines[id]
+    if (saved && saved[field] != null && saved[field] !== "") {
+      return saved[field]
+    }
+    return fallback
+  }
 
   // Build one multi-layer DXF/SVG: Top + Link layers (no registration)
   useEffect(() => {
@@ -70,6 +86,8 @@ function App() {
       mirrorStamps: !!mirrorStamps,
       outlines,
       layerNotes,
+      layerOutlines,
+      skipEmbeddedOutlines: true,
     }
 
     const assembly = getExportAssembly(stampSwitchFamily, stampFit)
@@ -122,6 +140,7 @@ function App() {
     stampFit,
     mirrorStamps,
     layerNotes,
+    layerOutlines,
   ])
 
 
@@ -130,21 +149,38 @@ function App() {
     fileDownload(fileData, filename)
   }
 
+  const persistLayerState = (notes, outlines) => {
+    const written = writeKleLayerState(kleText, { notes, outlines })
+    if (written != null) {
+      setKleText(written)
+    }
+  }
+
   const handleKleTextChange = (text) => {
-    const parsed = readLayerNotes(text)
-    if (parsed && Object.keys(parsed).length) {
-      setLayerNotes(parsed)
+    const parsed = readKleLayerState(text)
+    if (!parsed) {
       setKleText(text)
       return
     }
-    if (parsed && Object.keys(layerNotes).length) {
-      const written = writeLayerNotes(text, layerNotes)
+    const hasNotes = Object.keys(parsed.notes).length
+    const hasOutlines = Object.keys(parsed.outlines).length
+    if (hasNotes || hasOutlines) {
+      if (hasNotes) {
+        setLayerNotes(parsed.notes)
+      }
+      if (hasOutlines) {
+        setLayerOutlines(parsed.outlines)
+      }
+      setKleText(text)
+      return
+    }
+    if (Object.keys(layerNotes).length || Object.keys(layerOutlines).length) {
+      const written = writeKleLayerState(text, { notes: layerNotes, outlines: layerOutlines })
       setKleText(written != null ? written : text)
       return
     }
-    if (parsed) {
-      setLayerNotes({})
-    }
+    setLayerNotes({})
+    setLayerOutlines({})
     setKleText(text)
   }
 
@@ -156,10 +192,19 @@ function App() {
       delete next[id]
     }
     setLayerNotes(next)
-    const written = writeLayerNotes(kleText, next)
-    if (written != null) {
-      setKleText(written)
+    persistLayerState(next, layerOutlines)
+  }
+
+  const handleLayerOutlineChange = (id, field, value) => {
+    const next = {
+      ...layerOutlines,
+      [id]: {
+        ...(layerOutlines[id] || {}),
+        [field]: value,
+      },
     }
+    setLayerOutlines(next)
+    persistLayerState(layerNotes, next)
   }
 
   const handleStampFamilyChange = (familyId) => {
@@ -384,8 +429,9 @@ function App() {
               <h3>Other plate parts</h3>
               <p className="mb-3">
                 One multi-layer DXF/SVG with all drawings on separate layers.
-                <strong> Top-*</strong> = switch plate related;
-                <strong> Link-*</strong> = secondary plate (MX now; Choc later).
+                <strong> Top-*</strong> = switch plate;
+                <strong> Link-*</strong> = attachment plate;
+                <strong> Shell</strong> = case outline (offset from the plate, then from itself).
               </p>
               <Form className="ms-3 me-3 text-start">
                 <Row>
@@ -442,28 +488,86 @@ function App() {
                   </Col>
                 </Row>
                 <div className="mt-3 mb-2">
-                  <h5 style={{ textTransform: "none" }}>Layer notes</h5>
+                  <h5 style={{ textTransform: "none" }}>Outlines and layer notes</h5>
                   <p className="text-muted small">
-                    Extra text per export layer (for example <code>cut 1.5mm</code> or <code>extrude 0.6</code>).
-                    Saved into the KLE box as <code>_layerNotes</code>, appended to the DXF/SVG layer name,
-                    and drawn at the bottom-left of that layer. Leave empty for now if you do not have the numbers yet.
+                    Grouped the same way as the DXF layer names. Offset and rounding are in mm.
+                    Shell starts <strong>{defaultShellFromPlate} mm</strong> out from the plate outline, then
+                    another <strong>{defaultShellFromSelf} mm</strong> from itself (inner + outer).
+                    The note box is optional (<code>cut 1.5mm</code>, <code>extrude 2mm</code>); when filled it is
+                    saved in the KLE data, drawn at the bottom-left of that layer, and appended to the layer name.
                   </p>
-                  {(getExportAssembly(stampSwitchFamily, stampFit).noteFields || []).map(group => (
-                    <div key={group.group} className="mb-3">
+                  {(exportAssembly.layerGroups || []).map(group => (
+                    <div key={group.group} className="mb-4">
                       <div className="fw-bold mb-2">{group.group}</div>
                       {group.layers.map(layer => (
-                        <Form.Group className="mb-2" key={layer.id}>
-                          <Form.Label className="mb-1">
-                            <code>{layer.label}</code>
-                          </Form.Label>
+                        <div key={layer.id} className="border rounded p-2 mb-2">
+                          <div className="mb-2"><code>{layer.label}</code></div>
+                          {layer.outlineKind === "shell" ? (
+                            <Row className="g-2 mb-2">
+                              <Col md={4}>
+                                <Form.Label className="mb-1">Offset from plate (mm)</Form.Label>
+                                <Form.Control
+                                  type="number"
+                                  step="0.1"
+                                  value={outlineField(layer.id, "fromPlate", defaultShellFromPlate)}
+                                  onChange={e => handleLayerOutlineChange(layer.id, "fromPlate", e.target.value)}
+                                  aria-label={`${layer.id}-from-plate`}
+                                />
+                              </Col>
+                              <Col md={4}>
+                                <Form.Label className="mb-1">Offset from self (mm)</Form.Label>
+                                <Form.Control
+                                  type="number"
+                                  step="0.1"
+                                  value={outlineField(layer.id, "fromSelf", defaultShellFromSelf)}
+                                  onChange={e => handleLayerOutlineChange(layer.id, "fromSelf", e.target.value)}
+                                  aria-label={`${layer.id}-from-self`}
+                                />
+                              </Col>
+                              <Col md={4}>
+                                <Form.Label className="mb-1">Rounding (mm)</Form.Label>
+                                <Form.Control
+                                  type="number"
+                                  step="0.1"
+                                  value={outlineField(layer.id, "fillet", zoneDefaults.fillet)}
+                                  onChange={e => handleLayerOutlineChange(layer.id, "fillet", e.target.value)}
+                                  aria-label={`${layer.id}-fillet`}
+                                />
+                              </Col>
+                            </Row>
+                          ) : (
+                            <Row className="g-2 mb-2">
+                              <Col md={6}>
+                                <Form.Label className="mb-1">Offset (mm)</Form.Label>
+                                <Form.Control
+                                  type="number"
+                                  step="0.1"
+                                  value={outlineField(layer.id, "offset", zoneDefaults.offset)}
+                                  onChange={e => handleLayerOutlineChange(layer.id, "offset", e.target.value)}
+                                  aria-label={`${layer.id}-offset`}
+                                />
+                              </Col>
+                              <Col md={6}>
+                                <Form.Label className="mb-1">Rounding (mm)</Form.Label>
+                                <Form.Control
+                                  type="number"
+                                  step="0.1"
+                                  value={outlineField(layer.id, "fillet", zoneDefaults.fillet)}
+                                  onChange={e => handleLayerOutlineChange(layer.id, "fillet", e.target.value)}
+                                  aria-label={`${layer.id}-fillet`}
+                                />
+                              </Col>
+                            </Row>
+                          )}
+                          <Form.Label className="mb-1">Note</Form.Label>
                           <Form.Control
                             type="text"
                             value={layerNotes[layer.id] || ""}
-                            placeholder="e.g. cut 1.5mm"
+                            placeholder="e.g. extrude 2mm"
                             onChange={e => handleLayerNoteChange(layer.id, e.target.value)}
                             aria-label={`layer-note-${layer.id}`}
                           />
-                        </Form.Group>
+                        </div>
                       ))}
                     </div>
                   ))}

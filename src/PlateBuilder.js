@@ -181,14 +181,40 @@ function offsetPolygon(pts, dist) {
     return out
 }
 
-function addZoneOutlines(canvas, generatorOptions) {
-    const outlines = generatorOptions && generatorOptions.outlines
+function toNum(v, fallback = 0) {
+    if (v == null || v === "") {
+        return fallback
+    }
+    if (typeof v.toNumber === "function") {
+        const n = v.toNumber()
+        return Number.isFinite(n) ? n : fallback
+    }
+    const n = Number(v)
+    return Number.isFinite(n) ? n : fallback
+}
+
+export function zoneOutlineDefaults(outlines) {
+    const first = (outlines && outlines[0]) || {}
+    return {
+        offset: toNum(first.offset, 16),
+        fillet: toNum(first.fillet, 6),
+    }
+}
+
+/**
+ * Build island outlines. offset/fillet overrides apply to every zone;
+ * otherwise each zone uses its KLE _zones values.
+ */
+export function buildOutlineModel(outlines, generatorOptions, options = {}) {
     if (!outlines || !outlines.length) {
-        return false
+        return null
     }
 
-    const unitWidth = generatorOptions.unitWidth
-    const unitHeight = generatorOptions.unitHeight
+    const unitWidth = generatorOptions && generatorOptions.unitWidth
+    const unitHeight = generatorOptions && generatorOptions.unitHeight
+    const unitNum = toNum(unitWidth, 19.05)
+    const heightNum = toNum(unitHeight, 19.05)
+    const canvas = { models: {} }
     let drew = false
 
     for (const outline of outlines) {
@@ -198,27 +224,27 @@ function addZoneOutlines(canvas, generatorOptions) {
         }
 
         let pts = verts.map(v => ({
-            x: Number(v.centerX != null ? v.centerX : v.x),
-            y: Number(v.centerY != null ? v.centerY : v.y),
-        }))
+            x: toNum(v.centerX != null ? v.centerX : v.x),
+            y: toNum(v.centerY != null ? v.centerY : v.y),
+        })).filter(p => Number.isFinite(p.x) && Number.isFinite(p.y))
+        if (pts.length < 2) {
+            continue
+        }
         if (outline.shape !== "path") {
             pts = concaveHull(pts, 3)
         }
-        const offsetMm = Number(outline.offset) || 0
-        const unitNum = (unitWidth && typeof unitWidth.toNumber === "function")
-            ? unitWidth.toNumber()
-            : (Number(unitWidth) || 19.05)
+        const offsetMm = options.offset != null ? toNum(options.offset, 0) : toNum(outline.offset, 0)
         pts = offsetPolygon(pts, offsetMm / unitNum)
 
         const points = pts.map(p => [
-            new Decimal(p.x).times(unitWidth).toNumber(),
-            new Decimal(p.y).times(unitHeight).times(-1).toNumber(),
+            new Decimal(p.x).times(unitNum).toNumber(),
+            new Decimal(p.y).times(heightNum).times(-1).toNumber(),
         ])
         const paths = {}
         for (let i = 0; i < points.length; i++) {
             paths["edge" + i] = new makerjs.paths.Line(points[i], points[(i + 1) % points.length])
         }
-        const fillet = Number(outline.fillet) || 0
+        const fillet = options.fillet != null ? toNum(options.fillet, 0) : toNum(outline.fillet, 0)
         if (fillet > 0 && points.length >= 3) {
             const names = Object.keys(paths)
             for (let i = 0; i < names.length; i++) {
@@ -236,7 +262,16 @@ function addZoneOutlines(canvas, generatorOptions) {
         drew = true
     }
 
-    return drew
+    return drew ? canvas : null
+}
+
+function addZoneOutlines(canvas, generatorOptions) {
+    const model = buildOutlineModel(generatorOptions && generatorOptions.outlines, generatorOptions)
+    if (!model) {
+        return false
+    }
+    Object.assign(canvas.models, model.models)
+    return true
 }
 
 export function buildPlate(keysArray, generatorOptions) {
@@ -384,7 +419,10 @@ export function buildPlate(keysArray, generatorOptions) {
         id += 1
     }
 
-    const drewZones = addZoneOutlines(canvas, generatorOptions)
+    const hasZones = generatorOptions.outlines && generatorOptions.outlines.length
+    const drewZones = generatorOptions.skipEmbeddedOutlines
+        ? !!hasZones
+        : addZoneOutlines(canvas, generatorOptions)
     if (!drewZones) {
         // Fallback: one axis-aligned box around every key
         let upperLeft = [minX.toNumber(), maxY.times(-1).toNumber()]

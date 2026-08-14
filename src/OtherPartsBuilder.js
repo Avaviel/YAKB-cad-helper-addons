@@ -1,6 +1,8 @@
 import makerjs from 'makerjs'
 import Decimal from 'decimal.js'
 import { annotatedLayerName, strokeTextModel } from './strokeText'
+import { buildOutlineModel, zoneOutlineDefaults } from './PlateBuilder'
+import { defaultShellFromPlate, defaultShellFromSelf } from './otherPartsConfig'
 
 /**
  * Convert a stamp JSON document into a maker.js model.
@@ -255,9 +257,89 @@ export function buildExportAssembly(assembly, keysArray, generatorOptions, mainP
 
   // No CONSTRUCTION / registration — all layers share the same origin already.
 
+  attachLayerOutlines(canvas, assembly, generatorOptions)
   applyLayerNotes(canvas, generatorOptions && generatorOptions.layerNotes, assembly)
 
   return canvas
+}
+
+function layerOutlineValues(layerOutlines, id, zoneDefaults) {
+  const saved = (layerOutlines && layerOutlines[id]) || {}
+  const offset = saved.offset != null && saved.offset !== "" ? Number(saved.offset) : zoneDefaults.offset
+  const fillet = saved.fillet != null && saved.fillet !== "" ? Number(saved.fillet) : zoneDefaults.fillet
+  return {
+    offset: Number.isFinite(offset) ? offset : zoneDefaults.offset,
+    fillet: Number.isFinite(fillet) ? fillet : zoneDefaults.fillet,
+  }
+}
+
+function attachOutlineToModel(target, outlines, generatorOptions, offset, fillet, layerName) {
+  if (!target) {
+    return
+  }
+  const outline = buildOutlineModel(outlines, generatorOptions, { offset, fillet })
+  if (!outline) {
+    return
+  }
+  applyLayer(outline, layerName)
+  if (!target.models) {
+    target.models = {}
+  }
+  target.models.LayerOutline = outline
+}
+
+function attachLayerOutlines(canvas, assembly, generatorOptions) {
+  const outlines = (generatorOptions && generatorOptions.outlines) || []
+  if (!outlines.length) {
+    return
+  }
+  const layerOutlines = (generatorOptions && generatorOptions.layerOutlines) || {}
+  const zoneDefaults = zoneOutlineDefaults(outlines)
+
+  if (canvas.models.TopSwitchPlate) {
+    const { offset, fillet } = layerOutlineValues(layerOutlines, "Top-SWITCH_PLATE", zoneDefaults)
+    attachOutlineToModel(
+      canvas.models.TopSwitchPlate,
+      outlines,
+      generatorOptions,
+      offset,
+      fillet,
+      assembly.mainPlateLayerName || "Top-SWITCH_PLATE"
+    )
+  }
+
+  for (const stamp of (assembly && assembly.stamps) || []) {
+    if (!stamp.hasOutline) {
+      continue
+    }
+    const model = canvas.models[stamp.modelKey || stamp.id]
+    const id = stamp.noteId || stamp.layerName
+    const { offset, fillet } = layerOutlineValues(layerOutlines, id, zoneDefaults)
+    attachOutlineToModel(model, outlines, generatorOptions, offset, fillet, stamp.layerName)
+  }
+
+  const plate = layerOutlineValues(layerOutlines, "Top-SWITCH_PLATE", zoneDefaults)
+  const shellSaved = layerOutlines.Shell || {}
+  const fromPlate = Number(shellSaved.fromPlate)
+  const fromSelf = Number(shellSaved.fromSelf)
+  const shellFillet = Number(shellSaved.fillet)
+  const innerOff = plate.offset + (Number.isFinite(fromPlate) ? fromPlate : defaultShellFromPlate)
+  const outerOff = innerOff + (Number.isFinite(fromSelf) ? fromSelf : defaultShellFromSelf)
+  const fillet = Number.isFinite(shellFillet) ? shellFillet : zoneDefaults.fillet
+  const inner = buildOutlineModel(outlines, generatorOptions, { offset: innerOff, fillet })
+  const outer = buildOutlineModel(outlines, generatorOptions, { offset: outerOff, fillet })
+  if (!inner && !outer) {
+    return
+  }
+  const shell = { models: {} }
+  if (inner) {
+    shell.models.Inner = inner
+  }
+  if (outer) {
+    shell.models.Outer = outer
+  }
+  applyLayer(shell, "Shell")
+  canvas.models.Shell = shell
 }
 
 function noteForLayer(layerNotes, noteId, layerName) {
@@ -289,6 +371,13 @@ export function applyLayerNotes(canvas, layerNotes, assembly) {
       modelKey: stamp.modelKey || stamp.id,
       noteId: stamp.noteId || stamp.layerName,
       layerName: stamp.layerName,
+    })
+  }
+  if (canvas.models.Shell) {
+    pairs.push({
+      modelKey: "Shell",
+      noteId: "Shell",
+      layerName: "Shell",
     })
   }
 

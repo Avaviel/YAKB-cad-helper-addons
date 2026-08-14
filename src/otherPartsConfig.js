@@ -162,10 +162,10 @@ export function getExportAssembly(switchFamilyId, fitId) {
     : null
 
   const stamps = [
-    hotswap && { ...hotswap, modelKey: 'LinkHotswap', layerName: hotswapLayer, noteId: 'Link-MX_HOTSWAP' },
-    holeCuts && { ...holeCuts, modelKey: 'LinkHoleCuts', layerName: 'Link-HOLE_CUTS', noteId: 'Link-HOLE_CUTS' },
-    backCut && { ...backCut, modelKey: 'LinkBackCut', layerName: 'Link-BACK_CUT', noteId: 'Link-BACK_CUT' },
-    switchplace && { ...switchplace, modelKey: 'TopDots', layerName: 'Top-Dots', noteId: 'Top-Dots' },
+    hotswap && { ...hotswap, modelKey: 'LinkHotswap', layerName: hotswapLayer, noteId: 'Link-MX_HOTSWAP', hasOutline: true },
+    holeCuts && { ...holeCuts, modelKey: 'LinkHoleCuts', layerName: 'Link-HOLE_CUTS', noteId: 'Link-HOLE_CUTS', hasOutline: true },
+    backCut && { ...backCut, modelKey: 'LinkBackCut', layerName: 'Link-BACK_CUT', noteId: 'Link-BACK_CUT', hasOutline: true },
+    switchplace && { ...switchplace, modelKey: 'TopDots', layerName: 'Top-Dots', noteId: 'Top-Dots', hasOutline: true },
   ].filter(Boolean)
 
   const layerList = [
@@ -174,35 +174,45 @@ export function getExportAssembly(switchFamilyId, fitId) {
     'Link-BACK_CUT',
     'Link-HOLE_CUTS',
     hotswapLayer,
+    'Shell',
   ]
 
   return {
     id: 'FullExport',
     label: 'Plate export',
-    description: 'All drawings in one multi-layer DXF/SVG (Top + Link layers)',
+    description: 'All drawings in one multi-layer DXF/SVG (Top + Link + Shell)',
     includeMainPlate: true,
     mainPlateLayerName: 'Top-SWITCH_PLATE',
     stamps,
     layerSummary: layerList.join(' · '),
-    noteFields: [
+    layerGroups: [
       {
-        group: 'Switch plate',
+        group: 'Top',
         layers: [
-          { id: 'Top-SWITCH_PLATE', layerName: 'Top-SWITCH_PLATE', label: 'Top-SWITCH_PLATE' },
-          { id: 'Top-Dots', layerName: 'Top-Dots', label: 'Top-Dots' },
+          { id: 'Top-SWITCH_PLATE', layerName: 'Top-SWITCH_PLATE', label: 'Top-SWITCH_PLATE', outlineKind: 'plate' },
+          { id: 'Top-Dots', layerName: 'Top-Dots', label: 'Top-Dots', outlineKind: 'plate' },
         ],
       },
       {
-        group: 'Attachment plate',
+        group: 'Link',
         layers: [
-          { id: 'Link-HOLE_CUTS', layerName: 'Link-HOLE_CUTS', label: 'Link-HOLE_CUTS' },
-          { id: 'Link-BACK_CUT', layerName: 'Link-BACK_CUT', label: 'Link-BACK_CUT' },
-          { id: 'Link-MX_HOTSWAP', layerName: hotswapLayer, label: hotswapLayer },
+          { id: 'Link-HOLE_CUTS', layerName: 'Link-HOLE_CUTS', label: 'Link-HOLE_CUTS', outlineKind: 'plate' },
+          { id: 'Link-BACK_CUT', layerName: 'Link-BACK_CUT', label: 'Link-BACK_CUT', outlineKind: 'plate' },
+          { id: 'Link-MX_HOTSWAP', layerName: hotswapLayer, label: hotswapLayer, outlineKind: 'plate' },
+        ],
+      },
+      {
+        group: 'Shell',
+        layers: [
+          { id: 'Shell', layerName: 'Shell', label: 'Shell', outlineKind: 'shell' },
         ],
       },
     ],
   }
 }
+
+export const defaultShellFromPlate = 0.5
+export const defaultShellFromSelf = 5
 
 /** @deprecated use getExportAssembly — kept as thin wrapper for callers */
 export function getExportAssemblies(switchFamilyId, fitId) {

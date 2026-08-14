@@ -113,6 +113,7 @@ export function parseKle(kleText) {
     const outlineVerts = []
     let zoneSettings = {}
     let layerNotes = {}
+    let layerOutlines = {}
 
     // The parsing bracket will be surrounded by a try-catch to expect malformed data
 
@@ -129,6 +130,9 @@ export function parseKle(kleText) {
                     }
                     if (row._layerNotes && typeof row._layerNotes === "object") {
                         layerNotes = row._layerNotes
+                    }
+                    if (row._layerOutlines && typeof row._layerOutlines === "object") {
+                        layerOutlines = row._layerOutlines
                     }
                 }
                 continue
@@ -300,7 +304,7 @@ export function parseKle(kleText) {
         })
 
     // Parsing complete
-    return { keys, outlines, zoneSettings, layerNotes }
+    return { keys, outlines, zoneSettings, layerNotes, layerOutlines }
 
 }
 
@@ -319,25 +323,41 @@ function tryParseKleArray(kleText) {
     return null
 }
 
-export function readLayerNotes(kleText) {
+function kleMeta(parsed) {
+    return parsed.data.find(row => row && typeof row === "object" && !Array.isArray(row)) || null
+}
+
+export function readKleLayerState(kleText) {
     const parsed = tryParseKleArray(kleText)
     if (!parsed) {
         return null
     }
-    const meta = parsed.data.find(row => row && typeof row === "object" && !Array.isArray(row))
-    if (!meta || !meta._layerNotes || typeof meta._layerNotes !== "object") {
-        return {}
-    }
+    const meta = kleMeta(parsed) || {}
     const notes = {}
-    for (const [key, value] of Object.entries(meta._layerNotes)) {
-        if (value != null && String(value).trim()) {
-            notes[key] = String(value)
+    if (meta._layerNotes && typeof meta._layerNotes === "object") {
+        for (const [key, value] of Object.entries(meta._layerNotes)) {
+            if (value != null && String(value).trim()) {
+                notes[key] = String(value)
+            }
         }
     }
-    return notes
+    const outlines = {}
+    if (meta._layerOutlines && typeof meta._layerOutlines === "object") {
+        for (const [key, value] of Object.entries(meta._layerOutlines)) {
+            if (value && typeof value === "object") {
+                outlines[key] = { ...value }
+            }
+        }
+    }
+    return { notes, outlines }
 }
 
-export function writeLayerNotes(kleText, notes) {
+export function readLayerNotes(kleText) {
+    const state = readKleLayerState(kleText)
+    return state ? state.notes : null
+}
+
+export function writeKleLayerState(kleText, state) {
     const parsed = tryParseKleArray(kleText)
     if (!parsed) {
         return null
@@ -348,20 +368,36 @@ export function writeLayerNotes(kleText, notes) {
         meta = {}
         data.unshift(meta)
     }
-    const cleaned = {}
-    for (const [key, value] of Object.entries(notes || {})) {
+    const notes = {}
+    for (const [key, value] of Object.entries((state && state.notes) || {})) {
         if (value != null && String(value).trim()) {
-            cleaned[key] = String(value)
+            notes[key] = String(value)
         }
     }
-    if (Object.keys(cleaned).length) {
-        meta._layerNotes = cleaned
+    if (Object.keys(notes).length) {
+        meta._layerNotes = notes
     } else {
         delete meta._layerNotes
+    }
+    const outlines = {}
+    for (const [key, value] of Object.entries((state && state.outlines) || {})) {
+        if (value && typeof value === "object") {
+            outlines[key] = { ...value }
+        }
+    }
+    if (Object.keys(outlines).length) {
+        meta._layerOutlines = outlines
+    } else {
+        delete meta._layerOutlines
     }
     const pretty = JSON.stringify(data, null, 2)
     if (parsed.stripped) {
         return pretty.replace(/^\[/, "").replace(/\]\s*$/, "")
     }
     return pretty
+}
+
+export function writeLayerNotes(kleText, notes) {
+    const current = readKleLayerState(kleText) || { notes: {}, outlines: {} }
+    return writeKleLayerState(kleText, { notes, outlines: current.outlines })
 }

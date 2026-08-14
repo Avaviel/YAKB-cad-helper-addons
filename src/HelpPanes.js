@@ -48,9 +48,15 @@ export function DataHelpPane() {
             <h4 style={{ textTransform: "lowercase" }}>_layerNotes</h4>
             <p>Value type: Object (layer id → text)</p>
             <p>
-                Operator notes for each export layer (for example <code>cut 1.5mm</code>).
+                Operator notes for each export layer (for example <code>cut 1.5mm</code> or <code>extrude 2mm</code>).
                 Edited under Other plate parts. Not a switch hole.
                 Written onto that DXF/SVG layer (name suffix + text at the bottom-left).
+            </p>
+            <h4 style={{ textTransform: "lowercase" }}>_layerOutlines</h4>
+            <p>Value type: Object (layer id → offset / rounding)</p>
+            <p>
+                Per-layer outline offset and rounding in mm. Grouped as Top, Link, and Shell.
+                Shell uses <code>fromPlate</code> (default 0.5) then <code>fromSelf</code> (default 5).
             </p>
         </div>
     )
