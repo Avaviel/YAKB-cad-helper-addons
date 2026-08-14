@@ -420,6 +420,30 @@ export function applyLayerNotes(canvas, layerNotes, assembly) {
   return canvas
 }
 
+const previewGroupKeys = {
+  top: ["TopSwitchPlate", "TopDots"],
+  link: ["LinkHotswap", "LinkHoleCuts", "LinkBackCut"],
+  shell: ["Shell"],
+}
+
+/** Build a read-only subset of the assembly for a preview pane. */
+export function previewSubset(model, groups) {
+  if (!model || !model.models) {
+    return null
+  }
+  const keys = (groups || []).flatMap(group => previewGroupKeys[group] || [])
+  const models = {}
+  for (const key of keys) {
+    if (model.models[key]) {
+      models[key] = model.models[key]
+    }
+  }
+  if (!Object.keys(models).length) {
+    return null
+  }
+  return { models }
+}
+
 /**
  * Export a maker.js model to preview SVG, download SVG, and DXF strings.
  */

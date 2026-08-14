@@ -14,6 +14,7 @@ import {
 import {
   buildExportAssembly,
   exportOtherPart,
+  previewSubset,
   makeDownloadFilename,
   sanitizeFilenamePart,
 } from "./OtherPartsBuilder"
@@ -51,6 +52,7 @@ function App() {
   const [mirrorStamps, setMirrorStamps] = useState(false)
   // Single full export (preview + dxf + svg)
   const [exportOutput, setExportOutput] = useState(null)
+  const [previewMode, setPreviewMode] = useState("together")
 
   const selectedFamily = switchFamilies.find(f => f.id === stampSwitchFamily) || switchFamilies[0]
   const exportSummary = getExportSummary(stampSwitchFamily, stampFit)
@@ -107,12 +109,16 @@ function App() {
       const mainPlateModel = buildPlate(kleReturn, generatorOptions)
       const model = buildExportAssembly(assembly, kleReturn, generatorOptions, mainPlateModel)
       const exported = exportOtherPart(model)
+      const topShell = exportOtherPart(previewSubset(model, ["top", "shell"]))
+      const linkOnly = exportOtherPart(previewSubset(model, ["link"]))
       setExportOutput({
         id: assembly.id,
         label: assembly.label,
         description: assembly.description,
         layerSummary: assembly.layerSummary,
         ...(exported || {}),
+        previewTopShell: topShell && topShell.previewSvg,
+        previewLink: linkOnly && linkOnly.previewSvg,
         ready: !!exported,
       })
     } catch (error) {
@@ -205,6 +211,10 @@ function App() {
     }
     setLayerOutlines(next)
     persistLayerState(layerNotes, next)
+  }
+
+  const cyclePreviewMode = () => {
+    setPreviewMode(previewMode === "split" ? "together" : "split")
   }
 
   const handleStampFamilyChange = (familyId) => {
@@ -422,6 +432,77 @@ function App() {
         </Card.Body>
       </Card>
 
+      <Card className="p-0 rounded shadow bg-dark mb-5 overflow-hidden">
+        <Card.Header className="d-flex flex-wrap align-items-start justify-content-between gap-2">
+          <div>
+            <h3 className="mt-2 text-white">{exportOutput?.label || 'Plate export'}</h3>
+            <p className="text-white-50 mb-0 small">
+              {exportOutput?.description || ''}
+              {exportOutput?.layerSummary ? ` · ${exportOutput.layerSummary}` : ''}
+              {exportOutput && !exportOutput.ready ? ' · paste KLE data to generate' : ''}
+            </p>
+          </div>
+          <Button
+            variant="outline-light"
+            size="sm"
+            className="mt-2"
+            onClick={cyclePreviewMode}
+            title="Together shows every layer. Split shows Top+Shell beside Link. Download is always the full file."
+          >
+            Preview: {previewMode === "split" ? "Split" : "Together"}
+          </Button>
+        </Card.Header>
+        {previewMode === "split" ? (
+          <Card.Body className="bg-dark p-3">
+            <Row>
+              <Col lg={6} className="mb-3 mb-lg-0">
+                <div className="text-white-50 small mb-2">Top + Shell</div>
+                <div
+                  style={{ height: "30vh", minHeight: "250px" }}
+                  dangerouslySetInnerHTML={{ __html: exportOutput?.ready ? (exportOutput.previewTopShell || '') : '' }}
+                />
+              </Col>
+              <Col lg={6}>
+                <div className="text-white-50 small mb-2">Link</div>
+                <div
+                  style={{ height: "30vh", minHeight: "250px" }}
+                  dangerouslySetInnerHTML={{ __html: exportOutput?.ready ? (exportOutput.previewLink || '') : '' }}
+                />
+              </Col>
+            </Row>
+          </Card.Body>
+        ) : (
+          <Card.Body
+            className="bg-dark p-4"
+            style={{ height: "30vh", minHeight: "250px" }}
+            dangerouslySetInnerHTML={{ __html: exportOutput?.ready ? exportOutput.previewSvg : '' }}
+          />
+        )}
+        <Card.Footer>
+          {exportOutput?.ready && exportOutput.dxf ? (
+            <Button
+              variant="light"
+              className="me-3"
+              onClick={() => { downloadExport(exportOutput.dxf, ".dxf") }}
+            >
+              Download DXF
+            </Button>
+          ) : (
+            <Button variant="light" className="me-3" disabled>Download DXF</Button>
+          )}
+          {exportOutput?.ready && exportOutput.svg ? (
+            <Button
+              variant="light"
+              onClick={() => { downloadExport(exportOutput.svg, ".svg") }}
+            >
+              Download SVG
+            </Button>
+          ) : (
+            <Button variant="light" disabled>Download SVG</Button>
+          )}
+        </Card.Footer>
+      </Card>
+
       <Card className="rounded shadow overflow-hidden mb-5">
         <Card.Body>
           <Row>
@@ -582,47 +663,6 @@ function App() {
           </Row>
         </Card.Body>
       </Card>
-
-      <Card className="p-0 rounded shadow bg-dark mb-5 overflow-hidden">
-        <Card.Header>
-          <h3 className="mt-2 text-white">{exportOutput?.label || 'Plate export'}</h3>
-          <p className="text-white-50 mb-0 small">
-            {exportOutput?.description || ''}
-            {exportOutput?.layerSummary ? ` · ${exportOutput.layerSummary}` : ''}
-            {exportOutput && !exportOutput.ready ? ' · paste KLE data to generate' : ''}
-          </p>
-        </Card.Header>
-        <Card.Body
-          className="bg-dark p-4"
-          style={{ height: "30vh", minHeight: "250px" }}
-          dangerouslySetInnerHTML={{ __html: exportOutput?.ready ? exportOutput.previewSvg : '' }}
-        />
-        <Card.Footer>
-          {exportOutput?.ready && exportOutput.dxf ? (
-            <Button
-              variant="light"
-              className="me-3"
-              onClick={() => { downloadExport(exportOutput.dxf, ".dxf") }}
-            >
-              Download DXF
-            </Button>
-          ) : (
-            <Button variant="light" className="me-3" disabled>Download DXF</Button>
-          )}
-          {exportOutput?.ready && exportOutput.svg ? (
-            <Button
-              variant="light"
-              onClick={() => { downloadExport(exportOutput.svg, ".svg") }}
-            >
-              Download SVG
-            </Button>
-          ) : (
-            <Button variant="light" disabled>Download SVG</Button>
-          )}
-        </Card.Footer>
-      </Card>
-
-
 
       <Card className="rounded shadow overflow-hidden mb-5" >
 
