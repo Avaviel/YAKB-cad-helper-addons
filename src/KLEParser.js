@@ -102,6 +102,7 @@ export function parseKle(kleText) {
     let cadZone = 0
     let cadIndex = 0
     const outlineVerts = []
+    let zoneSettings = {}
 
     // The parsing bracket will be surrounded by a try-catch to expect malformed data
 
@@ -109,6 +110,14 @@ export function parseKle(kleText) {
 
         // Begin parse
         for (const row of kleData) {
+
+            // First object (not an array) is KLE keyboard metadata
+            if (!Array.isArray(row)) {
+                if (row && typeof row === "object" && row._zones) {
+                    zoneSettings = row._zones
+                }
+                continue
+            }
 
             for (const element of row) {
 
@@ -257,12 +266,16 @@ export function parseKle(kleText) {
     const outlines = Object.keys(byZone)
         .map(z => Number(z))
         .sort((a, b) => a - b)
-        .map(zone => ({
-            zone,
-            vertices: byZone[zone].slice().sort((a, b) => a.index - b.index),
-        }))
+        .map(zone => {
+            const settings = (zoneSettings && (zoneSettings[zone] || zoneSettings[String(zone)])) || {}
+            return {
+                zone,
+                fillet: Number(settings.fillet) || 0,
+                vertices: byZone[zone].slice().sort((a, b) => a.index - b.index),
+            }
+        })
 
     // Parsing complete
-    return { keys, outlines }
+    return { keys, outlines, zoneSettings }
 
 }
