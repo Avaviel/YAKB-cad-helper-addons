@@ -163,6 +163,34 @@ export function RegistrationHelpPane() {
     )
 }
 
+export function CompanionPane() {
+
+    return (
+        <div>
+            <h2>KLE CAD</h2>
+            <p>
+                Draw the keyboard and plate-outline corners in
+                {' '}<strong>KLE CAD</strong>, then paste the raw data into this page.
+                This site turns that into switch plates and stamp layers for 3D-printed hotswap builds.
+            </p>
+            <p>
+                Official keyboard-layout-editor.com will not accept the CAD zone fields
+                {' '}(<code>_z</code>, <code>_zi</code>, <code>_zones</code>).
+                Without those fields a layout should still load there, but this pair is meant to work together.
+            </p>
+            <div className="cad-companion">
+                <a href="https://avaviel.github.io/keyboard-layout-editor-CAD/" target="_blank" rel="noopener noreferrer">KLE CAD</a>
+                <span className="arrow" aria-hidden="true">→</span>
+                <a className="here" href="https://avaviel.github.io/YAKB-cad-helper-addons/" target="_blank" rel="noopener noreferrer">This site</a>
+                <span className="arrow" aria-hidden="true">→</span>
+                <a href="https://github.com/Avaviel/YAKB-cad-helper-addons" target="_blank" rel="noopener noreferrer">Source</a>
+                <span className="arrow" aria-hidden="true">→</span>
+                <a href="https://github.com/Avaviel/keyboard-layout-editor-CAD" target="_blank" rel="noopener noreferrer">KLE CAD source</a>
+            </div>
+        </div>
+    )
+}
+
 export function AboutPane() {
 
     return (

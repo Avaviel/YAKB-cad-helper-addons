@@ -2,26 +2,22 @@
   text-align: center;
 }
 
-.cad-site-links {
-  background: #fff8e1;
-  border-bottom: 2px solid #f0ad4e;
-  padding: 8px 12px;
-  text-align: center;
-  font-size: 14px;
-  line-height: 1.6;
+.cad-companion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 0;
+  margin-top: 1rem;
+  padding: 12px 14px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  background: #f8f9fa;
+  text-align: left;
   text-transform: none;
   letter-spacing: normal;
 }
 
-.cad-site-links-inner {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 6px 0;
-}
-
-.cad-site-links a {
+.cad-companion a {
   display: inline-block;
   padding: 4px 12px;
   border: 1px solid #0d6efd;
@@ -32,21 +28,21 @@
   text-decoration: none;
 }
 
-.cad-site-links a:hover {
+.cad-companion a:hover {
   background: #e7f1fa;
 }
 
-.cad-site-links a.here {
+.cad-companion a.here {
   background: #0d6efd;
   color: #fff;
 }
 
-.cad-site-links a.here:hover {
+.cad-companion a.here:hover {
   background: #0b5ed7;
   color: #fff;
 }
 
-.cad-site-links .arrow {
+.cad-companion .arrow {
   display: inline-block;
   margin: 0 10px;
   font-weight: 700;

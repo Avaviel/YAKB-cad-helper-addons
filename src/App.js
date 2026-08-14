@@ -19,7 +19,7 @@ import Decimal from "decimal.js"
 import fileDownload from 'js-file-download'
 import logo from './logo.png'
 import './App.css'
-import { DataHelpPane, SwitchCutoutPane, OtherCutoutPane, AdvancedPane, RegistrationHelpPane, AboutPane } from './HelpPanes'
+import { DataHelpPane, SwitchCutoutPane, OtherCutoutPane, AdvancedPane, RegistrationHelpPane, CompanionPane, AboutPane } from './HelpPanes'
 
 
 function App() {
@@ -139,16 +139,6 @@ function App() {
 
 
   return (
-    <>
-    <div className="cad-site-links">
-      <div className="cad-site-links-inner">
-        <a className="here" href="https://avaviel.github.io/YAKB-cad-helper-addons/" target="_blank" rel="noopener noreferrer">This site: YAKB CAD Helper</a>
-        <span className="arrow" aria-hidden="true">→</span>
-        <a href="https://avaviel.github.io/keyboard-layout-editor-CAD/" target="_blank" rel="noopener noreferrer">KLE CAD</a>
-        <span className="arrow" aria-hidden="true">→</span>
-        <a href="https://github.com/Avaviel/YAKB-cad-helper-addons" target="_blank" rel="noopener noreferrer">Source</a>
-      </div>
-    </div>
     <Container className="App justify-content-center" style={{ textAlign: "center" }}>
 
       <div className="pt-4 pb-4">
@@ -489,6 +479,9 @@ function App() {
                   <Nav.Link eventKey="registration">Registration marks</Nav.Link>
                 </Nav.Item>
                 <Nav.Item className="me-0">
+                  <Nav.Link eventKey="companion">KLE CAD</Nav.Link>
+                </Nav.Item>
+                <Nav.Item className="me-0">
                   <Nav.Link eventKey="about">About</Nav.Link>
                 </Nav.Item>
               </Nav>
@@ -510,6 +503,9 @@ function App() {
                 <Tab.Pane eventKey="registration" style={{ textAlign: "left" }}>
                   <RegistrationHelpPane />
                 </Tab.Pane>
+                <Tab.Pane eventKey="companion" style={{ textAlign: "left" }}>
+                  <CompanionPane />
+                </Tab.Pane>
                 <Tab.Pane eventKey="about" style={{ textAlign: "left" }}>
                   <AboutPane />
                 </Tab.Pane>
@@ -527,7 +523,6 @@ function App() {
 
 
     </Container>
-    </>
   );
 }
 
