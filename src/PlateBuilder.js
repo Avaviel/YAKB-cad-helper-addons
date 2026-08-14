@@ -22,48 +22,6 @@ import { AcousticMXBasic } from './cutouts/AcousticMXBasic'
 import { AcousticMXExtreme } from './cutouts/AcousticMXExtreme'
 
 
-function rotatePoint(x, y, ox, oy, deg) {
-    if (!deg) {
-        return { x, y }
-    }
-    const rad = (deg * Math.PI) / 180
-    const dx = x - ox
-    const dy = y - oy
-    return {
-        x: ox + dx * Math.cos(rad) - dy * Math.sin(rad),
-        y: oy + dx * Math.sin(rad) + dy * Math.cos(rad),
-    }
-}
-
-function vertexBoxCorners(vert) {
-    const x = Number(vert.x)
-    const y = Number(vert.y)
-    const w = Number(vert.width || 0.5)
-    const h = Number(vert.height || 0.5)
-    const ox = Number(vert.rotx || 0)
-    const oy = Number(vert.roty || 0)
-    const ang = Number(vert.angle || 0)
-    return [
-        rotatePoint(x, y, ox, oy, ang),
-        rotatePoint(x + w, y, ox, oy, ang),
-        rotatePoint(x + w, y + h, ox, oy, ang),
-        rotatePoint(x, y + h, ox, oy, ang),
-    ]
-}
-
-function farthestFrom(pts, cx, cy) {
-    let best = pts[0]
-    let bestD = -1
-    for (const p of pts) {
-        const d = (p.x - cx) * (p.x - cx) + (p.y - cy) * (p.y - cy)
-        if (d > bestD) {
-            bestD = d
-            best = p
-        }
-    }
-    return best
-}
-
 function offsetPolygon(pts, dist) {
     if (!dist || pts.length < 2) {
         return pts
