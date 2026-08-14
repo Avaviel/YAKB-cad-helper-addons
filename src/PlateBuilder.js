@@ -61,6 +61,71 @@ function convexHull(pts) {
     return lower.concat(upper)
 }
 
+function pointInPoly(p, poly) {
+    let inside = false
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const xi = poly[i].x, yi = poly[i].y, xj = poly[j].x, yj = poly[j].y
+        if (((yi > p.y) !== (yj > p.y)) && (p.x < (xj - xi) * (p.y - yi) / ((yj - yi) || 1e-12) + xi)) {
+            inside = !inside
+        }
+    }
+    return inside
+}
+
+function concaveHull(pts, maxEdge = 3) {
+    const hull = convexHull(pts)
+    if (hull.length < 3) {
+        return hull
+    }
+    const pid = p => `${Math.round(p.x * 100)}:${Math.round(p.y * 100)}`
+    const used = {}
+    hull.forEach(p => { used[pid(p)] = true })
+    const interior = pts.filter(p => !used[pid(p)])
+    let guard = 0
+    while (interior.length && guard++ < pts.length * 5) {
+        let bestI = -1
+        let bestJ = -1
+        let bestScore = Infinity
+        for (let i = 0; i < hull.length; i++) {
+            const a = hull[i]
+            const b = hull[(i + 1) % hull.length]
+            const abx = b.x - a.x
+            const aby = b.y - a.y
+            const elen = Math.hypot(abx, aby)
+            if (elen < maxEdge) {
+                continue
+            }
+            for (let j = 0; j < interior.length; j++) {
+                const p = interior[j]
+                if (!pointInPoly(p, hull)) {
+                    continue
+                }
+                const t = ((p.x - a.x) * abx + (p.y - a.y) * aby) / (elen * elen || 1)
+                if (t <= 0.08 || t >= 0.92) {
+                    continue
+                }
+                const qx = a.x + t * abx
+                const qy = a.y + t * aby
+                const d = Math.hypot(p.x - qx, p.y - qy)
+                if (d > elen * 0.7) {
+                    continue
+                }
+                if (d < bestScore) {
+                    bestScore = d
+                    bestI = i
+                    bestJ = j
+                }
+            }
+        }
+        if (bestI < 0) {
+            break
+        }
+        hull.splice(bestI + 1, 0, interior[bestJ])
+        interior.splice(bestJ, 1)
+    }
+    return hull
+}
+
 function offsetPolygon(pts, dist) {
     if (!dist || pts.length < 2) {
         return pts
@@ -137,7 +202,7 @@ function addZoneOutlines(canvas, generatorOptions) {
             y: Number(v.centerY != null ? v.centerY : v.y),
         }))
         if (outline.shape !== "path") {
-            pts = convexHull(pts)
+            pts = concaveHull(pts, 3)
         }
         const offsetMm = Number(outline.offset) || 0
         const unitNum = (unitWidth && typeof unitWidth.toNumber === "function")
