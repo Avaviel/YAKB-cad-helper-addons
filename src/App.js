@@ -18,6 +18,7 @@ import {
   makeDownloadFilename,
   sanitizeFilenamePart,
 } from "./OtherPartsBuilder"
+import { annotatedLayerName } from "./strokeText"
 import Decimal from "decimal.js"
 import fileDownload from 'js-file-download'
 import logo from './logo.png'
@@ -109,6 +110,8 @@ function App() {
       const mainPlateModel = buildPlate(kleReturn, generatorOptions)
       const model = buildExportAssembly(assembly, kleReturn, generatorOptions, mainPlateModel)
       const exported = exportOtherPart(model)
+      const topOnly = exportOtherPart(previewSubset(model, ["top"]))
+      const shellOnly = exportOtherPart(previewSubset(model, ["shell"]))
       const topShell = exportOtherPart(previewSubset(model, ["top", "shell"]))
       const linkOnly = exportOtherPart(previewSubset(model, ["link"]))
       setExportOutput({
@@ -117,6 +120,8 @@ function App() {
         description: assembly.description,
         layerSummary: assembly.layerSummary,
         ...(exported || {}),
+        previewTop: topOnly && topOnly.previewSvg,
+        previewShell: shellOnly && shellOnly.previewSvg,
         previewTopShell: topShell && topShell.previewSvg,
         previewLink: linkOnly && linkOnly.previewSvg,
         ready: !!exported,
@@ -214,8 +219,10 @@ function App() {
   }
 
   const cyclePreviewMode = () => {
-    setPreviewMode(previewMode === "split" ? "together" : "split")
+    setPreviewMode(previewMode === "together" ? "split" : previewMode === "split" ? "layers" : "together")
   }
+
+  const previewModeLabel = previewMode === "layers" ? "Layers" : previewMode === "split" ? "Split" : "Together"
 
   const handleStampFamilyChange = (familyId) => {
     setStampSwitchFamily(familyId)
@@ -447,36 +454,39 @@ function App() {
             size="sm"
             className="mt-2"
             onClick={cyclePreviewMode}
-            title="Together shows every layer. Split shows Top+Shell beside Link. Download is always the full file."
+            title="Together: all layers. Split: Top+Shell then Link. Layers: Top, Link, and Shell each in their own pane. Download is always the full file."
           >
-            Preview: {previewMode === "split" ? "Split" : "Together"}
+            Preview: {previewModeLabel}
           </Button>
         </Card.Header>
-        {previewMode === "split" ? (
-          <Card.Body className="bg-dark p-3">
-            <Row>
-              <Col lg={6} className="mb-3 mb-lg-0">
-                <div className="text-white-50 small mb-2">Top + Shell</div>
-                <div
-                  style={{ height: "30vh", minHeight: "250px" }}
-                  dangerouslySetInnerHTML={{ __html: exportOutput?.ready ? (exportOutput.previewTopShell || '') : '' }}
-                />
-              </Col>
-              <Col lg={6}>
-                <div className="text-white-50 small mb-2">Link</div>
-                <div
-                  style={{ height: "30vh", minHeight: "250px" }}
-                  dangerouslySetInnerHTML={{ __html: exportOutput?.ready ? (exportOutput.previewLink || '') : '' }}
-                />
-              </Col>
-            </Row>
-          </Card.Body>
-        ) : (
+        {previewMode === "together" ? (
           <Card.Body
             className="bg-dark p-4"
-            style={{ height: "30vh", minHeight: "250px" }}
+            style={{ height: "36vh", minHeight: "280px" }}
             dangerouslySetInnerHTML={{ __html: exportOutput?.ready ? exportOutput.previewSvg : '' }}
           />
+        ) : (
+          <Card.Body className="bg-dark p-3">
+            {(previewMode === "split"
+              ? [
+                  { title: "Top + Shell", svg: exportOutput?.previewTopShell },
+                  { title: "Link", svg: exportOutput?.previewLink },
+                ]
+              : [
+                  { title: "Top", svg: exportOutput?.previewTop },
+                  { title: "Link", svg: exportOutput?.previewLink },
+                  { title: "Shell", svg: exportOutput?.previewShell },
+                ]
+            ).map(pane => (
+              <div key={pane.title} className="mb-4">
+                <div className="text-white-50 small mb-2">{pane.title}</div>
+                <div
+                  style={{ height: "32vh", minHeight: "260px" }}
+                  dangerouslySetInnerHTML={{ __html: exportOutput?.ready ? (pane.svg || '') : '' }}
+                />
+              </div>
+            ))}
+          </Card.Body>
         )}
         <Card.Footer>
           {exportOutput?.ready && exportOutput.dxf ? (
@@ -582,7 +592,12 @@ function App() {
                       <div className="fw-bold mb-2">{group.group}</div>
                       {group.layers.map(layer => (
                         <div key={layer.id} className="border rounded p-2 mb-2">
-                          <div className="mb-2"><code>{layer.label}</code></div>
+                          <div
+                            className="mb-2"
+                            style={{ color: "#212529", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", fontWeight: 600 }}
+                          >
+                            {annotatedLayerName(layer.label, layerNotes[layer.id])}
+                          </div>
                           {layer.outlineKind === "shell" ? (
                             <Row className="g-2 mb-2">
                               <Col md={4}>
