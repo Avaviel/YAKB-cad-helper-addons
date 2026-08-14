@@ -17,7 +17,11 @@ Not just a generic plate tool — it’s specifically to make **hotswap + 3D-pri
 
 ## Try it live
 
-**https://avaviel.github.io/YAKB-cad-helper-addons/**
+**This site:** https://avaviel.github.io/YAKB-cad-helper-addons/
+
+**Source:** https://github.com/Avaviel/YAKB-cad-helper-addons
+
+**Companion layout editor (KLE CAD):** https://avaviel.github.io/keyboard-layout-editor-CAD/
 
 (Upstream live demo of the original plategen: [kbplate.ai03.me](https://kbplate.ai03.me/))
 

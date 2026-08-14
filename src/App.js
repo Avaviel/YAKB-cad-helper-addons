@@ -152,8 +152,15 @@ function App() {
           {' '}<strong>hotswap sockets</strong>. Based on the ai03 Plate Generator (YAKB) for accurate MX cutouts,
           with extra stamp layers aimed at printed builds.
         </p>
-        <p className="text-muted mb-0" style={{ maxWidth: "720px", margin: "0 auto" }}>
+        <p className="text-muted mb-2" style={{ maxWidth: "720px", margin: "0 auto" }}>
           <strong>MX</strong> hotswap support is available now. <strong>Kailh Choc</strong> support is planned for a future update.
+        </p>
+        <p className="mb-0" style={{ maxWidth: "720px", margin: "0 auto" }}>
+          <a href="https://github.com/Avaviel/YAKB-cad-helper-addons">Source on GitHub</a>
+          {' · '}
+          <a href="https://avaviel.github.io/YAKB-cad-helper-addons/">This site</a>
+          {' · '}
+          <a href="https://avaviel.github.io/keyboard-layout-editor-CAD/">KLE CAD</a>
         </p>
       </div>
 
