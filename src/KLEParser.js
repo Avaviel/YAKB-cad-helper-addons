@@ -2,6 +2,20 @@ import Decimal from "decimal.js";
 import json5 from "json5";
 import { Key } from './Key'
 
+// KLE raw data emits _zones:{1:{...}} — JSON5 cannot use bare numeric keys.
+function quoteNumericKeys(text) {
+    return String(text || "").replace(/([{,]\s*)(\d+)\s*:/g, '$1"$2":')
+}
+
+function parseKleJson(kleText) {
+    const src = quoteNumericKeys(kleText)
+    try {
+        return { data: json5.parse(src), stripped: false }
+    } catch (error) {
+        return { data: json5.parse("[" + src + "]"), stripped: true }
+    }
+}
+
 export function parseKle(kleText) {
 
 
@@ -15,19 +29,14 @@ export function parseKle(kleText) {
     let kleData = null
 
     try {
-        kleData = json5.parse(kleText)
-        console.log("Parsed KLE data as json5: no-bracket (likely from downloaded JSON file")
-    } catch (error) {
-        console.log("No-bracket was unparseable, trying with brackets added")
-
-        try {
-            kleData = json5.parse('[' + kleText + ']')
-            console.log("Parsed KLE data as json5: with-bracket (likely pasted from the Raw Data tab)")
-        } catch (error) {
-            console.log("No-bracket was unparseable, giving up")
-            return null
+        kleData = parseKleJson(kleText).data
+        if (!Array.isArray(kleData)) {
+            kleData = [kleData]
         }
-
+        console.log("Parsed KLE data as json5")
+    } catch (error) {
+        console.log("KLE data was unparseable, giving up")
+        return null
     }
 
 
@@ -300,17 +309,9 @@ function tryParseKleArray(kleText) {
         return null
     }
     try {
-        const data = json5.parse(kleText)
-        if (Array.isArray(data)) {
-            return { data, stripped: false }
-        }
-    } catch (error) {
-        // try raw-data form
-    }
-    try {
-        const data = json5.parse("[" + kleText + "]")
-        if (Array.isArray(data)) {
-            return { data, stripped: true }
+        const parsed = parseKleJson(kleText)
+        if (Array.isArray(parsed.data)) {
+            return parsed
         }
     } catch (error) {
         return null

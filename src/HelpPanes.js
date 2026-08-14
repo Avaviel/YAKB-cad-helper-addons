@@ -36,7 +36,7 @@ export function DataHelpPane() {
             </p>
             <br />
             <h3>Outline corners (from KLE CAD)</h3>
-            <p>In <a href="https://avaviel.github.io/keyboard-layout-editor-CAD/" target="_blank" rel="noreferrer">KLE CAD</a>, use <strong>Add Corner</strong> and set each marker&apos;s zone. Corners are not switch holes. Official keyboard-layout-editor.com will not accept these CAD fields.</p>
+            <p>In <a href="https://avaviel.github.io/keyboard-layout-editor-CAD/" target="_blank" rel="noreferrer">KLE CAD</a>, use <strong>Add Corner</strong> and set each marker&apos;s zone. Corners are not switch holes. Official keyboard-layout-editor.com will not accept these CAD fields. Paste KLE CAD Raw data here as-is (including <code>_zones</code>).</p>
             <h4 style={{ textTransform: "lowercase" }}>_z</h4>
             <p>Value type: Numerical (zone number, 1+)</p>
             <p>Outline island / segment. All corners with the same zone are connected in order.</p>
