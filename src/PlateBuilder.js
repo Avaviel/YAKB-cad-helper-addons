@@ -22,6 +22,103 @@ import { AcousticMXBasic } from './cutouts/AcousticMXBasic'
 import { AcousticMXExtreme } from './cutouts/AcousticMXExtreme'
 
 
+function rotatePoint(x, y, ox, oy, deg) {
+    if (!deg) {
+        return { x, y }
+    }
+    const rad = (deg * Math.PI) / 180
+    const dx = x - ox
+    const dy = y - oy
+    return {
+        x: ox + dx * Math.cos(rad) - dy * Math.sin(rad),
+        y: oy + dx * Math.sin(rad) + dy * Math.cos(rad),
+    }
+}
+
+function vertexBoxCorners(vert) {
+    const x = Number(vert.x)
+    const y = Number(vert.y)
+    const w = Number(vert.width || 0.5)
+    const h = Number(vert.height || 0.5)
+    const ox = Number(vert.rotx || 0)
+    const oy = Number(vert.roty || 0)
+    const ang = Number(vert.angle || 0)
+    return [
+        rotatePoint(x, y, ox, oy, ang),
+        rotatePoint(x + w, y, ox, oy, ang),
+        rotatePoint(x + w, y + h, ox, oy, ang),
+        rotatePoint(x, y + h, ox, oy, ang),
+    ]
+}
+
+function farthestFrom(pts, cx, cy) {
+    let best = pts[0]
+    let bestD = -1
+    for (const p of pts) {
+        const d = (p.x - cx) * (p.x - cx) + (p.y - cy) * (p.y - cy)
+        if (d > bestD) {
+            bestD = d
+            best = p
+        }
+    }
+    return best
+}
+
+function offsetPolygon(pts, dist) {
+    if (!dist || pts.length < 2) {
+        return pts
+    }
+    const n = pts.length
+    let cx = 0
+    let cy = 0
+    for (const p of pts) {
+        cx += p.x
+        cy += p.y
+    }
+    cx /= n
+    cy /= n
+    const out = []
+    for (let i = 0; i < n; i++) {
+        const prev = pts[(i + n - 1) % n]
+        const cur = pts[i]
+        const next = pts[(i + 1) % n]
+        let n1x = cur.y - prev.y
+        let n1y = prev.x - cur.x
+        let n2x = next.y - cur.y
+        let n2y = cur.x - next.x
+        const m1x = (prev.x + cur.x) / 2
+        const m1y = (prev.y + cur.y) / 2
+        if ((m1x - cx) * n1x + (m1y - cy) * n1y < 0) {
+            n1x = -n1x
+            n1y = -n1y
+        }
+        const m2x = (cur.x + next.x) / 2
+        const m2y = (cur.y + next.y) / 2
+        if ((m2x - cx) * n2x + (m2y - cy) * n2y < 0) {
+            n2x = -n2x
+            n2y = -n2y
+        }
+        const l1 = Math.hypot(n1x, n1y) || 1
+        const l2 = Math.hypot(n2x, n2y) || 1
+        n1x /= l1
+        n1y /= l1
+        n2x /= l2
+        n2y /= l2
+        let bx = n1x + n2x
+        let by = n1y + n2y
+        const bl = Math.hypot(bx, by)
+        if (bl < 1e-6) {
+            out.push({ x: cur.x + n1x * dist, y: cur.y + n1y * dist })
+            continue
+        }
+        bx /= bl
+        by /= bl
+        const miter = dist / Math.max(0.25, n1x * bx + n1y * by)
+        out.push({ x: cur.x + bx * miter, y: cur.y + by * miter })
+    }
+    return out
+}
+
 function addZoneOutlines(canvas, generatorOptions) {
     const outlines = generatorOptions && generatorOptions.outlines
     if (!outlines || !outlines.length) {
@@ -37,9 +134,32 @@ function addZoneOutlines(canvas, generatorOptions) {
         if (verts.length < 2) {
             continue
         }
-        const points = verts.map(v => [
-            v.x.times(unitWidth).toNumber(),
-            v.y.times(unitHeight).times(-1).toNumber(),
+
+        let cx = 0
+        let cy = 0
+        let count = 0
+        const boxed = verts.map(v => {
+            const corners = vertexBoxCorners(v)
+            for (const c of corners) {
+                cx += c.x
+                cy += c.y
+                count++
+            }
+            return corners
+        })
+        cx /= count
+        cy /= count
+
+        let pts = boxed.map(corners => farthestFrom(corners, cx, cy))
+        const offsetMm = Number(outline.offset) || 0
+        const unitNum = (unitWidth && typeof unitWidth.toNumber === "function")
+            ? unitWidth.toNumber()
+            : (Number(unitWidth) || 19.05)
+        pts = offsetPolygon(pts, offsetMm / unitNum)
+
+        const points = pts.map(p => [
+            new Decimal(p.x).times(unitWidth).toNumber(),
+            new Decimal(p.y).times(unitHeight).times(-1).toNumber(),
         ])
         const paths = {}
         for (let i = 0; i < points.length; i++) {

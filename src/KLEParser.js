@@ -134,8 +134,15 @@ export function parseKle(kleText) {
                         outlineVerts.push({
                             zone,
                             index,
-                            x: corner.centerX,
-                            y: corner.centerY,
+                            x: corner.x,
+                            y: corner.y,
+                            width: corner.width,
+                            height: corner.height,
+                            angle: corner.angle,
+                            rotx: corner.rotx,
+                            roty: corner.roty,
+                            centerX: corner.centerX,
+                            centerY: corner.centerY,
                         })
                     } else if (!decal) {
                         let newKey = new Key(currX, currY, width, height, width2, height2, currAngle, currRotX, currRotY, independentSwitchAngle, stabilizerAngle, shift6UStabilizers, skipOrientationFix)
@@ -271,6 +278,7 @@ export function parseKle(kleText) {
             return {
                 zone,
                 fillet: Number(settings.fillet) || 0,
+                offset: Number(settings.offset) || 0,
                 vertices: byZone[zone].slice().sort((a, b) => a.index - b.index),
             }
         })
