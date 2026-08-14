@@ -258,7 +258,12 @@ export function buildExportAssembly(assembly, keysArray, generatorOptions, mainP
   // No CONSTRUCTION / registration — all layers share the same origin already.
 
   attachLayerOutlines(canvas, assembly, generatorOptions)
-  applyLayerNotes(canvas, generatorOptions && generatorOptions.layerNotes, assembly)
+  applyLayerNotes(
+    canvas,
+    generatorOptions && generatorOptions.layerNotes,
+    assembly,
+    generatorOptions && generatorOptions.keyboardTitle
+  )
 
   return orderAssemblyModels(canvas)
 }
@@ -451,7 +456,7 @@ function noteForLayer(layerNotes, noteId, layerName) {
  * Rename each export layer with the operator note and draw that note
  * at the bottom-left of the layer's geometry.
  */
-export function applyLayerNotes(canvas, layerNotes, assembly) {
+export function applyLayerNotes(canvas, layerNotes, assembly, keyboardTitle) {
   if (!canvas || !canvas.models) {
     return canvas
   }
@@ -495,17 +500,21 @@ export function applyLayerNotes(canvas, layerNotes, assembly) {
       continue
     }
     const note = noteForLayer(layerNotes, pair.noteId, pair.layerName)
-    if (!note) {
+    const title = String(keyboardTitle || "").trim()
+    const labelText = [title, note].filter(Boolean).join("  ")
+    const named = note ? annotatedLayerName(pair.layerName, note) : pair.layerName
+    if (note) {
+      applyLayer(model, named)
+    }
+    if (!labelText) {
       continue
     }
-    const named = annotatedLayerName(pair.layerName, note)
-    applyLayer(model, named)
 
     const extents = makerjs.measure.modelExtents(model)
     if (!extents || !extents.low) {
       continue
     }
-    const label = strokeTextModel(note, 3)
+    const label = strokeTextModel(labelText, 3)
     applyLayer(label, named)
     const gap = 2
     label.origin = [extents.low[0], extents.low[1] - gap - 3]
@@ -522,6 +531,21 @@ const previewGroupKeys = {
   top: ["TopSwitchPlate", "TopDots", "TopBackCut"],
   link: ["LinkHotswap", "LinkHoleCuts"],
   shell: ["Shell"],
+}
+
+/** One preview pane per top-level export model, in export order. */
+export function previewLayerPanes(model) {
+  if (!model || !model.models) {
+    return []
+  }
+  return Object.keys(model.models).map(key => {
+    const child = model.models[key]
+    const exported = exportOtherPart({ models: { [key]: child } })
+    return {
+      title: (child && child.layer) || key,
+      svg: exported && exported.previewSvg,
+    }
+  })
 }
 
 /** Build a read-only subset of the assembly for a preview pane. */

@@ -15,6 +15,7 @@ import {
   buildExportAssembly,
   exportOtherPart,
   previewSubset,
+  previewLayerPanes,
   makeDownloadFilename,
   sanitizeFilenamePart,
 } from "./OtherPartsBuilder"
@@ -90,6 +91,7 @@ function App() {
       outlines,
       layerNotes,
       layerOutlines,
+      keyboardTitle,
       skipEmbeddedOutlines: true,
     }
 
@@ -124,6 +126,7 @@ function App() {
         previewShell: shellOnly && shellOnly.previewSvg,
         previewTopShell: topShell && topShell.previewSvg,
         previewLink: linkOnly && linkOnly.previewSvg,
+        previewEach: previewLayerPanes(model),
         ready: !!exported,
       })
     } catch (error) {
@@ -152,6 +155,7 @@ function App() {
     mirrorStamps,
     layerNotes,
     layerOutlines,
+    keyboardTitle,
   ])
 
 
@@ -160,11 +164,20 @@ function App() {
     fileDownload(fileData, filename)
   }
 
-  const persistLayerState = (notes, outlines) => {
-    const written = writeKleLayerState(kleText, { notes, outlines })
+  const persistLayerState = (notes, outlines, title) => {
+    const written = writeKleLayerState(kleText, {
+      notes,
+      outlines,
+      name: title != null ? title : keyboardTitle,
+    })
     if (written != null) {
       setKleText(written)
     }
+  }
+
+  const handleTitleChange = (value) => {
+    setKeyboardTitle(value)
+    persistLayerState(layerNotes, layerOutlines, value)
   }
 
   const handleKleTextChange = (text) => {
@@ -172,6 +185,9 @@ function App() {
     if (!parsed) {
       setKleText(text)
       return
+    }
+    if (parsed.name) {
+      setKeyboardTitle(parsed.name)
     }
     const hasNotes = Object.keys(parsed.notes).length
     const hasOutlines = Object.keys(parsed.outlines).length
@@ -186,7 +202,11 @@ function App() {
       return
     }
     if (Object.keys(layerNotes).length || Object.keys(layerOutlines).length) {
-      const written = writeKleLayerState(text, { notes: layerNotes, outlines: layerOutlines })
+      const written = writeKleLayerState(text, {
+        notes: layerNotes,
+        outlines: layerOutlines,
+        name: parsed.name || keyboardTitle,
+      })
       setKleText(written != null ? written : text)
       return
     }
@@ -261,11 +281,11 @@ function App() {
                   type="text"
                   value={keyboardTitle}
                   placeholder="e.g. Macropad"
-                  onChange={e => setKeyboardTitle(e.target.value)}
+                  onChange={e => handleTitleChange(e.target.value)}
                   aria-label="keyboard-title"
                 />
                 <Form.Text className="text-muted">
-                  Used in download names: <code>Title.unique.dxf</code>
+                  Saved as KLE <code>name</code>, drawn on each layer, and used in download names.
                 </Form.Text>
               </Form>
             </Col>
@@ -448,6 +468,7 @@ function App() {
               { id: "together", label: "Together" },
               { id: "split", label: "Split" },
               { id: "layers", label: "Layers" },
+              { id: "each", label: "Each" },
             ].map(mode => (
               <Button
                 key={mode.id}
@@ -472,11 +493,13 @@ function App() {
                   { title: "Top + Shell", svg: exportOutput?.previewTopShell },
                   { title: "Link", svg: exportOutput?.previewLink },
                 ]
-              : [
+              : previewMode === "layers"
+              ? [
                   { title: "Top", svg: exportOutput?.previewTop },
                   { title: "Link", svg: exportOutput?.previewLink },
                   { title: "Shell", svg: exportOutput?.previewShell },
                 ]
+              : (exportOutput?.previewEach || [])
             ).map(pane => (
               <div key={pane.title} className="mb-3">
                 <div className="text-white-50 small mb-1">{pane.title}</div>

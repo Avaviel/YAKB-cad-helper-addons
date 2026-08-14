@@ -114,6 +114,7 @@ export function parseKle(kleText) {
     let zoneSettings = {}
     let layerNotes = {}
     let layerOutlines = {}
+    let keyboardName = ""
 
     // The parsing bracket will be surrounded by a try-catch to expect malformed data
 
@@ -133,6 +134,9 @@ export function parseKle(kleText) {
                     }
                     if (row._layerOutlines && typeof row._layerOutlines === "object") {
                         layerOutlines = row._layerOutlines
+                    }
+                    if (typeof row.name === "string" && row.name.trim()) {
+                        keyboardName = row.name.trim()
                     }
                 }
                 continue
@@ -304,7 +308,7 @@ export function parseKle(kleText) {
         })
 
     // Parsing complete
-    return { keys, outlines, zoneSettings, layerNotes, layerOutlines }
+    return { keys, outlines, zoneSettings, layerNotes, layerOutlines, name: keyboardName }
 
 }
 
@@ -357,7 +361,8 @@ export function readKleLayerState(kleText) {
         outlines["Top-BACK_CUT"] = outlines["Link-BACK_CUT"]
         delete outlines["Link-BACK_CUT"]
     }
-    return { notes, outlines }
+    const name = typeof meta.name === "string" ? meta.name.trim() : ""
+    return { notes, outlines, name }
 }
 
 export function readLayerNotes(kleText) {
@@ -398,6 +403,12 @@ export function writeKleLayerState(kleText, state) {
     } else {
         delete meta._layerOutlines
     }
+    if (state && state.name != null) {
+        const name = String(state.name).trim()
+        if (name) {
+            meta.name = name
+        }
+    }
     const pretty = JSON.stringify(data, null, 2)
     if (parsed.stripped) {
         return pretty.replace(/^\[/, "").replace(/\]\s*$/, "")
@@ -407,5 +418,5 @@ export function writeKleLayerState(kleText, state) {
 
 export function writeLayerNotes(kleText, notes) {
     const current = readKleLayerState(kleText) || { notes: {}, outlines: {} }
-    return writeKleLayerState(kleText, { notes, outlines: current.outlines })
+    return writeKleLayerState(kleText, { notes, outlines: current.outlines, name: current.name })
 }
