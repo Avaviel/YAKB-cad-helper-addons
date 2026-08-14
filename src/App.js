@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { Button, Container, Card, Form, Row, Col, Image, Tab, Nav } from 'react-bootstrap'
-import { parseKle } from "./KLEParser"
+import { parseKle, readLayerNotes, writeLayerNotes } from "./KLEParser"
 import { buildPlate } from "./PlateBuilder"
 import {
   switchFamilies,
@@ -27,6 +27,7 @@ function App() {
   const [kleText, setKleText] = useState("")
   // Keyboard title used in download filenames (e.g. Macropad.lm9k2a.dxf)
   const [keyboardTitle, setKeyboardTitle] = useState("Keyboard")
+  const [layerNotes, setLayerNotes] = useState({})
 
   const [switchCutoutType, setSwitchCutoutType] = useState("mx-basic")
   const [stabilizerCutoutType, setStabilizerCutoutType] = useState("mx-basic")
@@ -68,6 +69,7 @@ function App() {
       kerf: new Decimal(kerf),
       mirrorStamps: !!mirrorStamps,
       outlines,
+      layerNotes,
     }
 
     const assembly = getExportAssembly(stampSwitchFamily, stampFit)
@@ -119,12 +121,45 @@ function App() {
     stampSwitchFamily,
     stampFit,
     mirrorStamps,
+    layerNotes,
   ])
 
 
   const downloadExport = (fileData, extension) => {
     const filename = makeDownloadFilename(keyboardTitle, extension)
     fileDownload(fileData, filename)
+  }
+
+  const handleKleTextChange = (text) => {
+    const parsed = readLayerNotes(text)
+    if (parsed && Object.keys(parsed).length) {
+      setLayerNotes(parsed)
+      setKleText(text)
+      return
+    }
+    if (parsed && Object.keys(layerNotes).length) {
+      const written = writeLayerNotes(text, layerNotes)
+      setKleText(written != null ? written : text)
+      return
+    }
+    if (parsed) {
+      setLayerNotes({})
+    }
+    setKleText(text)
+  }
+
+  const handleLayerNoteChange = (id, value) => {
+    const next = { ...layerNotes }
+    if (String(value).trim()) {
+      next[id] = value
+    } else {
+      delete next[id]
+    }
+    setLayerNotes(next)
+    const written = writeLayerNotes(kleText, next)
+    if (written != null) {
+      setKleText(written)
+    }
   }
 
   const handleStampFamilyChange = (familyId) => {
@@ -186,7 +221,8 @@ function App() {
                   style={{ fontFamily: 'monospace', height: '20vh', minHeight: "225px" }}
                   spellCheck="false"
                   placeholder="Paste KLE raw data or JSON here"
-                  onChange={text => setKleText(text.target.value)} />
+                  value={kleText}
+                  onChange={e => handleKleTextChange(e.target.value)} />
               </Form>
             </Col>
           </Row>
@@ -405,6 +441,33 @@ function App() {
                     />
                   </Col>
                 </Row>
+                <div className="mt-3 mb-2">
+                  <h5 style={{ textTransform: "none" }}>Layer notes</h5>
+                  <p className="text-muted small">
+                    Extra text per export layer (for example <code>cut 1.5mm</code> or <code>extrude 0.6</code>).
+                    Saved into the KLE box as <code>_layerNotes</code>, appended to the DXF/SVG layer name,
+                    and drawn at the bottom-left of that layer. Leave empty for now if you do not have the numbers yet.
+                  </p>
+                  {(getExportAssembly(stampSwitchFamily, stampFit).noteFields || []).map(group => (
+                    <div key={group.group} className="mb-3">
+                      <div className="fw-bold mb-2">{group.group}</div>
+                      {group.layers.map(layer => (
+                        <Form.Group className="mb-2" key={layer.id}>
+                          <Form.Label className="mb-1">
+                            <code>{layer.label}</code>
+                          </Form.Label>
+                          <Form.Control
+                            type="text"
+                            value={layerNotes[layer.id] || ""}
+                            placeholder="e.g. cut 1.5mm"
+                            onChange={e => handleLayerNoteChange(layer.id, e.target.value)}
+                            aria-label={`layer-note-${layer.id}`}
+                          />
+                        </Form.Group>
+                      ))}
+                    </div>
+                  ))}
+                </div>
                 <p className="text-muted small mb-0">
                   Layers: {exportSummary || '—'}
                   {' '}· one file like{' '}

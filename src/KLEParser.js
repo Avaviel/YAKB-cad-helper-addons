@@ -103,6 +103,7 @@ export function parseKle(kleText) {
     let cadIndex = 0
     const outlineVerts = []
     let zoneSettings = {}
+    let layerNotes = {}
 
     // The parsing bracket will be surrounded by a try-catch to expect malformed data
 
@@ -113,8 +114,13 @@ export function parseKle(kleText) {
 
             // First object (not an array) is KLE keyboard metadata
             if (!Array.isArray(row)) {
-                if (row && typeof row === "object" && row._zones) {
-                    zoneSettings = row._zones
+                if (row && typeof row === "object") {
+                    if (row._zones) {
+                        zoneSettings = row._zones
+                    }
+                    if (row._layerNotes && typeof row._layerNotes === "object") {
+                        layerNotes = row._layerNotes
+                    }
                 }
                 continue
             }
@@ -285,6 +291,76 @@ export function parseKle(kleText) {
         })
 
     // Parsing complete
-    return { keys, outlines, zoneSettings }
+    return { keys, outlines, zoneSettings, layerNotes }
 
+}
+
+function tryParseKleArray(kleText) {
+    if (!kleText || !String(kleText).trim()) {
+        return null
+    }
+    try {
+        const data = json5.parse(kleText)
+        if (Array.isArray(data)) {
+            return { data, stripped: false }
+        }
+    } catch (error) {
+        // try raw-data form
+    }
+    try {
+        const data = json5.parse("[" + kleText + "]")
+        if (Array.isArray(data)) {
+            return { data, stripped: true }
+        }
+    } catch (error) {
+        return null
+    }
+    return null
+}
+
+export function readLayerNotes(kleText) {
+    const parsed = tryParseKleArray(kleText)
+    if (!parsed) {
+        return null
+    }
+    const meta = parsed.data.find(row => row && typeof row === "object" && !Array.isArray(row))
+    if (!meta || !meta._layerNotes || typeof meta._layerNotes !== "object") {
+        return {}
+    }
+    const notes = {}
+    for (const [key, value] of Object.entries(meta._layerNotes)) {
+        if (value != null && String(value).trim()) {
+            notes[key] = String(value)
+        }
+    }
+    return notes
+}
+
+export function writeLayerNotes(kleText, notes) {
+    const parsed = tryParseKleArray(kleText)
+    if (!parsed) {
+        return null
+    }
+    const data = parsed.data
+    let meta = data[0]
+    if (!meta || Array.isArray(meta) || typeof meta !== "object") {
+        meta = {}
+        data.unshift(meta)
+    }
+    const cleaned = {}
+    for (const [key, value] of Object.entries(notes || {})) {
+        if (value != null && String(value).trim()) {
+            cleaned[key] = String(value)
+        }
+    }
+    if (Object.keys(cleaned).length) {
+        meta._layerNotes = cleaned
+    } else {
+        delete meta._layerNotes
+    }
+    const pretty = JSON.stringify(data, null, 2)
+    if (parsed.stripped) {
+        return pretty.replace(/^\[/, "").replace(/\]\s*$/, "")
+    }
+    return pretty
 }

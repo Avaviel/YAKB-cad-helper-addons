@@ -1,5 +1,6 @@
 import makerjs from 'makerjs'
 import Decimal from 'decimal.js'
+import { annotatedLayerName, strokeTextModel } from './strokeText'
 
 /**
  * Convert a stamp JSON document into a maker.js model.
@@ -253,6 +254,79 @@ export function buildExportAssembly(assembly, keysArray, generatorOptions, mainP
   }
 
   // No CONSTRUCTION / registration — all layers share the same origin already.
+
+  applyLayerNotes(canvas, generatorOptions && generatorOptions.layerNotes, assembly)
+
+  return canvas
+}
+
+function noteForLayer(layerNotes, noteId, layerName) {
+  if (!layerNotes) {
+    return ""
+  }
+  return String(layerNotes[noteId] || layerNotes[layerName] || "").trim()
+}
+
+/**
+ * Rename each export layer with the operator note and draw that note
+ * at the bottom-left of the layer's geometry.
+ */
+export function applyLayerNotes(canvas, layerNotes, assembly) {
+  if (!canvas || !canvas.models) {
+    return canvas
+  }
+
+  const pairs = []
+  if (assembly && assembly.includeMainPlate) {
+    pairs.push({
+      modelKey: "TopSwitchPlate",
+      noteId: "Top-SWITCH_PLATE",
+      layerName: assembly.mainPlateLayerName || "Top-SWITCH_PLATE",
+    })
+  }
+  for (const stamp of (assembly && assembly.stamps) || []) {
+    pairs.push({
+      modelKey: stamp.modelKey || stamp.id,
+      noteId: stamp.noteId || stamp.layerName,
+      layerName: stamp.layerName,
+    })
+  }
+
+  // Hotswap note is stored under the stable id Link-MX_HOTSWAP
+  for (const pair of pairs) {
+    if (pair.layerName && pair.layerName.indexOf("Link-MX_HOTSWAP") === 0) {
+      pair.noteId = "Link-MX_HOTSWAP"
+    }
+    if (pair.layerName === "Top-Dots") {
+      pair.noteId = "Top-Dots"
+    }
+  }
+
+  for (const pair of pairs) {
+    const model = canvas.models[pair.modelKey]
+    if (!model) {
+      continue
+    }
+    const note = noteForLayer(layerNotes, pair.noteId, pair.layerName)
+    if (!note) {
+      continue
+    }
+    const named = annotatedLayerName(pair.layerName, note)
+    applyLayer(model, named)
+
+    const extents = makerjs.measure.modelExtents(model)
+    if (!extents || !extents.low) {
+      continue
+    }
+    const label = strokeTextModel(note, 3)
+    applyLayer(label, named)
+    const gap = 2
+    label.origin = [extents.low[0], extents.low[1] - gap - 3]
+    if (!model.models) {
+      model.models = {}
+    }
+    model.models.LayerNote = label
+  }
 
   return canvas
 }

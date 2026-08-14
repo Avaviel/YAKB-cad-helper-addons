@@ -44,6 +44,14 @@ export function DataHelpPane() {
             <p>Value type: Numerical (order in that zone, 0+)</p>
             <p>Walk order around the outline. Example: <code>{`{d:true,w:0.5,h:0.5,_z:1,_zi:0},"Z1.0"`}</code></p>
             <p>If a zone has at least two corners, that polygon replaces the old single bounding box.</p>
+            <br />
+            <h4 style={{ textTransform: "lowercase" }}>_layerNotes</h4>
+            <p>Value type: Object (layer id → text)</p>
+            <p>
+                Operator notes for each export layer (for example <code>cut 1.5mm</code>).
+                Edited under Other plate parts. Not a switch hole.
+                Written onto that DXF/SVG layer (name suffix + text at the bottom-left).
+            </p>
         </div>
     )
 }

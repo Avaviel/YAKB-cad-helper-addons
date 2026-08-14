@@ -162,10 +162,10 @@ export function getExportAssembly(switchFamilyId, fitId) {
     : null
 
   const stamps = [
-    hotswap && { ...hotswap, modelKey: 'LinkHotswap', layerName: hotswapLayer },
-    holeCuts && { ...holeCuts, modelKey: 'LinkHoleCuts', layerName: 'Link-HOLE_CUTS' },
-    backCut && { ...backCut, modelKey: 'LinkBackCut', layerName: 'Link-BACK_CUT' },
-    switchplace && { ...switchplace, modelKey: 'TopDots', layerName: 'Top-Dots' },
+    hotswap && { ...hotswap, modelKey: 'LinkHotswap', layerName: hotswapLayer, noteId: 'Link-MX_HOTSWAP' },
+    holeCuts && { ...holeCuts, modelKey: 'LinkHoleCuts', layerName: 'Link-HOLE_CUTS', noteId: 'Link-HOLE_CUTS' },
+    backCut && { ...backCut, modelKey: 'LinkBackCut', layerName: 'Link-BACK_CUT', noteId: 'Link-BACK_CUT' },
+    switchplace && { ...switchplace, modelKey: 'TopDots', layerName: 'Top-Dots', noteId: 'Top-Dots' },
   ].filter(Boolean)
 
   const layerList = [
@@ -184,6 +184,23 @@ export function getExportAssembly(switchFamilyId, fitId) {
     mainPlateLayerName: 'Top-SWITCH_PLATE',
     stamps,
     layerSummary: layerList.join(' · '),
+    noteFields: [
+      {
+        group: 'Switch plate',
+        layers: [
+          { id: 'Top-SWITCH_PLATE', layerName: 'Top-SWITCH_PLATE', label: 'Top-SWITCH_PLATE' },
+          { id: 'Top-Dots', layerName: 'Top-Dots', label: 'Top-Dots' },
+        ],
+      },
+      {
+        group: 'Attachment plate',
+        layers: [
+          { id: 'Link-HOLE_CUTS', layerName: 'Link-HOLE_CUTS', label: 'Link-HOLE_CUTS' },
+          { id: 'Link-BACK_CUT', layerName: 'Link-BACK_CUT', label: 'Link-BACK_CUT' },
+          { id: 'Link-MX_HOTSWAP', layerName: hotswapLayer, label: hotswapLayer },
+        ],
+      },
+    ],
   }
 }
 
