@@ -2,6 +2,13 @@
   text-align: center;
 }
 
+.plate-preview svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: none;
+}
+
 .cad-companion {
   display: flex;
   flex-wrap: wrap;

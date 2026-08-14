@@ -553,7 +553,7 @@ export function exportOtherPart(model) {
   const previewSvg = makerjs.exporter.toSVG(model, {
     stroke: 'white',
     strokeWidth: '0.5mm',
-    svgAttrs: { width: '100%', height: '100%' },
+    svgAttrs: { width: '100%', height: 'auto' },
   })
   const svg = makerjs.exporter.toSVG(model, { units: makerjs.unitType.Millimeter })
   const dxf = makerjs.exporter.toDXF(model, {

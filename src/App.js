@@ -218,12 +218,6 @@ function App() {
     persistLayerState(layerNotes, next)
   }
 
-  const cyclePreviewMode = () => {
-    setPreviewMode(previewMode === "together" ? "split" : previewMode === "split" ? "layers" : "together")
-  }
-
-  const previewModeLabel = previewMode === "layers" ? "Layers" : previewMode === "split" ? "Split" : "Together"
-
   const handleStampFamilyChange = (familyId) => {
     setStampSwitchFamily(familyId)
     const family = switchFamilies.find(f => f.id === familyId)
@@ -449,24 +443,30 @@ function App() {
               {exportOutput && !exportOutput.ready ? ' · paste KLE data to generate' : ''}
             </p>
           </div>
-          <Button
-            variant="outline-light"
-            size="sm"
-            className="mt-2"
-            onClick={cyclePreviewMode}
-            title="Together: all layers. Split: Top+Shell then Link. Layers: Top, Link, and Shell each in their own pane. Download is always the full file."
-          >
-            Preview: {previewModeLabel}
-          </Button>
+          <div className="btn-group mt-2" role="group" aria-label="Preview mode">
+            {[
+              { id: "together", label: "Together" },
+              { id: "split", label: "Split" },
+              { id: "layers", label: "Layers" },
+            ].map(mode => (
+              <Button
+                key={mode.id}
+                variant={previewMode === mode.id ? "light" : "outline-light"}
+                size="sm"
+                onClick={() => setPreviewMode(mode.id)}
+              >
+                {mode.label}
+              </Button>
+            ))}
+          </div>
         </Card.Header>
         {previewMode === "together" ? (
           <Card.Body
-            className="bg-dark p-4"
-            style={{ height: "36vh", minHeight: "280px" }}
+            className="bg-dark plate-preview py-2 px-3"
             dangerouslySetInnerHTML={{ __html: exportOutput?.ready ? exportOutput.previewSvg : '' }}
           />
         ) : (
-          <Card.Body className="bg-dark p-3">
+          <Card.Body className="bg-dark py-2 px-3">
             {(previewMode === "split"
               ? [
                   { title: "Top + Shell", svg: exportOutput?.previewTopShell },
@@ -478,10 +478,10 @@ function App() {
                   { title: "Shell", svg: exportOutput?.previewShell },
                 ]
             ).map(pane => (
-              <div key={pane.title} className="mb-4">
-                <div className="text-white-50 small mb-2">{pane.title}</div>
+              <div key={pane.title} className="mb-3">
+                <div className="text-white-50 small mb-1">{pane.title}</div>
                 <div
-                  style={{ height: "32vh", minHeight: "260px" }}
+                  className="plate-preview"
                   dangerouslySetInnerHTML={{ __html: exportOutput?.ready ? (pane.svg || '') : '' }}
                 />
               </div>
