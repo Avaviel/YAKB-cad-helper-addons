@@ -260,7 +260,105 @@ export function buildExportAssembly(assembly, keysArray, generatorOptions, mainP
   attachLayerOutlines(canvas, assembly, generatorOptions)
   applyLayerNotes(canvas, generatorOptions && generatorOptions.layerNotes, assembly)
 
+  return orderAssemblyModels(canvas)
+}
+
+const assemblyModelOrder = [
+  "TopSwitchPlate",
+  "TopDots",
+  "LinkBackCut",
+  "LinkHoleCuts",
+  "LinkHotswap",
+  "Shell",
+]
+
+function orderAssemblyModels(canvas) {
+  if (!canvas || !canvas.models) {
+    return canvas
+  }
+  const models = {}
+  for (const key of assemblyModelOrder) {
+    if (canvas.models[key]) {
+      models[key] = canvas.models[key]
+    }
+  }
+  for (const key of Object.keys(canvas.models)) {
+    if (!models[key]) {
+      models[key] = canvas.models[key]
+    }
+  }
+  canvas.models = models
   return canvas
+}
+
+function layerSortRank(name) {
+  const base = String(name || "").split("__")[0]
+  if (base === "Top-SWITCH_PLATE") {
+    return 10
+  }
+  if (base === "Top-Dots") {
+    return 20
+  }
+  if (base.indexOf("Top") === 0) {
+    return 15
+  }
+  if (base === "Link-BACK_CUT") {
+    return 30
+  }
+  if (base === "Link-HOLE_CUTS") {
+    return 40
+  }
+  if (base.indexOf("Link-MX_HOTSWAP") === 0) {
+    return 50
+  }
+  if (base.indexOf("Link") === 0) {
+    return 45
+  }
+  if (base.indexOf("Shell") === 0) {
+    return 60
+  }
+  return 90
+}
+
+function collectLayerNames(model, names) {
+  if (!model) {
+    return
+  }
+  if (model.layer) {
+    names.push(model.layer)
+  }
+  if (model.paths) {
+    for (const path of Object.values(model.paths)) {
+      if (path && path.layer) {
+        names.push(path.layer)
+      }
+    }
+  }
+  if (model.models) {
+    for (const child of Object.values(model.models)) {
+      collectLayerNames(child, names)
+    }
+  }
+}
+
+export function dxfLayerOptions(model) {
+  const seen = []
+  collectLayerNames(model, seen)
+  const unique = []
+  for (const name of seen) {
+    if (name && unique.indexOf(name) < 0) {
+      unique.push(name)
+    }
+  }
+  unique.sort((a, b) => {
+    const d = layerSortRank(a) - layerSortRank(b)
+    return d !== 0 ? d : a.localeCompare(b)
+  })
+  const layerOptions = {}
+  for (const name of unique) {
+    layerOptions[name] = { color: 7 }
+  }
+  return layerOptions
 }
 
 function layerOutlineValues(layerOutlines, id, zoneDefaults) {
@@ -458,7 +556,10 @@ export function exportOtherPart(model) {
     svgAttrs: { width: '100%', height: '100%' },
   })
   const svg = makerjs.exporter.toSVG(model, { units: makerjs.unitType.Millimeter })
-  const dxf = makerjs.exporter.toDXF(model, { units: makerjs.unitType.Millimeter })
+  const dxf = makerjs.exporter.toDXF(model, {
+    units: makerjs.unitType.Millimeter,
+    layerOptions: dxfLayerOptions(model),
+  })
 
   return { previewSvg, svg, dxf }
 }

@@ -162,10 +162,10 @@ export function getExportAssembly(switchFamilyId, fitId) {
     : null
 
   const stamps = [
-    hotswap && { ...hotswap, modelKey: 'LinkHotswap', layerName: hotswapLayer, noteId: 'Link-MX_HOTSWAP', hasOutline: true },
-    holeCuts && { ...holeCuts, modelKey: 'LinkHoleCuts', layerName: 'Link-HOLE_CUTS', noteId: 'Link-HOLE_CUTS', hasOutline: true },
-    backCut && { ...backCut, modelKey: 'LinkBackCut', layerName: 'Link-BACK_CUT', noteId: 'Link-BACK_CUT', hasOutline: true },
     switchplace && { ...switchplace, modelKey: 'TopDots', layerName: 'Top-Dots', noteId: 'Top-Dots', hasOutline: true },
+    backCut && { ...backCut, modelKey: 'LinkBackCut', layerName: 'Link-BACK_CUT', noteId: 'Link-BACK_CUT', hasOutline: true },
+    holeCuts && { ...holeCuts, modelKey: 'LinkHoleCuts', layerName: 'Link-HOLE_CUTS', noteId: 'Link-HOLE_CUTS', hasOutline: true },
+    hotswap && { ...hotswap, modelKey: 'LinkHotswap', layerName: hotswapLayer, noteId: 'Link-MX_HOTSWAP', hasOutline: true },
   ].filter(Boolean)
 
   const layerList = [
