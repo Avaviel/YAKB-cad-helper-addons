@@ -135,22 +135,10 @@ function addZoneOutlines(canvas, generatorOptions) {
             continue
         }
 
-        let cx = 0
-        let cy = 0
-        let count = 0
-        const boxed = verts.map(v => {
-            const corners = vertexBoxCorners(v)
-            for (const c of corners) {
-                cx += c.x
-                cy += c.y
-                count++
-            }
-            return corners
-        })
-        cx /= count
-        cy /= count
-
-        let pts = boxed.map(corners => farthestFrom(corners, cx, cy))
+        let pts = verts.map(v => ({
+            x: Number(v.centerX != null ? v.centerX : v.x),
+            y: Number(v.centerY != null ? v.centerY : v.y),
+        }))
         const offsetMm = Number(outline.offset) || 0
         const unitNum = (unitWidth && typeof unitWidth.toNumber === "function")
             ? unitWidth.toNumber()
@@ -164,6 +152,20 @@ function addZoneOutlines(canvas, generatorOptions) {
         const paths = {}
         for (let i = 0; i < points.length; i++) {
             paths["edge" + i] = new makerjs.paths.Line(points[i], points[(i + 1) % points.length])
+        }
+        const fillet = Number(outline.fillet) || 0
+        if (fillet > 0 && points.length >= 3) {
+            const names = Object.keys(paths)
+            for (let i = 0; i < names.length; i++) {
+                const a = paths[names[i]]
+                const b = paths[names[(i + 1) % names.length]]
+                if (makerjs.path.fillet) {
+                    const arc = makerjs.path.fillet(a, b, fillet)
+                    if (arc) {
+                        paths["fillet" + i] = arc
+                    }
+                }
+            }
         }
         canvas.models["OutlineZone" + outline.zone] = { paths }
         drew = true
