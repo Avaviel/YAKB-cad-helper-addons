@@ -22,9 +22,25 @@ import { AcousticMXBasic } from './cutouts/AcousticMXBasic'
 import { AcousticMXExtreme } from './cutouts/AcousticMXExtreme'
 
 
+function uniquePoints(pts, eps = 0.02) {
+    const out = []
+    const lim = eps * eps
+    for (const p of pts || []) {
+        if (!out.some(q => {
+            const dx = p.x - q.x
+            const dy = p.y - q.y
+            return dx * dx + dy * dy < lim
+        })) {
+            out.push(p)
+        }
+    }
+    return out
+}
+
 function convexHull(pts) {
-    if (!pts || pts.length <= 2) {
-        return (pts || []).slice()
+    pts = uniquePoints(pts)
+    if (pts.length <= 2) {
+        return pts.slice()
     }
     const sorted = pts.slice().sort((a, b) => (a.x === b.x ? a.y - b.y : a.x - b.x))
     const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x)
