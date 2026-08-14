@@ -349,6 +349,14 @@ export function readKleLayerState(kleText) {
             }
         }
     }
+    if (notes["Link-BACK_CUT"] && !notes["Top-BACK_CUT"]) {
+        notes["Top-BACK_CUT"] = notes["Link-BACK_CUT"]
+        delete notes["Link-BACK_CUT"]
+    }
+    if (outlines["Link-BACK_CUT"] && !outlines["Top-BACK_CUT"]) {
+        outlines["Top-BACK_CUT"] = outlines["Link-BACK_CUT"]
+        delete outlines["Link-BACK_CUT"]
+    }
     return { notes, outlines }
 }
 

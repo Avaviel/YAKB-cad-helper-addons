@@ -55,8 +55,9 @@ export function DataHelpPane() {
             <h4 style={{ textTransform: "lowercase" }}>_layerOutlines</h4>
             <p>Value type: Object (layer id → offset / rounding)</p>
             <p>
-                Per-layer outline offset and rounding in mm. Grouped as Top, Link, and Shell.
-                Shell uses <code>fromPlate</code> (default 0.5) then <code>fromSelf</code> (default 5).
+                Outline offset and rounding in mm. Only <code>Top-SWITCH_PLATE</code> and
+                {' '}<code>Link-HOLE_CUTS</code> carry a part outline. Shell uses
+                {' '}<code>fromPlate</code> (default 0.5) then <code>fromSelf</code> (default 5).
             </p>
         </div>
     )

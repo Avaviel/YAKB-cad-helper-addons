@@ -520,8 +520,8 @@ function App() {
               <h3>Other plate parts</h3>
               <p className="mb-3">
                 One multi-layer DXF/SVG with all drawings on separate layers.
-                <strong> Top-*</strong> = switch plate;
-                <strong> Link-*</strong> = attachment plate;
+                <strong> Top-*</strong> = switch plate, dots, back cut;
+                <strong> Link-*</strong> = MX hotswap and hole cuts;
                 <strong> Shell</strong> = case outline (offset from the plate, then from itself).
               </p>
               <Form className="ms-3 me-3 text-start">
@@ -581,7 +581,8 @@ function App() {
                 <div className="mt-3 mb-2">
                   <h5 style={{ textTransform: "none" }}>Outlines and layer notes</h5>
                   <p className="text-muted small">
-                    Grouped the same way as the DXF layer names. Offset and rounding are in mm.
+                    Grouped the same way as the DXF layer names. Only one layer per part gets an outline
+                    (Top-SWITCH_PLATE and Link-HOLE_CUTS). Offset and rounding are in mm.
                     Shell starts <strong>{defaultShellFromPlate} mm</strong> out from the plate outline, then
                     another <strong>{defaultShellFromSelf} mm</strong> from itself (inner + outer).
                     The note box is optional (<code>cut 1.5mm</code>, <code>extrude 2mm</code>); when filled it is
@@ -631,7 +632,7 @@ function App() {
                                 />
                               </Col>
                             </Row>
-                          ) : (
+                          ) : layer.outlineKind === "plate" ? (
                             <Row className="g-2 mb-2">
                               <Col md={6}>
                                 <Form.Label className="mb-1">Offset (mm)</Form.Label>
@@ -654,7 +655,7 @@ function App() {
                                 />
                               </Col>
                             </Row>
-                          )}
+                          ) : null}
                           <Form.Label className="mb-1">Note</Form.Label>
                           <Form.Control
                             type="text"

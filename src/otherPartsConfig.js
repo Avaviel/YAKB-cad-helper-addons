@@ -130,12 +130,12 @@ export const switchFamilies = [
  * Link-* = secondary plate (named "Link" so it can be MX now, Choc later)
  *
  * Layers:
- *   Top-SWITCH_PLATE  — original switch/stab/acoustic cutouts + bounding box
- *   Top-Dots          — former switchplace extrude
- *   Link-BACK_CUT
- *   Link-HOLE_CUTS
- *   Link-MX_HOTSWAP_BF | Link-MX_HOTSWAP_TIGHT  — selected hotswap fit
- *   (no CONSTRUCTION — registration removed; layers share origin)
+ *   Top-SWITCH_PLATE  — switch/stab/acoustic cutouts + the Top outline
+ *   Top-Dots          — switchplace / dots stamp
+ *   Top-BACK_CUT      — back-cut stamp (Top part)
+ *   Link-HOLE_CUTS    — hole stamps + the Link outline
+ *   Link-MX_HOTSWAP_* — selected hotswap fit
+ *   Shell             — inner/outer case outline
  *
  * FUTURE — Kailh Choc: add Link-CHOC_* (or similar) layers; keep Top-* + one download.
  */
@@ -162,16 +162,16 @@ export function getExportAssembly(switchFamilyId, fitId) {
     : null
 
   const stamps = [
-    switchplace && { ...switchplace, modelKey: 'TopDots', layerName: 'Top-Dots', noteId: 'Top-Dots', hasOutline: true },
-    backCut && { ...backCut, modelKey: 'LinkBackCut', layerName: 'Link-BACK_CUT', noteId: 'Link-BACK_CUT', hasOutline: true },
+    switchplace && { ...switchplace, modelKey: 'TopDots', layerName: 'Top-Dots', noteId: 'Top-Dots', hasOutline: false },
+    backCut && { ...backCut, modelKey: 'TopBackCut', layerName: 'Top-BACK_CUT', noteId: 'Top-BACK_CUT', hasOutline: false },
     holeCuts && { ...holeCuts, modelKey: 'LinkHoleCuts', layerName: 'Link-HOLE_CUTS', noteId: 'Link-HOLE_CUTS', hasOutline: true },
-    hotswap && { ...hotswap, modelKey: 'LinkHotswap', layerName: hotswapLayer, noteId: 'Link-MX_HOTSWAP', hasOutline: true },
+    hotswap && { ...hotswap, modelKey: 'LinkHotswap', layerName: hotswapLayer, noteId: 'Link-MX_HOTSWAP', hasOutline: false },
   ].filter(Boolean)
 
   const layerList = [
     'Top-SWITCH_PLATE',
     'Top-Dots',
-    'Link-BACK_CUT',
+    'Top-BACK_CUT',
     'Link-HOLE_CUTS',
     hotswapLayer,
     'Shell',
@@ -190,15 +190,15 @@ export function getExportAssembly(switchFamilyId, fitId) {
         group: 'Top',
         layers: [
           { id: 'Top-SWITCH_PLATE', layerName: 'Top-SWITCH_PLATE', label: 'Top-SWITCH_PLATE', outlineKind: 'plate' },
-          { id: 'Top-Dots', layerName: 'Top-Dots', label: 'Top-Dots', outlineKind: 'plate' },
+          { id: 'Top-Dots', layerName: 'Top-Dots', label: 'Top-Dots' },
+          { id: 'Top-BACK_CUT', layerName: 'Top-BACK_CUT', label: 'Top-BACK_CUT' },
         ],
       },
       {
         group: 'Link',
         layers: [
           { id: 'Link-HOLE_CUTS', layerName: 'Link-HOLE_CUTS', label: 'Link-HOLE_CUTS', outlineKind: 'plate' },
-          { id: 'Link-BACK_CUT', layerName: 'Link-BACK_CUT', label: 'Link-BACK_CUT', outlineKind: 'plate' },
-          { id: 'Link-MX_HOTSWAP', layerName: hotswapLayer, label: hotswapLayer, outlineKind: 'plate' },
+          { id: 'Link-MX_HOTSWAP', layerName: hotswapLayer, label: hotswapLayer },
         ],
       },
       {

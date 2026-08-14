@@ -266,7 +266,7 @@ export function buildExportAssembly(assembly, keysArray, generatorOptions, mainP
 const assemblyModelOrder = [
   "TopSwitchPlate",
   "TopDots",
-  "LinkBackCut",
+  "TopBackCut",
   "LinkHoleCuts",
   "LinkHotswap",
   "Shell",
@@ -299,11 +299,11 @@ function layerSortRank(name) {
   if (base === "Top-Dots") {
     return 20
   }
+  if (base === "Top-BACK_CUT") {
+    return 25
+  }
   if (base.indexOf("Top") === 0) {
     return 15
-  }
-  if (base === "Link-BACK_CUT") {
-    return 30
   }
   if (base === "Link-HOLE_CUTS") {
     return 40
@@ -519,8 +519,8 @@ export function applyLayerNotes(canvas, layerNotes, assembly) {
 }
 
 const previewGroupKeys = {
-  top: ["TopSwitchPlate", "TopDots"],
-  link: ["LinkHotswap", "LinkHoleCuts", "LinkBackCut"],
+  top: ["TopSwitchPlate", "TopDots", "TopBackCut"],
+  link: ["LinkHotswap", "LinkHoleCuts"],
   shell: ["Shell"],
 }
 
