@@ -52,7 +52,9 @@ function App() {
 
   // Build one multi-layer DXF/SVG: Top + Link layers (no registration)
   useEffect(() => {
-    const kleReturn = parseKle(kleText)
+    const parsed = parseKle(kleText)
+    const kleReturn = parsed && parsed.keys ? parsed.keys : parsed
+    const outlines = (parsed && parsed.outlines) || []
     const generatorOptions = {
       switchCutoutType: switchCutoutType,
       stabilizerCutoutType: stabilizerCutoutType,
@@ -64,6 +66,7 @@ function App() {
       unitHeight: new Decimal(unitHeight),
       kerf: new Decimal(kerf),
       mirrorStamps: !!mirrorStamps,
+      outlines,
     }
 
     const assembly = getExportAssembly(stampSwitchFamily, stampFit)

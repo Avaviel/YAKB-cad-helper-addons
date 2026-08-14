@@ -98,6 +98,10 @@ export function parseKle(kleText) {
     let independentSwitchAngle = new Decimal(0)
     let shift6UStabilizers = false
     let skipOrientationFix = false
+    // CAD outline corners from KLE: _z / _zi, or a legend like Z1.0
+    let cadZone = 0
+    let cadIndex = 0
+    const outlineVerts = []
 
     // The parsing bracket will be surrounded by a try-catch to expect malformed data
 
@@ -110,16 +114,25 @@ export function parseKle(kleText) {
 
                 // Case 1: Element is a string and therefore is a key
                 if (typeof element === 'string') {
-                    // If previous decorator marked this key as a decal, reset the transients and skip
-                    if (decal) {
-                        decal = false
-                    }
-                    // Otherwise add the key
-                    else {
-                        // Define and add the key
+                    const labelMatch = String(element).trim().match(/^Z(\d+)\.(\d+)$/i)
+                    const zoneFromLabel = labelMatch ? parseInt(labelMatch[1], 10) : 0
+                    const indexFromLabel = labelMatch ? parseInt(labelMatch[2], 10) : 0
+                    const zone = cadZone || zoneFromLabel
+                    const index = cadZone ? cadIndex : indexFromLabel
+
+                    if (zone > 0) {
+                        const corner = new Key(currX, currY, width, height, width2, height2, currAngle, currRotX, currRotY, independentSwitchAngle, stabilizerAngle, shift6UStabilizers, skipOrientationFix)
+                        outlineVerts.push({
+                            zone,
+                            index,
+                            x: corner.centerX,
+                            y: corner.centerY,
+                        })
+                    } else if (!decal) {
                         let newKey = new Key(currX, currY, width, height, width2, height2, currAngle, currRotX, currRotY, independentSwitchAngle, stabilizerAngle, shift6UStabilizers, skipOrientationFix)
                         keys.push(newKey)
                     }
+                    decal = false
                     // Then conveniently use the current width value to increment the X cursor
                     currX = currX.plus(width)
                     // Finally reset the transients for the next key
@@ -131,6 +144,8 @@ export function parseKle(kleText) {
                     stabilizerAngle = new Decimal(0)
                     shift6UStabilizers = false
                     skipOrientationFix = false
+                    cadZone = 0
+                    cadIndex = 0
                     
                 }
 
@@ -186,6 +201,12 @@ export function parseKle(kleText) {
                     if (element.hasOwnProperty('_so')) {
                         skipOrientationFix = element._so
                     }
+                    if (element.hasOwnProperty('_z')) {
+                        cadZone = Number(element._z) || 0
+                    }
+                    if (element.hasOwnProperty('_zi')) {
+                        cadIndex = Number(element._zi) || 0
+                    }
 
                     // Cursor offsets
                     if (element.hasOwnProperty('x')) {
@@ -225,7 +246,23 @@ export function parseKle(kleText) {
 
     }
 
+    // Group outline vertices by zone, then by order index
+    const byZone = {}
+    for (const vert of outlineVerts) {
+        if (!byZone[vert.zone]) {
+            byZone[vert.zone] = []
+        }
+        byZone[vert.zone].push(vert)
+    }
+    const outlines = Object.keys(byZone)
+        .map(z => Number(z))
+        .sort((a, b) => a - b)
+        .map(zone => ({
+            zone,
+            vertices: byZone[zone].slice().sort((a, b) => a.index - b.index),
+        }))
+
     // Parsing complete
-    return keys
+    return { keys, outlines }
 
 }

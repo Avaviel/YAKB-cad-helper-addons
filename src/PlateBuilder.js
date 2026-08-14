@@ -22,6 +22,36 @@ import { AcousticMXBasic } from './cutouts/AcousticMXBasic'
 import { AcousticMXExtreme } from './cutouts/AcousticMXExtreme'
 
 
+function addZoneOutlines(canvas, generatorOptions) {
+    const outlines = generatorOptions && generatorOptions.outlines
+    if (!outlines || !outlines.length) {
+        return false
+    }
+
+    const unitWidth = generatorOptions.unitWidth
+    const unitHeight = generatorOptions.unitHeight
+    let drew = false
+
+    for (const outline of outlines) {
+        const verts = (outline && outline.vertices) || []
+        if (verts.length < 2) {
+            continue
+        }
+        const points = verts.map(v => [
+            v.x.times(unitWidth).toNumber(),
+            v.y.times(unitHeight).times(-1).toNumber(),
+        ])
+        const paths = {}
+        for (let i = 0; i < points.length; i++) {
+            paths["edge" + i] = new makerjs.paths.Line(points[i], points[(i + 1) % points.length])
+        }
+        canvas.models["OutlineZone" + outline.zone] = { paths }
+        drew = true
+    }
+
+    return drew
+}
+
 export function buildPlate(keysArray, generatorOptions) {
 
 
@@ -167,22 +197,25 @@ export function buildPlate(keysArray, generatorOptions) {
         id += 1
     }
 
-    // Draw outer boundaries
-    let upperLeft = [minX.toNumber(), maxY.times(-1).toNumber()]
-    let upperRight = [maxX.toNumber(), maxY.times(-1).toNumber()]
-    let lowerLeft = [minX.toNumber(), minY.times(-1).toNumber()]
-    let lowerRight = [maxX.toNumber(), minY.times(-1).toNumber()]
+    const drewZones = addZoneOutlines(canvas, generatorOptions)
+    if (!drewZones) {
+        // Fallback: one axis-aligned box around every key
+        let upperLeft = [minX.toNumber(), maxY.times(-1).toNumber()]
+        let upperRight = [maxX.toNumber(), maxY.times(-1).toNumber()]
+        let lowerLeft = [minX.toNumber(), minY.times(-1).toNumber()]
+        let lowerRight = [maxX.toNumber(), minY.times(-1).toNumber()]
 
-    var boundingBox = {
-        paths: {
-            lineTop: new makerjs.paths.Line(upperLeft, upperRight),
-            lineBottom: new makerjs.paths.Line(lowerLeft, lowerRight),
-            lineLeft: new makerjs.paths.Line(upperLeft, lowerLeft),
-            lineRight: new makerjs.paths.Line(upperRight, lowerRight)
+        var boundingBox = {
+            paths: {
+                lineTop: new makerjs.paths.Line(upperLeft, upperRight),
+                lineBottom: new makerjs.paths.Line(lowerLeft, lowerRight),
+                lineLeft: new makerjs.paths.Line(upperLeft, lowerLeft),
+                lineRight: new makerjs.paths.Line(upperRight, lowerRight)
+            }
         }
-    }
 
-    canvas.models["BoundingBox0"] = boundingBox
+        canvas.models["BoundingBox0"] = boundingBox
+    }
 
     // Registration / CONSTRUCTION marks removed — layers are already co-aligned.
 

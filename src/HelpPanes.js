@@ -34,6 +34,16 @@ export function DataHelpPane() {
             <p>Toggle automatic orientation fix.
                 By default, plategen will automatically rotate switch cutouts and add stabilizers when keys are taller than wide.
             </p>
+            <br />
+            <h3>Outline corners (from KLE CAD)</h3>
+            <p>In <a href="https://avaviel.github.io/keyboard-layout-editor-CAD/" target="_blank" rel="noreferrer">KLE CAD</a>, use <strong>Add Corner</strong> and set each marker&apos;s zone. Corners are not switch holes.</p>
+            <h4 style={{ textTransform: "lowercase" }}>_z</h4>
+            <p>Value type: Numerical (zone number, 1+)</p>
+            <p>Outline island / segment. All corners with the same zone are connected in order.</p>
+            <h4 style={{ textTransform: "lowercase" }}>_zi</h4>
+            <p>Value type: Numerical (order in that zone, 0+)</p>
+            <p>Walk order around the outline. Example: <code>{`{d:true,w:0.5,h:0.5,_z:1,_zi:0},"Z1.0"`}</code></p>
+            <p>If a zone has at least two corners, that polygon replaces the old single bounding box.</p>
         </div>
     )
 }
