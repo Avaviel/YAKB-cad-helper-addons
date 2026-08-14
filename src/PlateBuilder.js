@@ -22,6 +22,29 @@ import { AcousticMXBasic } from './cutouts/AcousticMXBasic'
 import { AcousticMXExtreme } from './cutouts/AcousticMXExtreme'
 
 
+function convexHull(pts) {
+    if (!pts || pts.length <= 2) {
+        return (pts || []).slice()
+    }
+    const sorted = pts.slice().sort((a, b) => (a.x === b.x ? a.y - b.y : a.x - b.x))
+    const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x)
+    const build = list => {
+        const hull = []
+        for (const p of list) {
+            while (hull.length >= 2 && cross(hull[hull.length - 2], hull[hull.length - 1], p) < 0) {
+                hull.pop()
+            }
+            hull.push(p)
+        }
+        return hull
+    }
+    const lower = build(sorted)
+    const upper = build(sorted.slice().reverse())
+    lower.pop()
+    upper.pop()
+    return lower.concat(upper)
+}
+
 function offsetPolygon(pts, dist) {
     if (!dist || pts.length < 2) {
         return pts
@@ -97,6 +120,9 @@ function addZoneOutlines(canvas, generatorOptions) {
             x: Number(v.centerX != null ? v.centerX : v.x),
             y: Number(v.centerY != null ? v.centerY : v.y),
         }))
+        if (outline.shape !== "path") {
+            pts = convexHull(pts)
+        }
         const offsetMm = Number(outline.offset) || 0
         const unitNum = (unitWidth && typeof unitWidth.toNumber === "function")
             ? unitWidth.toNumber()

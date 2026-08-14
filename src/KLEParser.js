@@ -279,6 +279,7 @@ export function parseKle(kleText) {
                 zone,
                 fillet: Number(settings.fillet) || 0,
                 offset: Number(settings.offset) || 0,
+                shape: settings.shape === "path" ? "path" : "convex",
                 vertices: byZone[zone].slice().sort((a, b) => a.index - b.index),
             }
         })
