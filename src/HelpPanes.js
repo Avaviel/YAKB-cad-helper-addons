@@ -219,18 +219,18 @@ export function AboutPane() {
             <h4>Links</h4>
             <p>
                 This site:{' '}
-                <a href="https://avaviel.github.io/YAKB-cad-helper-addons/">avaviel.github.io/YAKB-cad-helper-addons</a>
+                <a href="https://avaviel.github.io/YAKB-cad-helper-addons/" target="_blank" rel="noreferrer">avaviel.github.io/YAKB-cad-helper-addons</a>
                 <br />
                 This source:{' '}
-                <a href="https://github.com/Avaviel/YAKB-cad-helper-addons">Avaviel/YAKB-cad-helper-addons</a>
+                <a href="https://github.com/Avaviel/YAKB-cad-helper-addons" target="_blank" rel="noreferrer">Avaviel/YAKB-cad-helper-addons</a>
                 <br />
                 Companion layout editor:{' '}
-                <a href="https://avaviel.github.io/keyboard-layout-editor-CAD/">KLE CAD</a>
+                <a href="https://avaviel.github.io/keyboard-layout-editor-CAD/" target="_blank" rel="noreferrer">KLE CAD</a>
                 {' '}
-                (<a href="https://github.com/Avaviel/keyboard-layout-editor-CAD">source</a>)
+                (<a href="https://github.com/Avaviel/keyboard-layout-editor-CAD" target="_blank" rel="noreferrer">source</a>)
                 <br />
                 Upstream plategen:{' '}
-                <a href="https://github.com/ai03-2725/yet-another-keyboard-builder">ai03-2725/yet-another-keyboard-builder</a>
+                <a href="https://github.com/ai03-2725/yet-another-keyboard-builder" target="_blank" rel="noreferrer">ai03-2725/yet-another-keyboard-builder</a>
             </p>
         </div>
     )

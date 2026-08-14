@@ -18,6 +18,7 @@ import {
 import Decimal from "decimal.js"
 import fileDownload from 'js-file-download'
 import logo from './logo.png'
+import './App.css'
 import { DataHelpPane, SwitchCutoutPane, OtherCutoutPane, AdvancedPane, RegistrationHelpPane, AboutPane } from './HelpPanes'
 
 
@@ -138,10 +139,20 @@ function App() {
 
 
   return (
+    <>
+    <div className="cad-site-links">
+      <div className="cad-site-links-inner">
+        <a className="here" href="https://avaviel.github.io/YAKB-cad-helper-addons/" target="_blank" rel="noopener noreferrer">This site: YAKB CAD Helper</a>
+        <span className="arrow" aria-hidden="true">→</span>
+        <a href="https://avaviel.github.io/keyboard-layout-editor-CAD/" target="_blank" rel="noopener noreferrer">KLE CAD</a>
+        <span className="arrow" aria-hidden="true">→</span>
+        <a href="https://github.com/Avaviel/YAKB-cad-helper-addons" target="_blank" rel="noopener noreferrer">Source</a>
+      </div>
+    </div>
     <Container className="App justify-content-center" style={{ textAlign: "center" }}>
 
       <div className="pt-4 pb-4">
-        <a href="https://ai03.com/">
+        <a href="https://ai03.com/" target="_blank" rel="noopener noreferrer">
           <Image fluid={true} src={logo} className="m-4" style={{ maxHeight: "100px" }} />
         </a>
 
@@ -152,15 +163,8 @@ function App() {
           {' '}<strong>hotswap sockets</strong>. Based on the ai03 Plate Generator (YAKB) for accurate MX cutouts,
           with extra stamp layers aimed at printed builds.
         </p>
-        <p className="text-muted mb-2" style={{ maxWidth: "720px", margin: "0 auto" }}>
+        <p className="text-muted mb-0" style={{ maxWidth: "720px", margin: "0 auto" }}>
           <strong>MX</strong> hotswap support is available now. <strong>Kailh Choc</strong> support is planned for a future update.
-        </p>
-        <p className="mb-0" style={{ maxWidth: "720px", margin: "0 auto" }}>
-          <a href="https://github.com/Avaviel/YAKB-cad-helper-addons">Source on GitHub</a>
-          {' · '}
-          <a href="https://avaviel.github.io/YAKB-cad-helper-addons/">This site</a>
-          {' · '}
-          <a href="https://avaviel.github.io/keyboard-layout-editor-CAD/">KLE CAD</a>
         </p>
       </div>
 
@@ -523,6 +527,7 @@ function App() {
 
 
     </Container>
+    </>
   );
 }
 
