@@ -55,6 +55,7 @@ function App() {
   // Single full export (preview + dxf + svg)
   const [exportOutput, setExportOutput] = useState(null)
   const [previewMode, setPreviewMode] = useState("together")
+  const [previewLayout, setPreviewLayout] = useState("portrait")
 
   const selectedFamily = switchFamilies.find(f => f.id === stampSwitchFamily) || switchFamilies[0]
   const exportSummary = getExportSummary(stampSwitchFamily, stampFit)
@@ -463,31 +464,48 @@ function App() {
               {exportOutput && !exportOutput.ready ? ' · paste KLE data to generate' : ''}
             </p>
           </div>
-          <div className="btn-group mt-2" role="group" aria-label="Preview mode">
-            {[
-              { id: "together", label: "Together" },
-              { id: "split", label: "Split" },
-              { id: "layers", label: "Layers" },
-              { id: "each", label: "Each" },
-            ].map(mode => (
-              <Button
-                key={mode.id}
-                variant={previewMode === mode.id ? "light" : "outline-light"}
-                size="sm"
-                onClick={() => setPreviewMode(mode.id)}
-              >
-                {mode.label}
-              </Button>
-            ))}
+          <div className="d-flex flex-wrap gap-2 mt-2">
+            <div className="btn-group" role="group" aria-label="Preview mode">
+              {[
+                { id: "together", label: "Together" },
+                { id: "split", label: "Split" },
+                { id: "layers", label: "Layers" },
+                { id: "each", label: "Each" },
+              ].map(mode => (
+                <Button
+                  key={mode.id}
+                  variant={previewMode === mode.id ? "light" : "outline-light"}
+                  size="sm"
+                  onClick={() => setPreviewMode(mode.id)}
+                >
+                  {mode.label}
+                </Button>
+              ))}
+            </div>
+            <div className="btn-group" role="group" aria-label="Preview layout">
+              {[
+                { id: "portrait", label: "Portrait" },
+                { id: "landscape", label: "Landscape" },
+              ].map(layout => (
+                <Button
+                  key={layout.id}
+                  variant={previewLayout === layout.id ? "light" : "outline-light"}
+                  size="sm"
+                  onClick={() => setPreviewLayout(layout.id)}
+                >
+                  {layout.label}
+                </Button>
+              ))}
+            </div>
           </div>
         </Card.Header>
         {previewMode === "together" ? (
           <Card.Body
-            className="bg-dark plate-preview py-2 px-3"
+            className={`bg-dark plate-preview py-2 px-3 preview-layout-${previewLayout}`}
             dangerouslySetInnerHTML={{ __html: exportOutput?.ready ? exportOutput.previewSvg : '' }}
           />
         ) : (
-          <Card.Body className="bg-dark py-2 px-3">
+          <Card.Body className={`bg-dark py-2 px-3 preview-panes preview-layout-${previewLayout}`}>
             {(previewMode === "split"
               ? [
                   { title: "Top + Shell", svg: exportOutput?.previewTopShell },
@@ -501,7 +519,7 @@ function App() {
                 ]
               : (exportOutput?.previewEach || [])
             ).map(pane => (
-              <div key={pane.title} className="mb-3">
+              <div key={pane.title} className="preview-pane">
                 <div className="text-white-50 small mb-1">{pane.title}</div>
                 <div
                   className="plate-preview"

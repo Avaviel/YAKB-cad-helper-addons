@@ -9,6 +9,32 @@
   max-height: none;
 }
 
+.preview-panes.preview-layout-portrait .preview-pane {
+  width: 100%;
+  margin-bottom: 0.75rem;
+}
+
+.preview-panes.preview-layout-landscape {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.preview-panes.preview-layout-landscape .preview-pane {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.preview-layout-landscape.plate-preview svg,
+.preview-layout-landscape .plate-preview svg {
+  width: auto;
+  max-width: 100%;
+  max-height: 52vh;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .cad-companion {
   display: flex;
   flex-wrap: wrap;
