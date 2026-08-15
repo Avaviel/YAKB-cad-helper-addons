@@ -37,3 +37,5 @@ Not just a generic plate tool — it’s specifically to make **hotswap + 3D-pri
 ## Upstream
 
 Based on [ai03-2725/yet-another-keyboard-builder](https://github.com/ai03-2725/yet-another-keyboard-builder). See their CONTRIBUTING.md for cutout contribution guidelines on the original project.
+
+Kailh Choc hotswap socket dimensions are from [koktoh/keyswitch_model](https://github.com/koktoh/keyswitch_model) ([socket/step/choc.step](https://github.com/koktoh/keyswitch_model/blob/master/socket/step/choc.step)).

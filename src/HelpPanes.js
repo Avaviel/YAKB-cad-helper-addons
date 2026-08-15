@@ -274,6 +274,14 @@ export function AboutPane() {
                 <br />
                 Upstream plategen:{' '}
                 <a href="https://github.com/ai03-2725/yet-another-keyboard-builder" target="_blank" rel="noreferrer">ai03-2725/yet-another-keyboard-builder</a>
+                <br />
+                Choc hotswap socket dimensions:{' '}
+                <a href="https://github.com/koktoh/keyswitch_model/blob/master/socket/step/choc.step" target="_blank" rel="noreferrer">koktoh/keyswitch_model choc.step</a>
+            </p>
+            <p>
+                Kailh Choc hotswap stamp dimensions are taken from
+                {' '}<a href="https://github.com/koktoh/keyswitch_model" target="_blank" rel="noreferrer">koktoh/keyswitch_model</a>
+                {' '}(<a href="https://github.com/koktoh/keyswitch_model/blob/master/socket/step/choc.step" target="_blank" rel="noreferrer">socket/step/choc.step</a>).
             </p>
         </div>
     )
