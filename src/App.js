@@ -55,7 +55,7 @@ function App() {
   // Single full export (preview + dxf + svg)
   const [exportOutput, setExportOutput] = useState(null)
   const [previewMode, setPreviewMode] = useState("together")
-  const [previewLayout, setPreviewLayout] = useState("portrait")
+  const [previewLayout, setPreviewLayout] = useState("landscape")
 
   const selectedFamily = switchFamilies.find(f => f.id === stampSwitchFamily) || switchFamilies[0]
   const exportSummary = getExportSummary(stampSwitchFamily, stampFit)
