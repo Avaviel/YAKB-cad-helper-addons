@@ -99,6 +99,28 @@ function addLwPolyline(entity, paths, startIdx) {
   }
 
   const closed = !!(entity.shape || entity.closed);
+
+  // Fusion often writes a circle as a 2-vertex closed LWPOLYLINE with bulge on
+  // only one vertex. The other segment has no bulge and becomes a flat chord.
+  if (closed && verts.length === 2) {
+    const b0 = verts[0].bulge || 0;
+    const b1 = verts[1].bulge || 0;
+    const bulge = Math.abs(b0) >= Math.abs(b1) ? b0 : b1;
+    if (Math.abs(bulge) > 1e-12) {
+      const a = Math.abs(b0) >= Math.abs(b1) ? verts[0] : verts[1];
+      const b = Math.abs(b0) >= Math.abs(b1) ? verts[1] : verts[0];
+      const seg = segmentFromBulge(a, b, bulge);
+      if (seg && seg.type === 'arc') {
+        paths[`circle${idx++}`] = {
+          type: 'circle',
+          origin: seg.origin,
+          radius: seg.radius
+        };
+        return idx;
+      }
+    }
+  }
+
   const count = closed ? verts.length : verts.length - 1;
 
   for (let i = 0; i < count; i++) {

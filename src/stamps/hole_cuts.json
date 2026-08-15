@@ -1,6 +1,6 @@
 {
   "source": "hole_cuts.dxf",
-  "pathCount": 6,
+  "pathCount": 7,
   "paths": {
     "arc2": {
       "type": "arc",
@@ -57,6 +57,14 @@
       "radius": 1.567428854921809,
       "startAngle": 0.06384210820669134,
       "endAngle": 0.5591819473160018
+    },
+    "circle8": {
+      "type": "circle",
+      "origin": [
+        2.647652095695943,
+        5.31424210972444
+      ],
+      "radius": 1.7953553390593397
     }
   },
   "mirrored": true,
