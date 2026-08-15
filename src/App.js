@@ -90,8 +90,8 @@ function App() {
       switchFilletRadius: new Decimal(switchRadius),
       stabilizerFilletRadius: new Decimal(stabilizerRadius),
       acousticFilletRadius: new Decimal(acousticRadius),
-      unitWidth: new Decimal(unitWidth),
-      unitHeight: new Decimal(unitHeight),
+      unitWidth: new Decimal(String(unitWidth).trim() || "invalid"),
+      unitHeight: new Decimal(String(unitHeight).trim() || "invalid"),
       kerf: new Decimal(kerf),
       mirrorStamps: !!mirrorStamps,
       outlines,
@@ -275,10 +275,32 @@ function App() {
     }
   }
 
-  const handleChocSpacing = (preset) => {
-    setChocSpacingId(preset.id)
-    setUnitWidth(preset.width)
-    setUnitHeight(preset.height)
+  const handleChocSpacing = (id) => {
+    setChocSpacingId(id)
+    if (id === "custom") {
+      setUnitWidth("")
+      setUnitHeight("")
+      return
+    }
+    const preset = chocSpacingPresets.find(p => p.id === id)
+    if (preset) {
+      setUnitWidth(preset.width)
+      setUnitHeight(preset.height)
+    }
+  }
+
+  const handleUnitSizeChange = (axis, value) => {
+    if (axis === "width") {
+      setUnitWidth(value)
+    } else {
+      setUnitHeight(value)
+    }
+    const nextWidth = axis === "width" ? value : unitWidth
+    const nextHeight = axis === "height" ? value : unitHeight
+    const match = chocSpacingPresets.find(
+      p => Number(p.width) === Number(nextWidth) && Number(p.height) === Number(nextHeight)
+    )
+    setChocSpacingId(match ? match.id : "custom")
   }
 
   const isSupportedWorkflow = supportedCutoutTypes.includes(switchCutoutType)
@@ -304,36 +326,6 @@ function App() {
           <strong>MX</strong> and <strong>Kailh Choc PG1350</strong> hotswap workflows are available now.
         </p>
       </div>
-
-      {!isSupportedWorkflow && (
-        <Alert variant="warning" className="text-start">
-          This switch type is not part of the MX / Choc PG1350 stamp workflow yet.
-          Plate cutouts may still generate, but hotswap and helper layers are not provided.
-          If you want it added,{' '}
-          <a href="https://github.com/Avaviel/YAKB-cad-helper-addons" target="_blank" rel="noreferrer">clone the repository</a>
-          {' '}and add stamps, or{' '}
-          <a href="https://github.com/Avaviel/YAKB-cad-helper-addons/issues" target="_blank" rel="noreferrer">raise an issue</a>.
-        </Alert>
-      )}
-
-      {isChocWorkflow && (
-        <Alert variant="info" className="text-start">
-          <strong>Choc PG1350 spacing.</strong> Standard Choc boards are 18×17 mm (not 19.05 MX).
-          Mini Choc PG1232 is a different, smaller switch — pick it only if you want a plate cutout, not this stamp pack.
-          <div className="d-flex flex-wrap gap-2 mt-2">
-            {chocSpacingPresets.map(preset => (
-              <Button
-                key={preset.id}
-                size="sm"
-                variant={chocSpacingId === preset.id ? "primary" : "outline-primary"}
-                onClick={() => handleChocSpacing(preset)}
-              >
-                {preset.label}
-              </Button>
-            ))}
-          </div>
-        </Alert>
-      )}
 
       <Card className="rounded shadow overflow-hidden mb-5">
         <Card.Body className="p-0">
@@ -371,6 +363,17 @@ function App() {
 
         </Card.Body>
       </Card>
+
+      {!isSupportedWorkflow && (
+        <Alert variant="warning" className="text-start">
+          This switch type is not part of the MX / Choc PG1350 stamp workflow yet.
+          Plate cutouts may still generate, but hotswap and helper layers are not provided.
+          If you want it added,{' '}
+          <a href="https://github.com/Avaviel/YAKB-cad-helper-addons" target="_blank" rel="noreferrer">clone the repository</a>
+          {' '}and add stamps, or{' '}
+          <a href="https://github.com/Avaviel/YAKB-cad-helper-addons/issues" target="_blank" rel="noreferrer">raise an issue</a>.
+        </Alert>
+      )}
 
       <Card className="rounded shadow overflow-hidden mb-5">
         {/* <Card.Header>
@@ -473,6 +476,25 @@ function App() {
               <h3>Advanced</h3>
               <p>Best leave these alone unless you know what you are doing.</p>
               <Form className="ms-3 me-3">
+                {isChocWorkflow && (
+                  <>
+                    <Form.Label>Choc unit size</Form.Label>
+                    <Form.Select
+                      aria-label="choc-unit-size"
+                      value={chocSpacingId}
+                      className="mb-2"
+                      onChange={e => handleChocSpacing(e.target.value)}
+                    >
+                      {chocSpacingPresets.map(preset => (
+                        <option key={preset.id} value={preset.id}>{preset.label}</option>
+                      ))}
+                      <option value="custom">Custom</option>
+                    </Form.Select>
+                    <Form.Text className="text-muted d-block mb-4">
+                      Standard Choc is 18×17 mm (not 19.05 MX). Custom clears the boxes so you can type your own.
+                    </Form.Text>
+                  </>
+                )}
                 <Form.Label>Unit Width</Form.Label>
                 <Form.Control
                   type="number"
@@ -483,10 +505,8 @@ function App() {
                   value={unitWidth}
                   id="unit-width"
                   className="mb-4"
-                  onChange={e => {
-                    setUnitWidth(e.target.value)
-                    setChocSpacingId("custom")
-                  }}
+                  placeholder={isChocWorkflow ? "Width mm" : undefined}
+                  onChange={e => handleUnitSizeChange("width", e.target.value)}
                 />
                 <Form.Label>Unit Height</Form.Label>
                 <Form.Control
@@ -498,10 +518,8 @@ function App() {
                   value={unitHeight}
                   id="unit-height"
                   className="mb-4"
-                  onChange={e => {
-                    setUnitHeight(e.target.value)
-                    setChocSpacingId("custom")
-                  }}
+                  placeholder={isChocWorkflow ? "Height mm" : undefined}
+                  onChange={e => handleUnitSizeChange("height", e.target.value)}
                 />
                 <Form.Label>Kerf</Form.Label>
                 <Form.Control
