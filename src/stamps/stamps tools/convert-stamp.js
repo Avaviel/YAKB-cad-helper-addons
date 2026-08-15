@@ -2,10 +2,18 @@ const fs = require('fs');
 const path = require('path');
 const DxfParser = require('dxf-parser');
 
-const folder = __dirname;
-// Optional: pass a filename (or substring) to convert only matching DXFs
-// e.g. node convert-stamp.js betterfit
-const filterArg = process.argv[2] ? process.argv[2].toLowerCase() : null;
+let folder = __dirname;
+// Optional: --dir=choc  and/or a filename substring
+// e.g. node convert-stamp.js --dir=choc
+//      node convert-stamp.js betterfit
+let filterArg = null;
+for (const arg of process.argv.slice(2)) {
+  if (arg.startsWith('--dir=')) {
+    folder = path.resolve(__dirname, arg.slice(6));
+  } else {
+    filterArg = arg.toLowerCase();
+  }
+}
 
 const files = fs.readdirSync(folder).filter(f => {
   if (!f.toLowerCase().endsWith('.dxf')) return false;
@@ -140,6 +148,72 @@ function addLwPolyline(entity, paths, startIdx) {
   return idx;
 }
 
+function deBoor(controlPoints, knots, degree, u) {
+  const n = controlPoints.length - 1
+  let k = degree
+  for (let i = degree; i <= n; i++) {
+    if (u >= knots[i] && u <= knots[i + 1]) {
+      k = i
+      break
+    }
+  }
+  const d = []
+  for (let j = 0; j <= degree; j++) {
+    const p = controlPoints[k - degree + j] || controlPoints[0]
+    d.push({ x: p.x, y: p.y })
+  }
+  for (let r = 1; r <= degree; r++) {
+    for (let j = degree; j >= r; j--) {
+      const i = k - degree + j
+      const denom = knots[i + 1 + degree - r] - knots[i]
+      const alpha = denom === 0 ? 0 : (u - knots[i]) / denom
+      d[j] = {
+        x: (1 - alpha) * d[j - 1].x + alpha * d[j].x,
+        y: (1 - alpha) * d[j - 1].y + alpha * d[j].y,
+      }
+    }
+  }
+  return d[degree]
+}
+
+function addSpline(entity, paths, startIdx) {
+  let idx = startIdx
+  const ctrl = entity.controlPoints || []
+  const knots = entity.knotValues || []
+  const degree = entity.degreeOfSplineCurve || 3
+  if (ctrl.length < 2 || knots.length < 2) {
+    return idx
+  }
+  const u0 = knots[degree] ?? knots[0]
+  const u1 = knots[knots.length - degree - 1] ?? knots[knots.length - 1]
+  const steps = 36
+  const pts = []
+  for (let i = 0; i <= steps; i++) {
+    const u = u0 + (u1 - u0) * (i / steps)
+    const p = deBoor(ctrl, knots, degree, u)
+    if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) {
+      pts.push(p)
+    }
+  }
+  for (let i = 1; i < pts.length; i++) {
+    paths[`line${idx++}`] = {
+      type: 'line',
+      origin: [pts[i - 1].x, pts[i - 1].y],
+      end: [pts[i].x, pts[i].y],
+    }
+  }
+  const first = pts[0]
+  const last = pts[pts.length - 1]
+  if (first && last && Math.hypot(first.x - last.x, first.y - last.y) > 0.05) {
+    paths[`line${idx++}`] = {
+      type: 'line',
+      origin: [last.x, last.y],
+      end: [first.x, first.y],
+    }
+  }
+  return idx
+}
+
 const parser = new DxfParser();
 
 files.forEach(file => {
@@ -177,6 +251,8 @@ files.forEach(file => {
         };
       } else if (entity.type === 'LWPOLYLINE' || entity.type === 'POLYLINE') {
         idx = addLwPolyline(entity, paths, idx);
+      } else if (entity.type === 'SPLINE') {
+        idx = addSpline(entity, paths, idx);
       } else {
         console.warn(`  (skip unsupported entity type: ${entity.type})`);
       }

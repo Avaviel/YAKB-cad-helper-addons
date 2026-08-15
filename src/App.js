@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react"
-import { Button, Container, Card, Form, Row, Col, Image, Tab, Nav } from 'react-bootstrap'
+import { Button, Container, Card, Form, Row, Col, Image, Tab, Nav, Alert } from 'react-bootstrap'
 import { parseKle, readKleLayerState, writeKleLayerState } from "./KLEParser"
 import { buildPlate, zoneOutlineDefaults } from "./PlateBuilder"
 import {
@@ -10,6 +10,9 @@ import {
   getExportSummary,
   defaultShellFromPlate,
   defaultShellFromSelf,
+  chocSpacingPresets,
+  supportedCutoutTypes,
+  familyForCutoutType,
 } from "./otherPartsConfig"
 import {
   buildExportAssembly,
@@ -56,6 +59,7 @@ function App() {
   const [exportOutput, setExportOutput] = useState(null)
   const [previewMode, setPreviewMode] = useState("together")
   const [previewLayout, setPreviewLayout] = useState("landscape")
+  const [chocSpacingId, setChocSpacingId] = useState("18x17")
 
   const selectedFamily = switchFamilies.find(f => f.id === stampSwitchFamily) || switchFamilies[0]
   const exportSummary = getExportSummary(stampSwitchFamily, stampFit)
@@ -247,7 +251,36 @@ function App() {
     } else if (family?.fits?.length) {
       setStampFit(family.fits[0].id)
     }
+    if (family?.cutoutType && family.cutoutType !== switchCutoutType) {
+      setSwitchCutoutType(family.cutoutType)
+    }
+    if (family?.defaultUnitWidth != null) {
+      setUnitWidth(family.defaultUnitWidth)
+    }
+    if (family?.defaultUnitHeight != null) {
+      setUnitHeight(family.defaultUnitHeight)
+    }
+    if (familyId === "choc") {
+      setChocSpacingId("18x17")
+    }
   }
+
+  const handleSwitchCutoutChange = (value) => {
+    setSwitchCutoutType(value)
+    const family = familyForCutoutType(value)
+    if (family) {
+      handleStampFamilyChange(family.id)
+    }
+  }
+
+  const handleChocSpacing = (preset) => {
+    setChocSpacingId(preset.id)
+    setUnitWidth(preset.width)
+    setUnitHeight(preset.height)
+  }
+
+  const isSupportedWorkflow = supportedCutoutTypes.includes(switchCutoutType)
+  const isChocWorkflow = switchCutoutType === "choc-cpg1350"
 
 
   return (
@@ -266,9 +299,39 @@ function App() {
           with extra stamp layers aimed at printed builds.
         </p>
         <p className="text-muted mb-0" style={{ maxWidth: "720px", margin: "0 auto" }}>
-          <strong>MX</strong> hotswap support is available now. <strong>Kailh Choc</strong> support is planned for a future update.
+          <strong>MX</strong> and <strong>Kailh Choc PG1350</strong> hotswap workflows are available now.
         </p>
       </div>
+
+      {!isSupportedWorkflow && (
+        <Alert variant="warning" className="text-start">
+          This switch type is not part of the MX / Choc PG1350 stamp workflow yet.
+          Plate cutouts may still generate, but hotswap and helper layers are not provided.
+          If you want it added,{' '}
+          <a href="https://github.com/Avaviel/YAKB-cad-helper-addons" target="_blank" rel="noreferrer">clone the repository</a>
+          {' '}and add stamps, or{' '}
+          <a href="https://github.com/Avaviel/YAKB-cad-helper-addons/issues" target="_blank" rel="noreferrer">raise an issue</a>.
+        </Alert>
+      )}
+
+      {isChocWorkflow && (
+        <Alert variant="info" className="text-start">
+          <strong>Choc PG1350 spacing.</strong> Standard Choc boards are 18×17 mm (not 19.05 MX).
+          Mini Choc PG1232 is a different, smaller switch and is not this workflow.
+          <div className="d-flex flex-wrap gap-2 mt-2">
+            {chocSpacingPresets.map(preset => (
+              <Button
+                key={preset.id}
+                size="sm"
+                variant={chocSpacingId === preset.id ? "primary" : "outline-primary"}
+                onClick={() => handleChocSpacing(preset)}
+              >
+                {preset.label}
+              </Button>
+            ))}
+          </div>
+        </Alert>
+      )}
 
       <Card className="rounded shadow overflow-hidden mb-5">
         <Card.Body className="p-0">
@@ -320,20 +383,19 @@ function App() {
               <Form className="ms-3 me-3">
                 <Form.Label>Switch Cutout Type</Form.Label>
                 <Form.Select aria-label="switch-cutout-type"
-                  selected="mx-basic"
+                  value={switchCutoutType}
                   className="mb-4"
-                  onChange={e => setSwitchCutoutType(e.target.value)}
+                  onChange={e => handleSwitchCutoutChange(e.target.value)}
                 >
-                  <option value="mx-basic">Cherry MX Basic</option>
-                  <option value="alps-skcm">Alps SKCM/L</option>
-                  <option value="choc-cpg1350">Kailh Choc CPG1350</option>
+                  <option value="mx-basic">★ Cherry MX Basic</option>
+                  <option value="choc-cpg1350">★ Kailh Choc CPG1350</option>
                   <option value="choc-cpg1232">Kailh Mini Choc CPG1232</option>
+                  <option value="alps-skcm">Alps SKCM/L</option>
                   <option value="omron-b3g">Omron B3G/B3G-S</option>
                   <option value="alps-skcp">Alps SKCP</option>
                   <option value="hitek-725">Hi-Tek 725</option>
                   <option value="i-rocks">i-Rocks</option>
                   <option value="futaba-ma">Futaba MA</option>
-
                 </Form.Select>
                 <Form.Label>Stabilizer Cutout Type</Form.Label>
                 <Form.Select aria-label="stabilizer-cutout-type"
@@ -416,10 +478,13 @@ function App() {
                   step=".001"
                   min="0"
                   max="100"
-                  defaultValue="19.05"
+                  value={unitWidth}
                   id="unit-width"
                   className="mb-4"
-                  onChange={e => setUnitWidth(e.target.value)}
+                  onChange={e => {
+                    setUnitWidth(e.target.value)
+                    setChocSpacingId("custom")
+                  }}
                 />
                 <Form.Label>Unit Height</Form.Label>
                 <Form.Control
@@ -428,10 +493,13 @@ function App() {
                   step=".001"
                   min="0"
                   max="100"
-                  defaultValue="19.05"
+                  value={unitHeight}
                   id="unit-height"
                   className="mb-4"
-                  onChange={e => setUnitHeight(e.target.value)}
+                  onChange={e => {
+                    setUnitHeight(e.target.value)
+                    setChocSpacingId("custom")
+                  }}
                 />
                 <Form.Label>Kerf</Form.Label>
                 <Form.Control
@@ -562,7 +630,7 @@ function App() {
               <p className="mb-3">
                 One multi-layer DXF/SVG with all drawings on separate layers.
                 <strong> Top-*</strong> = switch plate, dots, back cut;
-                <strong> Link-*</strong> = MX hotswap and hole cuts;
+                <strong> Link-*</strong> = hotswap and hole cuts;
                 <strong> Shell</strong> = case outline (offset from the plate, then from itself).
               </p>
               <Form className="ms-3 me-3 text-start">
@@ -581,7 +649,7 @@ function App() {
                       ))}
                     </Form.Select>
                     <Form.Text className="text-muted">
-                      MX is available now. Kailh Choc is planned for a future update.
+                      ★ MX and ★ Choc PG1350 include stamp layers. Other cutout types can still generate a plate.
                     </Form.Text>
                   </Col>
                   <Col md={6} className="mb-3">
@@ -597,7 +665,9 @@ function App() {
                       ))}
                     </Form.Select>
                     <Form.Text className="text-muted">
-                      Clearance for the MX hotswap socket stamp only.
+                      {stampSwitchFamily === "choc"
+                        ? "Choc PG1350 uses the Choc hotswap stamp."
+                        : "Clearance for the MX hotswap socket stamp only."}
                     </Form.Text>
                   </Col>
                 </Row>

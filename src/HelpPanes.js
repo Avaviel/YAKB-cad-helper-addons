@@ -222,7 +222,7 @@ export function AboutPane() {
                 {' '}<strong>3D-printed custom keyboards</strong> with <strong>hotswap sockets</strong> —
                 stamp layers (MX hotswap fits, back cut, hole cuts, switchplace extrude), registration marks
                 for multi-layer alignment, and a workflow focused on printed builds.
-                MX is supported now; <strong>Kailh Choc</strong> support is planned.
+                <strong>MX</strong> and <strong>Kailh Choc PG1350</strong> stamp workflows are supported now.
             </p>
             <br />
             <h4>Open source &amp; license</h4>

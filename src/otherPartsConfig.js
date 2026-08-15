@@ -89,39 +89,69 @@ function stampOrNull(id, labelOverride, descriptionOverride) {
 export const switchFamilies = [
   {
     id: 'mx',
-    label: 'MX',
+    label: '★ MX',
     description: 'Cherry MX–compatible hotswap and plate helper stamps',
-    // Fit options map to hotswap stamp files
+    cutoutType: 'mx-basic',
+    includeDots: true,
+    backCutStampId: 'back-cut',
+    holeCutsStampId: 'hole-cuts',
     fits: [
       {
         id: 'betterfit',
         label: 'Better fit',
         hotswapStampId: 'mx-hotswap-betterfit',
-        // DXF layer for the Link (secondary) plate hotswap geometry
         hotswapLayerName: 'Link-MX_HOTSWAP_BF',
+        hotswapNoteId: 'Link-MX_HOTSWAP',
       },
       {
         id: 'tight',
         label: 'Tight',
         hotswapStampId: 'mx-hotswap-tight',
         hotswapLayerName: 'Link-MX_HOTSWAP_TIGHT',
+        hotswapNoteId: 'Link-MX_HOTSWAP',
       },
     ],
     defaultFitId: 'betterfit',
-    // Stamps that were authored reversed and corrected in JSON; mirror toggle still useful
+    defaultUnitWidth: 19.05,
+    defaultUnitHeight: 19.05,
     supportsMirror: true,
   },
-  // Placeholder for future Kailh Choc support (not selectable until stamps exist)
-  // {
-  //   id: 'choc',
-  //   label: 'Kailh Choc',
-  //   description: 'Coming later — Link-* layers for Choc hotswap + related stamps',
-  //   fits: [],
-  //   defaultFitId: null,
-  //   disabled: true,
-  //   supportsMirror: true, // REQUIRED when Choc is enabled
-  // },
+  {
+    id: 'choc',
+    label: '★ Kailh Choc PG1350',
+    description: 'Kailh Choc PG1350 (Choc v1) hotswap and plate helper stamps',
+    cutoutType: 'choc-cpg1350',
+    includeDots: false,
+    backCutStampId: 'choc-back-cut',
+    holeCutsStampId: 'choc-hole-cuts',
+    fits: [
+      {
+        id: 'standard',
+        label: 'Standard',
+        hotswapStampId: 'choc-hotswap',
+        hotswapLayerName: 'Link-CHOC_HOTSWAP',
+        hotswapNoteId: 'Link-CHOC_HOTSWAP',
+      },
+    ],
+    defaultFitId: 'standard',
+    defaultUnitWidth: 18,
+    defaultUnitHeight: 17,
+    supportsMirror: true,
+  },
 ]
+
+export const chocSpacingPresets = [
+  { id: '18x17', label: '18 × 17 mm (standard)', width: 18, height: 17 },
+  { id: '18x18', label: '18 × 18 mm', width: 18, height: 18 },
+  { id: '17x17', label: '17 × 17 mm', width: 17, height: 17 },
+  { id: '19.05', label: '19.05 × 19.05 mm (MX grid)', width: 19.05, height: 19.05 },
+]
+
+export const supportedCutoutTypes = ['mx-basic', 'choc-cpg1350']
+
+export function familyForCutoutType(cutoutType) {
+  return switchFamilies.find(f => f.cutoutType === cutoutType) || null
+}
 
 /**
  * Single multi-layer export: all geometry in one DXF/SVG, different layer names.
@@ -145,14 +175,17 @@ export function getExportAssembly(switchFamilyId, fitId) {
     || (family?.fits || []).find(f => f.id === family?.defaultFitId)
     || (family?.fits || [])[0]
 
-  const backCut = stampOrNull('back-cut', 'Back cut', 'Back-side cut stamp')
-  const switchplace = stampOrNull(
-    'switchplace-extrude',
-    'Top Dots',
-    'Switchplace / dots stamp (Top-Dots layer)'
-  )
-  const holeCuts = stampOrNull('hole-cuts', 'Hole cuts', 'Hole cut stamp')
+  const backCut = stampOrNull(family.backCutStampId || 'back-cut', 'Back cut', 'Back-side cut stamp')
+  const switchplace = family.includeDots === false
+    ? null
+    : stampOrNull(
+      'switchplace-extrude',
+      'Top Dots',
+      'Switchplace / dots stamp (Top-Dots layer)'
+    )
+  const holeCuts = stampOrNull(family.holeCutsStampId || 'hole-cuts', 'Hole cuts', 'Hole cut stamp')
   const hotswapLayer = fit?.hotswapLayerName || 'Link-MX_HOTSWAP'
+  const hotswapNoteId = fit?.hotswapNoteId || hotswapLayer
   const hotswap = fit?.hotswapStampId
     ? stampOrNull(
       fit.hotswapStampId,
@@ -165,17 +198,17 @@ export function getExportAssembly(switchFamilyId, fitId) {
     switchplace && { ...switchplace, modelKey: 'TopDots', layerName: 'Top-Dots', noteId: 'Top-Dots', hasOutline: false },
     backCut && { ...backCut, modelKey: 'TopBackCut', layerName: 'Top-BACK_CUT', noteId: 'Top-BACK_CUT', hasOutline: false },
     holeCuts && { ...holeCuts, modelKey: 'LinkHoleCuts', layerName: 'Link-HOLE_CUTS', noteId: 'Link-HOLE_CUTS', hasOutline: true },
-    hotswap && { ...hotswap, modelKey: 'LinkHotswap', layerName: hotswapLayer, noteId: 'Link-MX_HOTSWAP', hasOutline: false },
+    hotswap && { ...hotswap, modelKey: 'LinkHotswap', layerName: hotswapLayer, noteId: hotswapNoteId, hasOutline: false },
   ].filter(Boolean)
 
   const layerList = [
     'Top-SWITCH_PLATE',
-    'Top-Dots',
+    switchplace ? 'Top-Dots' : null,
     'Top-BACK_CUT',
     'Link-HOLE_CUTS',
     hotswapLayer,
     'Shell',
-  ]
+  ].filter(Boolean)
 
   return {
     id: 'FullExport',
@@ -190,15 +223,15 @@ export function getExportAssembly(switchFamilyId, fitId) {
         group: 'Top',
         layers: [
           { id: 'Top-SWITCH_PLATE', layerName: 'Top-SWITCH_PLATE', label: 'Top-SWITCH_PLATE', outlineKind: 'plate' },
-          { id: 'Top-Dots', layerName: 'Top-Dots', label: 'Top-Dots' },
+          switchplace ? { id: 'Top-Dots', layerName: 'Top-Dots', label: 'Top-Dots' } : null,
           { id: 'Top-BACK_CUT', layerName: 'Top-BACK_CUT', label: 'Top-BACK_CUT' },
-        ],
+        ].filter(Boolean),
       },
       {
         group: 'Link',
         layers: [
           { id: 'Link-HOLE_CUTS', layerName: 'Link-HOLE_CUTS', label: 'Link-HOLE_CUTS', outlineKind: 'plate' },
-          { id: 'Link-MX_HOTSWAP', layerName: hotswapLayer, label: hotswapLayer },
+          { id: hotswapNoteId, layerName: hotswapLayer, label: hotswapLayer },
         ],
       },
       {
