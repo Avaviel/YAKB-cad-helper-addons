@@ -14,6 +14,7 @@ import {
   supportedCutoutTypes,
   familyForCutoutType,
 } from "./otherPartsConfig"
+import { backCutDefaultsForFamily } from "./BackCutBuilder"
 import {
   buildExportAssembly,
   exportOtherPart,
@@ -97,6 +98,7 @@ function App() {
       layerNotes,
       layerOutlines,
       keyboardTitle,
+      stampFamilyId: stampSwitchFamily,
       skipEmbeddedOutlines: true,
     }
 
@@ -317,7 +319,7 @@ function App() {
       {isChocWorkflow && (
         <Alert variant="info" className="text-start">
           <strong>Choc PG1350 spacing.</strong> Standard Choc boards are 18×17 mm (not 19.05 MX).
-          Mini Choc PG1232 is a different, smaller switch and is not this workflow.
+          Mini Choc PG1232 is a different switch and is not listed here.
           <div className="d-flex flex-wrap gap-2 mt-2">
             {chocSpacingPresets.map(preset => (
               <Button
@@ -389,7 +391,6 @@ function App() {
                 >
                   <option value="mx-basic">★ Cherry MX Basic</option>
                   <option value="choc-cpg1350">★ Kailh Choc CPG1350</option>
-                  <option value="choc-cpg1232">Kailh Mini Choc CPG1232</option>
                   <option value="alps-skcm">Alps SKCM/L</option>
                   <option value="omron-b3g">Omron B3G/B3G-S</option>
                   <option value="alps-skcp">Alps SKCP</option>
@@ -742,6 +743,43 @@ function App() {
                                   aria-label={`${layer.id}-fillet`}
                                 />
                               </Col>
+                            </Row>
+                          ) : layer.outlineKind === "backcut" ? (
+                            <Row className="g-2 mb-2">
+                              <Col md={stampSwitchFamily === "choc" ? 12 : 4}>
+                                <Form.Label className="mb-1">Offset from switch (mm)</Form.Label>
+                                <Form.Control
+                                  type="number"
+                                  step="0.1"
+                                  value={outlineField(layer.id, "offset", backCutDefaultsForFamily(stampSwitchFamily).offset)}
+                                  onChange={e => handleLayerOutlineChange(layer.id, "offset", e.target.value)}
+                                  aria-label={`${layer.id}-offset`}
+                                />
+                              </Col>
+                              {stampSwitchFamily !== "choc" && (
+                                <>
+                                  <Col md={4}>
+                                    <Form.Label className="mb-1">Bump out (mm)</Form.Label>
+                                    <Form.Control
+                                      type="number"
+                                      step="0.1"
+                                      value={outlineField(layer.id, "bump", backCutDefaultsForFamily(stampSwitchFamily).bump)}
+                                      onChange={e => handleLayerOutlineChange(layer.id, "bump", e.target.value)}
+                                      aria-label={`${layer.id}-bump`}
+                                    />
+                                  </Col>
+                                  <Col md={4}>
+                                    <Form.Label className="mb-1">Blend / notch (mm)</Form.Label>
+                                    <Form.Control
+                                      type="number"
+                                      step="0.1"
+                                      value={outlineField(layer.id, "notch", backCutDefaultsForFamily(stampSwitchFamily).notch)}
+                                      onChange={e => handleLayerOutlineChange(layer.id, "notch", e.target.value)}
+                                      aria-label={`${layer.id}-notch`}
+                                    />
+                                  </Col>
+                                </>
+                              )}
                             </Row>
                           ) : layer.outlineKind === "plate" ? (
                             <Row className="g-2 mb-2">

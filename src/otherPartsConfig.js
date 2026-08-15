@@ -93,8 +93,9 @@ export const switchFamilies = [
     description: 'Cherry MX–compatible hotswap and plate helper stamps',
     cutoutType: 'mx-basic',
     includeDots: true,
-    backCutStampId: 'back-cut',
     holeCutsStampId: 'hole-cuts',
+    backCutGenerated: true,
+    defaultBackCutBump: 2,
     fits: [
       {
         id: 'betterfit',
@@ -122,8 +123,9 @@ export const switchFamilies = [
     description: 'Kailh Choc PG1350 (Choc v1) hotswap and plate helper stamps',
     cutoutType: 'choc-cpg1350',
     includeDots: false,
-    backCutStampId: 'choc-back-cut',
     holeCutsStampId: 'choc-hole-cuts',
+    backCutGenerated: true,
+    defaultBackCutBump: 0,
     fits: [
       {
         id: 'standard',
@@ -175,7 +177,6 @@ export function getExportAssembly(switchFamilyId, fitId) {
     || (family?.fits || []).find(f => f.id === family?.defaultFitId)
     || (family?.fits || [])[0]
 
-  const backCut = stampOrNull(family.backCutStampId || 'back-cut', 'Back cut', 'Back-side cut stamp')
   const switchplace = family.includeDots === false
     ? null
     : stampOrNull(
@@ -196,7 +197,7 @@ export function getExportAssembly(switchFamilyId, fitId) {
 
   const stamps = [
     switchplace && { ...switchplace, modelKey: 'TopDots', layerName: 'Top-Dots', noteId: 'Top-Dots', hasOutline: false },
-    backCut && { ...backCut, modelKey: 'TopBackCut', layerName: 'Top-BACK_CUT', noteId: 'Top-BACK_CUT', hasOutline: false },
+    { type: 'backcut', modelKey: 'TopBackCut', layerName: 'Top-BACK_CUT', noteId: 'Top-BACK_CUT', hasOutline: false },
     holeCuts && { ...holeCuts, modelKey: 'LinkHoleCuts', layerName: 'Link-HOLE_CUTS', noteId: 'Link-HOLE_CUTS', hasOutline: true },
     hotswap && { ...hotswap, modelKey: 'LinkHotswap', layerName: hotswapLayer, noteId: hotswapNoteId, hasOutline: false },
   ].filter(Boolean)
@@ -224,7 +225,7 @@ export function getExportAssembly(switchFamilyId, fitId) {
         layers: [
           { id: 'Top-SWITCH_PLATE', layerName: 'Top-SWITCH_PLATE', label: 'Top-SWITCH_PLATE', outlineKind: 'plate' },
           switchplace ? { id: 'Top-Dots', layerName: 'Top-Dots', label: 'Top-Dots' } : null,
-          { id: 'Top-BACK_CUT', layerName: 'Top-BACK_CUT', label: 'Top-BACK_CUT' },
+          { id: 'Top-BACK_CUT', layerName: 'Top-BACK_CUT', label: 'Top-BACK_CUT', outlineKind: 'backcut' },
         ].filter(Boolean),
       },
       {

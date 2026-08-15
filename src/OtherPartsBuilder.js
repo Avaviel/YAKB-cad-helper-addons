@@ -3,6 +3,7 @@ import Decimal from 'decimal.js'
 import { annotatedLayerName, strokeTextModel } from './strokeText'
 import { buildOutlineModel, zoneOutlineDefaults } from './PlateBuilder'
 import { defaultShellFromPlate, defaultShellFromSelf } from './otherPartsConfig'
+import { buildBackCutPart } from './BackCutBuilder'
 
 /**
  * Convert a stamp JSON document into a maker.js model.
@@ -240,6 +241,13 @@ export function buildExportAssembly(assembly, keysArray, generatorOptions, mainP
   }
 
   for (const stamp of assembly.stamps || []) {
+    const key = stamp.modelKey || (stamp.id && stamp.id.replace(/[^a-zA-Z0-9_]/g, '_'))
+    if (stamp.type === 'backcut') {
+      const backCut = buildBackCutPart(keysArray, generatorOptions, stamp.layerName)
+      applyLayer(backCut, stamp.layerName)
+      canvas.models[key] = backCut
+      continue
+    }
     if (!stamp.stampData) {
       continue
     }
@@ -250,8 +258,6 @@ export function buildExportAssembly(assembly, keysArray, generatorOptions, mainP
       stamp.layerName,
       false
     )
-    // Model key safe for DXF nesting (layer name is what CAM cares about)
-    const key = stamp.modelKey || stamp.id.replace(/[^a-zA-Z0-9_]/g, '_')
     canvas.models[key] = stampModel
   }
 
