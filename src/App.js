@@ -319,7 +319,7 @@ function App() {
       {isChocWorkflow && (
         <Alert variant="info" className="text-start">
           <strong>Choc PG1350 spacing.</strong> Standard Choc boards are 18×17 mm (not 19.05 MX).
-          Mini Choc PG1232 is a different switch and is not listed here.
+          Mini Choc PG1232 is a different, smaller switch — pick it only if you want a plate cutout, not this stamp pack.
           <div className="d-flex flex-wrap gap-2 mt-2">
             {chocSpacingPresets.map(preset => (
               <Button
@@ -391,6 +391,7 @@ function App() {
                 >
                   <option value="mx-basic">★ Cherry MX Basic</option>
                   <option value="choc-cpg1350">★ Kailh Choc CPG1350</option>
+                  <option value="choc-cpg1232">Kailh Mini Choc CPG1232</option>
                   <option value="alps-skcm">Alps SKCM/L</option>
                   <option value="omron-b3g">Omron B3G/B3G-S</option>
                   <option value="alps-skcp">Alps SKCP</option>
