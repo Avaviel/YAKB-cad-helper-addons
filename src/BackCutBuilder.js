@@ -524,6 +524,48 @@ function cardinalLineIds(records) {
   }
 }
 
+function hypot2(dx, dy) {
+  return Math.hypot(dx, dy)
+}
+
+function atan2d(x, y) {
+  return Math.atan2(y, x) * 180 / Math.PI
+}
+
+function arcBetween(center, radius, fromPt, toPt) {
+  const a0 = atan2d(fromPt.x - center.x, fromPt.y - center.y)
+  const a1 = atan2d(toPt.x - center.x, toPt.y - center.y)
+  let sweep = a1 - a0
+  while (sweep <= -180) sweep += 360
+  while (sweep > 180) sweep -= 360
+  if (sweep >= 0) {
+    return new makerjs.paths.Arc([center.x, center.y], radius, a0, a0 + sweep)
+  }
+  return new makerjs.paths.Arc([center.x, center.y], radius, a1, a1 - sweep)
+}
+
+export function jogBlend(a, b, c, d) {
+  const inLen = hypot2(b.x - a.x, b.y - a.y)
+  const stepLen = hypot2(c.x - b.x, c.y - b.y)
+  const outLen = hypot2(d.x - c.x, d.y - c.y)
+  if (stepLen < 0.08 || inLen < 0.08 || outLen < 0.08) return null
+  const inDir = { x: (b.x - a.x) / inLen, y: (b.y - a.y) / inLen }
+  const stepHat = { x: (c.x - b.x) / stepLen, y: (c.y - b.y) / stepLen }
+  const outDir = { x: (d.x - c.x) / outLen, y: (d.y - c.y) / outLen }
+  const sameDir = inDir.x * outDir.x + inDir.y * outDir.y > 0.98
+  const parallel = Math.abs(inDir.x * outDir.x + inDir.y * outDir.y) > 0.98
+  const perp = Math.abs(inDir.x * stepHat.x + inDir.y * stepHat.y) < 0.08
+  if (!parallel || !sameDir || !perp || stepLen > 4) return null
+  const r = stepLen / 2
+  if (inLen < r + 0.05 || outLen < r + 0.05) return null
+  const P = { x: b.x - inDir.x * r, y: b.y - inDir.y * r }
+  const Q = { x: c.x + inDir.x * r, y: c.y + inDir.y * r }
+  const M = { x: b.x + stepHat.x * r, y: b.y + stepHat.y * r }
+  const c1 = { x: P.x + stepHat.x * r, y: P.y + stepHat.y * r }
+  const c2 = { x: Q.x - stepHat.x * r, y: Q.y - stepHat.y * r }
+  return { P, Q, M, c1, c2, r }
+}
+
 function switchTopBottomIds(records, switchBox) {
   if (!switchBox) return {}
   const horiz = records.filter(r => r.horiz)
@@ -545,15 +587,38 @@ function outlineFromLoop(loop, settings, bumpPlan) {
   if (!loop || loop.length < 3) return null
   const n = loop.length
   const model = { paths: {}, models: {} }
+  const blends = {}
   for (let i = 0; i < n; i++) {
+    const a = loop[(i - 1 + n) % n]
+    const b = loop[i]
+    const c = loop[(i + 1) % n]
+    const d = loop[(i + 2) % n]
+    const blend = jogBlend(a, b, c, d)
+    if (blend) blends[i] = blend
+  }
+
+  for (let i = 0; i < n; i++) {
+    const blendHere = blends[i]
+    if (blendHere) {
+      model.paths["j" + i + "a"] = arcBetween(blendHere.c1, blendHere.r, blendHere.P, blendHere.M)
+      model.paths["j" + i + "b"] = arcBetween(blendHere.c2, blendHere.r, blendHere.M, blendHere.Q)
+      continue
+    }
     const a = loop[i]
     const b = loop[(i + 1) % n]
-    model.paths["e" + i] = new makerjs.paths.Line([a.x, a.y], [b.x, b.y])
+    const blendPrev = blends[(i - 1 + n) % n]
+    const blendNext = blends[(i + 1) % n]
+    const start = blendPrev ? blendPrev.Q : a
+    const end = blendNext ? blendNext.P : b
+    model.paths["e" + i] = new makerjs.paths.Line([start.x, start.y], [end.x, end.y])
   }
 
   if (settings.cornerFillet > 0.001) {
     for (let i = 0; i < n; i++) {
-      const fillet = makerjs.path.fillet(model.paths["e" + i], model.paths["e" + ((i + 1) % n)], settings.cornerFillet)
+      const a = model.paths["e" + i]
+      const b = model.paths["e" + ((i + 1) % n)]
+      if (!a || !b) continue
+      const fillet = makerjs.path.fillet(a, b, settings.cornerFillet)
       if (fillet) model.paths["f" + i] = fillet
     }
   }

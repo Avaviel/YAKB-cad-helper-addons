@@ -6,9 +6,9 @@ import {
   TITLE_BLOCK_FULL_DRAWING_NAME,
   TITLE_BLOCK_FULL_DRAWING_NO,
   buildTitleBlock,
-  placeTitleBlock,
   titleBlockFieldsFromOptions,
   drawingInfoForLayer,
+  titleBlockOriginFromExtents,
 } from './TitleBlockBuilder'
 import { buildOutlineModel, zoneOutlineDefaults } from './PlateBuilder'
 import { defaultShellFromPlate, defaultShellFromSelf } from './otherPartsConfig'
@@ -338,7 +338,7 @@ function layerSortRank(name) {
   if (base.indexOf("Shell") === 0) {
     return 60
   }
-  if (base === TITLE_BLOCK_LAYER) {
+  if (base === TITLE_BLOCK_LAYER || base.indexOf("TITLE_BLOCK") === 0) {
     return 80
   }
   return 90
@@ -526,7 +526,20 @@ export function applyLayerNotes(canvas, layerNotes, assembly) {
   return canvas
 }
 
-export function attachTitleBlock(canvas, generatorOptions, drawingName, drawingNo) {
+function layerNameForModel(key, model) {
+  if (model && model.layer) {
+    return model.layer
+  }
+  if (key === "TopSwitchPlate") return "Top-SWITCH_PLATE"
+  if (key === "TopDots") return "Top-Dots"
+  if (key === "TopBackCut") return "Top-BACK_CUT"
+  if (key === "LinkHoleCuts") return "Link-HOLE_CUTS"
+  if (key === "LinkHotswap") return "Link-MX_HOTSWAP"
+  if (key === "Shell") return "Shell"
+  return key
+}
+
+export function attachTitleBlock(canvas, generatorOptions) {
   if (!canvas || !canvas.models) {
     return canvas
   }
@@ -534,26 +547,42 @@ export function attachTitleBlock(canvas, generatorOptions, drawingName, drawingN
   if (!extents || !extents.low || !extents.high) {
     return canvas
   }
-  const fields = titleBlockFieldsFromOptions(
-    generatorOptions,
-    drawingName || TITLE_BLOCK_FULL_DRAWING_NAME,
-    drawingNo || TITLE_BLOCK_FULL_DRAWING_NO
-  )
-  const block = placeTitleBlock(buildTitleBlock(fields), extents)
-  if (!block) {
-    return canvas
-  }
-  applyLayer(block, TITLE_BLOCK_LAYER)
-  canvas.models.TitleBlock = block
-  canvas.titleBlockOrigin = block.origin ? block.origin.slice() : [0, 0]
+  const fields = titleBlockFieldsFromOptions(generatorOptions)
+  const origin = titleBlockOriginFromExtents(extents)
+  canvas.titleBlockOrigin = origin.slice()
   canvas.titleBlockFields = fields
   canvas.globalExtents = extents
+
+  for (const [key, model] of Object.entries(canvas.models)) {
+    if (!model || key === "TitleBlock") continue
+    const info = drawingInfoForLayer(layerNameForModel(key, model))
+    const block = buildTitleBlock({
+      ...fields,
+      drawingName: info.drawingName,
+      drawingNo: info.drawingNo,
+    })
+    block.origin = origin.slice()
+    applyLayer(block, `${TITLE_BLOCK_LAYER}-${info.drawingNo}`)
+    if (!model.models) {
+      model.models = {}
+    }
+    model.models.TitleBlock = block
+  }
+
+  const overall = buildTitleBlock({
+    ...fields,
+    drawingName: TITLE_BLOCK_FULL_DRAWING_NAME,
+    drawingNo: TITLE_BLOCK_FULL_DRAWING_NO,
+  })
+  overall.origin = origin.slice()
+  applyLayer(overall, TITLE_BLOCK_LAYER)
+  canvas.models.TitleBlock = overall
   return canvas
 }
 
 function titleBlockForLayer(parentModel, layerName) {
   if (!parentModel || !parentModel.titleBlockOrigin) {
-    return parentModel && parentModel.models && parentModel.models.TitleBlock
+    return null
   }
   const info = drawingInfoForLayer(layerName)
   const base = parentModel.titleBlockFields || {}
@@ -563,8 +592,26 @@ function titleBlockForLayer(parentModel, layerName) {
     drawingNo: info.drawingNo,
   })
   block.origin = parentModel.titleBlockOrigin.slice()
-  applyLayer(block, TITLE_BLOCK_LAYER)
+  applyLayer(block, `${TITLE_BLOCK_LAYER}-${info.drawingNo}`)
   return block
+}
+
+function withoutEmbeddedTitleBlocks(model) {
+  if (!model || !model.models) {
+    return model
+  }
+  const models = {}
+  for (const [key, child] of Object.entries(model.models)) {
+    if (key === "TitleBlock" || !child) continue
+    if (child.models && child.models.TitleBlock) {
+      const nested = { ...child.models }
+      delete nested.TitleBlock
+      models[key] = { ...child, models: nested }
+    } else {
+      models[key] = child
+    }
+  }
+  return { ...model, models }
 }
 
 const previewGroupKeys = {
@@ -580,9 +627,12 @@ export function previewLayerPanes(model) {
   }
   return Object.keys(model.models).filter(key => key !== "TitleBlock").map(key => {
     const child = model.models[key]
-    const layerName = (child && child.layer) || key
-    const models = { [key]: child }
-    const block = titleBlockForLayer(model, layerName)
+    const layerName = layerNameForModel(key, child)
+    const stripped = child && child.models && child.models.TitleBlock
+      ? { ...child, models: Object.fromEntries(Object.entries(child.models).filter(([name]) => name !== "TitleBlock")) }
+      : child
+    const models = { [key]: stripped }
+    const block = (child && child.models && child.models.TitleBlock) || titleBlockForLayer(model, layerName)
     if (block) {
       models.TitleBlock = block
     }
@@ -609,10 +659,15 @@ export function previewSubset(model, groups) {
   if (!Object.keys(models).length) {
     return null
   }
+  const cleaned = withoutEmbeddedTitleBlocks({ models }).models
   if (model.models.TitleBlock) {
-    models.TitleBlock = model.models.TitleBlock
+    cleaned.TitleBlock = model.models.TitleBlock
+  } else {
+    const firstKey = Object.keys(models)[0]
+    const block = titleBlockForLayer(model, layerNameForModel(firstKey, models[firstKey]))
+    if (block) cleaned.TitleBlock = block
   }
-  return { models }
+  return { models: cleaned }
 }
 
 /**

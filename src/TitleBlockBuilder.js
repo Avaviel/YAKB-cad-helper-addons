@@ -2,8 +2,8 @@ import makerjs from "makerjs"
 import { strokeTextModel } from "./strokeText"
 
 export const TITLE_BLOCK_LAYER = "TITLE_BLOCK"
-export const TITLE_BLOCK_WIDTH = 150
-export const TITLE_BLOCK_HEIGHT = 44
+export const TITLE_BLOCK_WIDTH = 156
+export const TITLE_BLOCK_HEIGHT = 48
 export const TITLE_BLOCK_MARGIN = 8
 export const TITLE_BLOCK_DRAWN_BY = "YAKB CAD Helper"
 export const TITLE_BLOCK_FULL_DRAWING_NO = "1.1-3.1"
@@ -60,15 +60,35 @@ function fitText(text, heightMm, maxWidth) {
   return t
 }
 
-function labeledLine(label, value, x, y, maxWidth, valueHeight = 2.4) {
-  const labelH = 1.8
-  const labelText = String(label || "")
-  const labelModel = strokeTextModel(labelText, labelH)
-  labelModel.origin = [x, y + 3.2]
-  const valueText = fitText(value == null ? "" : String(value), valueHeight, maxWidth)
-  const valueModel = strokeTextModel(valueText, valueHeight)
-  valueModel.origin = [x, y + 0.6]
-  return { models: { label: labelModel, value: valueModel } }
+function placeText(text, x, y, heightMm, maxWidth) {
+  const value = fitText(text, heightMm, maxWidth)
+  const model = strokeTextModel(value, heightMm)
+  model.origin = [x, y]
+  return model
+}
+
+function labeledInline(label, value, x, y, width) {
+  const labelH = 1.55
+  const valueH = 2.35
+  const labelGap = 2.2
+  const labelW = Math.min(strokeWidth(label, labelH) + labelGap, width * 0.42)
+  return {
+    models: {
+      label: placeText(label, x, y, labelH, labelW),
+      value: placeText(value, x + labelW, y - 0.15, valueH, width - labelW - 0.4),
+    },
+  }
+}
+
+function labeledIndented(label, value, x, y, width) {
+  const labelH = 1.55
+  const valueH = 2.25
+  return {
+    models: {
+      label: placeText(label, x, y + 5.4, labelH, width - 0.4),
+      value: placeText(value, x + 8, y + 1.1, valueH, width - 9),
+    },
+  }
 }
 
 export function titleBlockOriginFromExtents(extents, margin = TITLE_BLOCK_MARGIN) {
@@ -97,12 +117,15 @@ export function buildTitleBlock(fields) {
   const notes = String((fields && fields.notes) || "").trim()
   const drawnBy = TITLE_BLOCK_DRAWN_BY
 
-  const botH = 10
-  const midH = 11
+  const botH = 11
+  const midH = 12
   const yMid = botH
   const yHead = botH + midH
-  const pad = 1.6
+  const headerW = 100
+  const headerRow = (H - yHead) / 3
+  const pad = 1.5
   const col = W / 3
+  const jobW = W * 0.55
 
   const model = {
     paths: {
@@ -112,19 +135,22 @@ export function buildTitleBlock(fields) {
       outerLeft: new makerjs.paths.Line([0, H], [0, 0]),
       splitHead: new makerjs.paths.Line([0, yHead], [W, yHead]),
       splitMid: new makerjs.paths.Line([0, yMid], [W, yMid]),
+      headRow1: new makerjs.paths.Line([0, yHead + headerRow], [headerW, yHead + headerRow]),
+      headRow2: new makerjs.paths.Line([0, yHead + headerRow * 2], [headerW, yHead + headerRow * 2]),
+      headBlank: new makerjs.paths.Line([headerW, yHead], [headerW, H]),
       midV1: new makerjs.paths.Line([col, yMid], [col, yHead]),
       midV2: new makerjs.paths.Line([col * 2, yMid], [col * 2, yHead]),
-      botV: new makerjs.paths.Line([W * 0.55, 0], [W * 0.55, yMid]),
+      botV: new makerjs.paths.Line([jobW, 0], [jobW, yMid]),
     },
     models: {
-      title: labeledLine("TITLE", title, pad, H - 9, W - pad * 2, 2.8),
-      drawing: labeledLine("DRAWING", drawingName, pad, H - 16, W - pad * 2, 2.3),
-      drawingNo: labeledLine("DRAWING NO", drawingNo, pad, H - 23, W - pad * 2, 2.3),
-      date: labeledLine("DATE", date, pad, yMid + 1.2, col - pad * 2, 2.2),
-      drawnBy: labeledLine("DRAWN BY", drawnBy, col + pad, yMid + 1.2, col - pad * 2, 2.2),
-      designer: labeledLine("DESIGNER", designer, col * 2 + pad, yMid + 1.2, col - pad * 2, 2.2),
-      job: labeledLine("JOB NO", jobNo, pad, 1.2, W * 0.55 - pad * 2, 2.2),
-      notes: labeledLine("NOTES", notes, W * 0.55 + pad, 1.2, W * 0.45 - pad * 2, 2.2),
+      title: labeledInline("TITLE", title, pad, yHead + headerRow * 2 + 2.4, headerW - pad * 2),
+      drawing: labeledInline("DRAWING", drawingName, pad, yHead + headerRow + 2.4, headerW - pad * 2),
+      drawingNo: labeledInline("DRAWING NO.", drawingNo, pad, yHead + 2.4, headerW - pad * 2),
+      date: labeledIndented("DATE", date, pad, yMid + 1, col - pad * 2),
+      drawnBy: labeledIndented("DRAWN BY", drawnBy, col + pad, yMid + 1, col - pad * 2),
+      designer: labeledIndented("DESIGNER", designer, col * 2 + pad, yMid + 1, col - pad * 2),
+      job: labeledIndented("JOB NO.", jobNo, pad, 1, jobW - pad * 2),
+      notes: labeledIndented("NOTES", notes, jobW + pad, 1, W - jobW - pad * 2),
     },
     layer: TITLE_BLOCK_LAYER,
     width: W,

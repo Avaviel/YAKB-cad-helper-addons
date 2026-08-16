@@ -1,7 +1,7 @@
 import Decimal from "decimal.js"
 import makerjs from "makerjs"
 import { Key } from "./Key"
-import { buildBackCutPart, unionRectsToLoop, offsetLoop } from "./BackCutBuilder"
+import { buildBackCutPart, unionRectsToLoop, offsetLoop, jogBlend } from "./BackCutBuilder"
 
 function keyAt(width, height, extras = {}) {
   return new Key(
@@ -83,6 +83,23 @@ test("offset grows the bone outline by 1mm without filling the middle", () => {
   expect(Math.min(...ys)).toBeCloseTo(-10)
   expect(Math.max(...ys)).toBeCloseTo(8)
   expect(pointIn(0, -9, grown)).toBe(false)
+})
+
+test("close stab-to-switch steps become two matching tangent arcs", () => {
+  const blend = jogBlend(
+    { x: -15, y: 6 },
+    { x: -7, y: 6 },
+    { x: -7, y: 7 },
+    { x: 7, y: 7 }
+  )
+  expect(blend).toBeTruthy()
+  expect(blend.r).toBeCloseTo(0.5)
+  expect(blend.P.x).toBeCloseTo(-7.5)
+  expect(blend.P.y).toBeCloseTo(6)
+  expect(blend.Q.x).toBeCloseTo(-6.5)
+  expect(blend.Q.y).toBeCloseTo(7)
+  const midDist = Math.hypot(blend.c2.x - blend.c1.x, blend.c2.y - blend.c1.y)
+  expect(midDist).toBeCloseTo(1)
 })
 
 test("1U back cut stays a switch-sized square with side bumps", () => {

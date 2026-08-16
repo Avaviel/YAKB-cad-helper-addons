@@ -149,6 +149,7 @@ function App() {
       const mainPlateModel = buildPlate(kleReturn, generatorOptions)
       const model = buildExportAssembly(assembly, kleReturn, generatorOptions, mainPlateModel)
       const exported = exportOtherPart(model)
+      const together = exportOtherPart(previewSubset(model, ["top", "link", "shell"]))
       const topOnly = exportOtherPart(previewSubset(model, ["top"]))
       const shellOnly = exportOtherPart(previewSubset(model, ["shell"]))
       const topShell = exportOtherPart(previewSubset(model, ["top", "shell"]))
@@ -159,6 +160,7 @@ function App() {
         description: assembly.description,
         layerSummary: assembly.layerSummary,
         ...(exported || {}),
+        previewSvg: (together && together.previewSvg) || (exported && exported.previewSvg),
         previewTop: topOnly && topOnly.previewSvg,
         previewShell: shellOnly && shellOnly.previewSvg,
         previewTopShell: topShell && topShell.previewSvg,

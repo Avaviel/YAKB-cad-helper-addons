@@ -48,10 +48,13 @@ test("title block is on TITLE_BLOCK and always credits YAKB CAD Helper", () => {
     notes: "cut 2mm",
   })
   expect(block.layer).toBe(TITLE_BLOCK_LAYER)
+  expect(block.models.job).toBeTruthy()
+  expect(block.models.drawingNo).toBeTruthy()
+  expect(block.paths.headBlank).toBeTruthy()
   expect(block.models.drawnBy).toBeTruthy()
   expect(TITLE_BLOCK_DRAWN_BY).toBe("YAKB CAD Helper")
   const placed = placeTitleBlock(block, { low: [0, 0], high: [160, 80] })
-  expect(placed.origin[0]).toBeCloseTo(10)
+  expect(placed.origin[0]).toBeCloseTo(160 - TITLE_BLOCK_WIDTH)
   expect(placed.origin[1]).toBeCloseTo(0 - TITLE_BLOCK_MARGIN - TITLE_BLOCK_HEIGHT)
 })
 
