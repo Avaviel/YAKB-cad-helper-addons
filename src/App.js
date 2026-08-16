@@ -766,7 +766,7 @@ function App() {
                           ) : layer.outlineKind === "backcut" ? (
                             <Row className="g-2 mb-2">
                               <Col md={stampSwitchFamily === "choc" ? 12 : 4}>
-                                <Form.Label className="mb-1">Offset from switch (mm)</Form.Label>
+                                <Form.Label className="mb-1">Offset from switch + stabs (mm)</Form.Label>
                                 <Form.Control
                                   type="number"
                                   step="0.1"
@@ -800,6 +800,11 @@ function App() {
                                 </>
                               )}
                             </Row>
+                            <Form.Text className="text-muted d-block mb-2">
+                              MX Basic / Small / Alps: two housings are connected, merged with the switch, then offset, with bobbles on all four sides.
+                              MX Spec already includes the bar, so that outline is expanded as-is and only the switch top and bottom get bobbles.
+                              New corners use the stabilizer cutout fillet radius.
+                            </Form.Text>
                           ) : layer.outlineKind === "plate" ? (
                             <Row className="g-2 mb-2">
                               <Col md={6}>
