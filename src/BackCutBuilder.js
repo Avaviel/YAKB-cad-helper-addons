@@ -157,36 +157,60 @@ function boxesTouch(a, b) {
     a.minY <= b.maxY + EPS && a.maxY >= b.minY - EPS
 }
 
-function connectStabBar(stabBoxes) {
-  if (!stabBoxes.length) return null
-  return groupExtents(stabBoxes)
-}
+function attachStabToSwitch(switchBox, stab) {
+  if (!switchBox || !stab || boxesTouch(switchBox, stab)) return []
 
-function bridgeRects(a, b) {
-  if (!a || !b || boxesTouch(a, b)) return []
-  const overlapX = Math.min(a.maxX, b.maxX) - Math.max(a.minX, b.minX)
-  const overlapY = Math.min(a.maxY, b.maxY) - Math.max(a.minY, b.minY)
-  if (overlapX > EPS) {
-    const minX = Math.max(a.minX, b.minX)
-    const maxX = Math.min(a.maxX, b.maxX)
-    if (a.maxY < b.minY - EPS) {
-      return [{ minX, maxX, minY: a.maxY, maxY: b.minY }]
-    }
-    if (b.maxY < a.minY - EPS) {
-      return [{ minX, maxX, minY: b.maxY, maxY: a.minY }]
-    }
-  }
+  const overlapX = Math.min(switchBox.maxX, stab.maxX) - Math.max(switchBox.minX, stab.minX)
+  const overlapY = Math.min(switchBox.maxY, stab.maxY) - Math.max(switchBox.minY, stab.minY)
+
   if (overlapY > EPS) {
-    const minY = Math.max(a.minY, b.minY)
-    const maxY = Math.min(a.maxY, b.maxY)
-    if (a.maxX < b.minX - EPS) {
-      return [{ minX: a.maxX, maxX: b.minX, minY, maxY }]
+    const minY = Math.max(switchBox.minY, stab.minY)
+    const maxY = Math.min(switchBox.maxY, stab.maxY)
+    if (stab.maxX < switchBox.minX - EPS) {
+      return [{ minX: stab.maxX, maxX: switchBox.minX, minY, maxY }]
     }
-    if (b.maxX < a.minX - EPS) {
-      return [{ minX: b.maxX, maxX: a.minX, minY, maxY }]
+    if (stab.minX > switchBox.maxX + EPS) {
+      return [{ minX: switchBox.maxX, maxX: stab.minX, minY, maxY }]
     }
   }
-  return [groupExtents([a, b])]
+
+  if (overlapX > EPS) {
+    const minX = Math.max(switchBox.minX, stab.minX)
+    const maxX = Math.min(switchBox.maxX, stab.maxX)
+    if (stab.maxY < switchBox.minY - EPS) {
+      return [{ minX, maxX, minY: stab.maxY, maxY: switchBox.minY }]
+    }
+    if (stab.minY > switchBox.maxY + EPS) {
+      return [{ minX, maxX, minY: switchBox.maxY, maxY: stab.minY }]
+    }
+  }
+
+  const rects = []
+  const sitBottom = (switchBox.minY - stab.minY) >= (stab.maxY - switchBox.maxY)
+  if (sitBottom) {
+    const stemTop = Math.max(stab.maxY, switchBox.minY)
+    const stemBot = Math.min(stab.maxY, switchBox.minY)
+    if (stemTop - stemBot > EPS) {
+      rects.push({ minX: stab.minX, maxX: stab.maxX, minY: stemBot, maxY: stemTop })
+    }
+    if (stab.maxX < switchBox.minX - EPS) {
+      rects.push({ minX: stab.maxX, maxX: switchBox.minX, minY: Math.min(stab.maxY, switchBox.minY), maxY: switchBox.minY })
+    } else if (stab.minX > switchBox.maxX + EPS) {
+      rects.push({ minX: switchBox.maxX, maxX: stab.minX, minY: Math.min(stab.maxY, switchBox.minY), maxY: switchBox.minY })
+    }
+  } else {
+    const stemTop = Math.max(stab.minY, switchBox.maxY)
+    const stemBot = Math.min(stab.minY, switchBox.maxY)
+    if (stemTop - stemBot > EPS) {
+      rects.push({ minX: stab.minX, maxX: stab.maxX, minY: stemBot, maxY: stemTop })
+    }
+    if (stab.maxX < switchBox.minX - EPS) {
+      rects.push({ minX: stab.maxX, maxX: switchBox.minX, minY: switchBox.maxY, maxY: Math.max(stab.minY, switchBox.maxY) })
+    } else if (stab.minX > switchBox.maxX + EPS) {
+      rects.push({ minX: switchBox.maxX, maxX: stab.minX, minY: switchBox.maxY, maxY: Math.max(stab.minY, switchBox.maxY) })
+    }
+  }
+  return rects.filter(r => r.maxX - r.minX > EPS && r.maxY - r.minY > EPS)
 }
 
 function boxContainsPoint(box, x, y) {
@@ -286,15 +310,6 @@ export function unionRectsToLoop(rects) {
     }
   }
   return simplifyColinear(loop)
-}
-
-function groupExtents(rects) {
-  return {
-    minX: Math.min(...rects.map(r => r.minX)),
-    minY: Math.min(...rects.map(r => r.minY)),
-    maxX: Math.max(...rects.map(r => r.maxX)),
-    maxY: Math.max(...rects.map(r => r.maxY)),
-  }
 }
 
 export function offsetLoop(loop, distance) {
@@ -442,10 +457,6 @@ function modelToClosedLoops(model) {
     if (pts.length < 3) return null
     return simplifyColinear(pts.map(p => ({ x: p[0], y: p[1] })))
   }).filter(Boolean)
-}
-
-function longestLoop(loops) {
-  return (loops || []).slice().sort((a, b) => b.length - a.length)[0] || null
 }
 
 function isOutlineStabType(type) {
@@ -685,11 +696,9 @@ function buildKeyBackCut(key, switchGenerator, stabilizerGenerator, settings, ge
     }
   } else {
     const stabBoxes = leafBoxes(stabModel)
-    const rects = [switchBox]
-    const stabBar = connectStabBar(stabBoxes)
-    if (stabBar) {
-      rects.push(stabBar)
-      rects.push(...bridgeRects(switchBox, stabBar))
+    const rects = [switchBox, ...stabBoxes]
+    for (const stab of stabBoxes) {
+      rects.push(...attachStabToSwitch(switchBox, stab))
     }
     outlineLoop = offsetLoop(unionRectsToLoop(rects), local.offset)
   }

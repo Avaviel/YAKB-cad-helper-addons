@@ -35,24 +35,45 @@ function options(over = {}) {
   }
 }
 
-test("connected stab bar plus switch is one house-shaped outline", () => {
+function pointIn(x, y, loop) {
+  let inside = false
+  for (let i = 0, j = loop.length - 1; i < loop.length; j = i++) {
+    const yi = loop[i].y
+    const yj = loop[j].y
+    if ((yi > y) !== (yj > y)) {
+      const atX = loop[i].x + (loop[j].x - loop[i].x) * (y - yi) / ((yj - yi) || 1e-15)
+      if (x < atX) inside = !inside
+    }
+  }
+  return inside
+}
+
+test("switch plus two stab housings is a bone, not a full-width bar", () => {
   const loop = unionRectsToLoop([
     { minX: -7, minY: -7, maxX: 7, maxY: 7 },
-    { minX: -15.438, minY: -9, maxX: 15.438, maxY: 6 },
+    { minX: -15.438, minY: -9, maxX: -8.438, maxY: 6 },
+    { minX: 8.438, minY: -9, maxX: 15.438, maxY: 6 },
+    { minX: -8.438, minY: -7, maxX: -7, maxY: 6 },
+    { minX: 7, minY: -7, maxX: 8.438, maxY: 6 },
   ])
-  expect(loop.length).toBe(8)
+  expect(loop.length).toBe(12)
   const xs = loop.map(p => p.x)
   const ys = loop.map(p => p.y)
   expect(Math.min(...xs)).toBeCloseTo(-15.438)
   expect(Math.max(...xs)).toBeCloseTo(15.438)
   expect(Math.min(...ys)).toBeCloseTo(-9)
   expect(Math.max(...ys)).toBeCloseTo(7)
+  expect(pointIn(0, 0, loop)).toBe(true)
+  expect(pointIn(0, -8, loop)).toBe(false)
 })
 
-test("offset grows the merged outline by 1mm on every side", () => {
+test("offset grows the bone outline by 1mm without filling the middle", () => {
   const loop = unionRectsToLoop([
     { minX: -7, minY: -7, maxX: 7, maxY: 7 },
-    { minX: -15.438, minY: -9, maxX: 15.438, maxY: 6 },
+    { minX: -15.438, minY: -9, maxX: -8.438, maxY: 6 },
+    { minX: 8.438, minY: -9, maxX: 15.438, maxY: 6 },
+    { minX: -8.438, minY: -7, maxX: -7, maxY: 6 },
+    { minX: 7, minY: -7, maxX: 8.438, maxY: 6 },
   ])
   const grown = offsetLoop(loop, 1)
   const xs = grown.map(p => p.x)
@@ -61,6 +82,7 @@ test("offset grows the merged outline by 1mm on every side", () => {
   expect(Math.max(...xs)).toBeCloseTo(16.438)
   expect(Math.min(...ys)).toBeCloseTo(-10)
   expect(Math.max(...ys)).toBeCloseTo(8)
+  expect(pointIn(0, -9, grown)).toBe(false)
 })
 
 test("1U back cut stays a switch-sized square with side bumps", () => {

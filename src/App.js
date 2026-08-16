@@ -802,7 +802,7 @@ function App() {
                               )}
                             </Row>
                             <Form.Text className="text-muted d-block mb-2">
-                              MX Basic / Small / Alps: two housings are connected, merged with the switch, then offset, with bobbles on all four sides.
+                              MX Basic / Small / Alps: switch plus the two stab housings, stuck onto the switch, then offset. No full-width bar between the stabs. Bobbles on the four outer sides.
                               MX Spec already includes the bar, so that outline is expanded as-is and only the switch top and bottom get bobbles.
                               New corners use the stabilizer cutout fillet radius.
                             </Form.Text>
