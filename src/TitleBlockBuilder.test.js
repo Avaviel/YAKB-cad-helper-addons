@@ -6,10 +6,17 @@ import {
   TITLE_BLOCK_MARGIN,
   TITLE_BLOCK_DRAWN_BY,
   drawingInfoForLayer,
+  titleBlockLayerName,
   titleBlockOriginFromExtents,
   buildTitleBlock,
   placeTitleBlock,
 } from "./TitleBlockBuilder"
+test("title-block DXF layer names do not contain periods", () => {
+  expect(titleBlockLayerName("1.1")).toBe("TITLE_BLOCK_1_1")
+  expect(titleBlockLayerName("1.1-3.1")).toBe("TITLE_BLOCK")
+  expect(titleBlockLayerName("2.2")).toBe("TITLE_BLOCK_2_2")
+})
+
 test("drawing numbers follow the Top / Link / Shell scheme", () => {
   expect(drawingInfoForLayer("Top-SWITCH_PLATE").drawingNo).toBe("1.1")
   expect(drawingInfoForLayer("Top-Dots").drawingNo).toBe("1.2")

@@ -25,6 +25,13 @@ export function todayISODate() {
   return `${y}-${m}-${day}`
 }
 
+export function titleBlockLayerName(drawingNo) {
+  if (!drawingNo || drawingNo === TITLE_BLOCK_FULL_DRAWING_NO) {
+    return TITLE_BLOCK_LAYER
+  }
+  return `${TITLE_BLOCK_LAYER}_${String(drawingNo).replace(/[^A-Za-z0-9]+/g, "_")}`
+}
+
 export function drawingInfoForLayer(layerName) {
   const base = String(layerName || "").split("__")[0]
   if (DRAWING_NUMBERS[base]) {
@@ -157,6 +164,7 @@ export function buildTitleBlock(fields) {
     height: H,
   }
 
+  makerjs.model.originate(model)
   return model
 }
 

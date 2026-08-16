@@ -8,6 +8,7 @@ import {
   buildTitleBlock,
   titleBlockFieldsFromOptions,
   drawingInfoForLayer,
+  titleBlockLayerName,
   titleBlockOriginFromExtents,
 } from './TitleBlockBuilder'
 import { buildOutlineModel, zoneOutlineDefaults } from './PlateBuilder'
@@ -365,13 +366,63 @@ function collectLayerNames(model, names) {
   }
 }
 
+export function sanitizeDxfLayerName(name) {
+  const cleaned = String(name || "0")
+    .replace(/[<>/\\":;?*|,=`']/g, "_")
+    .replace(/\./g, "_")
+    .replace(/\s+/g, "_")
+    .slice(0, 255)
+  return cleaned || "0"
+}
+
+function sanitizeModelLayers(model) {
+  if (!model) return
+  if (model.layer) model.layer = sanitizeDxfLayerName(model.layer)
+  if (model.paths) {
+    for (const path of Object.values(model.paths)) {
+      if (path && path.layer) path.layer = sanitizeDxfLayerName(path.layer)
+    }
+  }
+  if (model.models) {
+    for (const child of Object.values(model.models)) {
+      sanitizeModelLayers(child)
+    }
+  }
+}
+
+function normalizeExportArcs(model) {
+  makerjs.model.walk(model, {
+    onPath: walked => {
+      const path = walked.pathContext
+      if (!path || path.type !== "arc") return
+      let start = Number(path.startAngle)
+      let end = Number(path.endAngle)
+      if (!Number.isFinite(start) || !Number.isFinite(end)) return
+      start = ((start % 360) + 360) % 360
+      end = ((end % 360) + 360) % 360
+      if (end <= start) end += 360
+      path.startAngle = start
+      path.endAngle = end
+    },
+  })
+}
+
+function prepareModelForCadExport(model) {
+  const prepared = makerjs.model.clone(model)
+  makerjs.model.originate(prepared)
+  sanitizeModelLayers(prepared)
+  normalizeExportArcs(prepared)
+  return prepared
+}
+
 export function dxfLayerOptions(model) {
   const seen = []
   collectLayerNames(model, seen)
   const unique = []
   for (const name of seen) {
-    if (name && unique.indexOf(name) < 0) {
-      unique.push(name)
+    const safe = sanitizeDxfLayerName(name)
+    if (safe && unique.indexOf(safe) < 0) {
+      unique.push(safe)
     }
   }
   unique.sort((a, b) => {
@@ -554,7 +605,7 @@ export function attachTitleBlock(canvas, generatorOptions) {
   canvas.globalExtents = extents
 
   for (const [key, model] of Object.entries(canvas.models)) {
-    if (!model || key === "TitleBlock") continue
+    if (!model || String(key).indexOf("TitleBlock") === 0) continue
     const info = drawingInfoForLayer(layerNameForModel(key, model))
     const block = buildTitleBlock({
       ...fields,
@@ -562,11 +613,8 @@ export function attachTitleBlock(canvas, generatorOptions) {
       drawingNo: info.drawingNo,
     })
     block.origin = origin.slice()
-    applyLayer(block, `${TITLE_BLOCK_LAYER}-${info.drawingNo}`)
-    if (!model.models) {
-      model.models = {}
-    }
-    model.models.TitleBlock = block
+    applyLayer(block, titleBlockLayerName(info.drawingNo))
+    canvas.models["TitleBlock_" + String(info.drawingNo).replace(/[^A-Za-z0-9]+/g, "_")] = block
   }
 
   const overall = buildTitleBlock({
@@ -592,7 +640,7 @@ function titleBlockForLayer(parentModel, layerName) {
     drawingNo: info.drawingNo,
   })
   block.origin = parentModel.titleBlockOrigin.slice()
-  applyLayer(block, `${TITLE_BLOCK_LAYER}-${info.drawingNo}`)
+  applyLayer(block, titleBlockLayerName(info.drawingNo))
   return block
 }
 
@@ -625,14 +673,11 @@ export function previewLayerPanes(model) {
   if (!model || !model.models) {
     return []
   }
-  return Object.keys(model.models).filter(key => key !== "TitleBlock").map(key => {
+  return Object.keys(model.models).filter(key => String(key).indexOf("TitleBlock") !== 0).map(key => {
     const child = model.models[key]
     const layerName = layerNameForModel(key, child)
-    const stripped = child && child.models && child.models.TitleBlock
-      ? { ...child, models: Object.fromEntries(Object.entries(child.models).filter(([name]) => name !== "TitleBlock")) }
-      : child
-    const models = { [key]: stripped }
-    const block = (child && child.models && child.models.TitleBlock) || titleBlockForLayer(model, layerName)
+    const models = { [key]: child }
+    const block = titleBlockForLayer(model, layerName)
     if (block) {
       models.TitleBlock = block
     }
@@ -683,10 +728,11 @@ export function exportOtherPart(model) {
     strokeWidth: '0.5mm',
     svgAttrs: { width: '100%', height: 'auto' },
   })
-  const svg = makerjs.exporter.toSVG(model, { units: makerjs.unitType.Millimeter })
-  const dxf = makerjs.exporter.toDXF(model, {
+  const downloadModel = prepareModelForCadExport(model)
+  const svg = makerjs.exporter.toSVG(downloadModel, { units: makerjs.unitType.Millimeter })
+  const dxf = makerjs.exporter.toDXF(downloadModel, {
     units: makerjs.unitType.Millimeter,
-    layerOptions: dxfLayerOptions(model),
+    layerOptions: dxfLayerOptions(downloadModel),
   })
 
   return { previewSvg, svg, dxf }
