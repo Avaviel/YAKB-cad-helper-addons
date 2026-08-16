@@ -46,6 +46,20 @@ function App() {
   const [titleDesigner, setTitleDesigner] = useState("")
   const [titleJobNo, setTitleJobNo] = useState("")
   const [titleNotes, setTitleNotes] = useState("")
+  const [appliedTitle, setAppliedTitle] = useState(() => {
+    const d = new Date()
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, "0")
+    const day = String(d.getDate()).padStart(2, "0")
+    return {
+      keyboardTitle: "Keyboard",
+      date: `${y}-${m}-${day}`,
+      designer: "",
+      jobNo: "",
+      notes: "",
+    }
+  })
+  const [clipStatus, setClipStatus] = useState("")
   const [layerNotes, setLayerNotes] = useState({})
   const [layerOutlines, setLayerOutlines] = useState({})
 
@@ -107,12 +121,12 @@ function App() {
       outlines,
       layerNotes,
       layerOutlines,
-      keyboardTitle,
+      keyboardTitle: appliedTitle.keyboardTitle || keyboardTitle,
       titleBlock: {
-        date: titleDate,
-        designer: titleDesigner,
-        jobNo: titleJobNo,
-        notes: titleNotes,
+        date: appliedTitle.date || titleDate,
+        designer: appliedTitle.designer,
+        jobNo: appliedTitle.jobNo,
+        notes: appliedTitle.notes,
       },
       stampFamilyId: stampSwitchFamily,
       skipEmbeddedOutlines: true,
@@ -178,11 +192,7 @@ function App() {
     mirrorStamps,
     layerNotes,
     layerOutlines,
-    keyboardTitle,
-    titleDate,
-    titleDesigner,
-    titleJobNo,
-    titleNotes,
+    appliedTitle,
   ])
 
 
@@ -191,11 +201,17 @@ function App() {
     fileDownload(fileData, filename)
   }
 
-  const persistLayerState = (notes, outlines, title) => {
+  const persistLayerState = (notes, outlines, title, titleBlock) => {
     const written = writeKleLayerState(kleText, {
       notes,
       outlines,
       name: title != null ? title : keyboardTitle,
+      titleBlock: titleBlock || {
+        date: titleDate,
+        designer: titleDesigner,
+        jobNo: titleJobNo,
+        notes: titleNotes,
+      },
     })
     if (written != null) {
       setKleText(written)
@@ -204,7 +220,46 @@ function App() {
 
   const handleTitleChange = (value) => {
     setKeyboardTitle(value)
-    persistLayerState(layerNotes, layerOutlines, value)
+  }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setAppliedTitle({
+        keyboardTitle,
+        date: titleDate,
+        designer: titleDesigner,
+        jobNo: titleJobNo,
+        notes: titleNotes,
+      })
+      if (kleText && String(kleText).trim()) {
+        persistLayerState(layerNotes, layerOutlines, keyboardTitle)
+      }
+    }, 400)
+    return () => window.clearTimeout(timer)
+  }, [keyboardTitle, titleDate, titleDesigner, titleJobNo, titleNotes])
+
+  const flashClip = (msg) => {
+    setClipStatus(msg)
+    window.setTimeout(() => setClipStatus(""), 2000)
+  }
+
+  const copyKleLayout = async () => {
+    try {
+      await navigator.clipboard.writeText(kleText || "")
+      flashClip("Copied")
+    } catch (error) {
+      flashClip("Copy failed")
+    }
+  }
+
+  const pasteKleLayout = async () => {
+    try {
+      const text = await navigator.clipboard.readText()
+      handleKleTextChange(text)
+      flashClip("Pasted")
+    } catch (error) {
+      flashClip("Paste failed")
+    }
   }
 
   const handleKleTextChange = (text) => {
@@ -215,6 +270,12 @@ function App() {
     }
     if (parsed.name) {
       setKeyboardTitle(parsed.name)
+    }
+    if (parsed.titleBlock) {
+      if (parsed.titleBlock.date) setTitleDate(parsed.titleBlock.date)
+      setTitleDesigner(parsed.titleBlock.designer || "")
+      setTitleJobNo(parsed.titleBlock.jobNo || "")
+      setTitleNotes(parsed.titleBlock.notes || "")
     }
     const hasNotes = Object.keys(parsed.notes).length
     const hasOutlines = Object.keys(parsed.outlines).length
@@ -233,6 +294,12 @@ function App() {
         notes: layerNotes,
         outlines: layerOutlines,
         name: parsed.name || keyboardTitle,
+        titleBlock: parsed.titleBlock || {
+          date: titleDate,
+          designer: titleDesigner,
+          jobNo: titleJobNo,
+          notes: titleNotes,
+        },
       })
       setKleText(written != null ? written : text)
       return
@@ -365,7 +432,7 @@ function App() {
                   autoComplete="off"
                 />
                 <Form.Text className="text-muted d-block mb-3">
-                  Saved as KLE <code>name</code>, shown in the title block, and used in download names.
+                  Saved as KLE <code>name</code> plus <code>_titleBlock</code> so it round-trips with Copy / Paste.
                   Drawing No. is set by layer (1.1 Top plate, 1.2 Dots, 1.3 Back cut, 2.1 Holes, 2.2 Hotswap, 3.1 Shell).
                 </Form.Text>
                 <Row className="g-2">
@@ -413,11 +480,16 @@ function App() {
                   </Col>
                 </Row>
                 <Form.Text className="text-muted d-block mt-2 mb-0">
-                  Drawn by is always YAKB CAD Helper. These fields do not go into the KLE paste box.
+                  Drawn by is always YAKB CAD Helper. Title-block fields write back into the layout after you pause typing.
                 </Form.Text>
               </Form>
             </Col>
             <Col xl={7}>
+              <div className="d-flex flex-wrap align-items-center gap-2 mb-2 pt-3 pe-2">
+                <Button size="sm" variant="outline-secondary" onClick={copyKleLayout}>Copy layout</Button>
+                <Button size="sm" variant="outline-secondary" onClick={pasteKleLayout}>Paste layout</Button>
+                {clipStatus ? <span className="text-muted small">{clipStatus}</span> : null}
+              </div>
               <Form>
                 <Form.Control
                   as="textarea"
