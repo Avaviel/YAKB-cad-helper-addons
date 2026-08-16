@@ -138,6 +138,32 @@ test("rotated stabs still merge and flip the extra length", () => {
   expect(flip.high[0]).toBeGreaterThan(16)
 })
 
+test("MX spec back cut is a closed outline, not two unmatched halves", () => {
+  const model = buildBackCutPart(
+    [keyAt(2, 1)],
+    options({ stabilizerCutoutType: "mx-spec" }),
+    "Top-BACK_CUT"
+  )
+  const flat = makerjs.model.clone(model)
+  makerjs.model.originate(flat)
+  const chains = makerjs.model.findChains(flat, { pointMatchingDistance: 0.2 }) || []
+  const closed = chains.filter(chain => chain.endless)
+  expect(closed.length).toBeGreaterThanOrEqual(1)
+  const pts = []
+  makerjs.model.walk(flat, {
+    onPath: walked => {
+      const path = walked.pathContext
+      const o = walked.offset || [0, 0]
+      if (path.origin) pts.push([path.origin[0] + o[0], path.origin[1] + o[1]])
+      if (path.end) pts.push([path.end[0] + o[0], path.end[1] + o[1]])
+    },
+  })
+  const hasMirror = pts.filter(([x, y]) =>
+    pts.some(([ox, oy]) => Math.abs(ox + x) < 0.35 && Math.abs(oy - y) < 0.35)
+  )
+  expect(hasMirror.length).toBeGreaterThan(pts.length * 0.7)
+})
+
 test("MX spec expands the real stab outline instead of a bounding box", () => {
   const spec = buildBackCutPart(
     [keyAt(2, 1)],

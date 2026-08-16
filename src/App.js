@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react"
 import { Button, Container, Card, Form, Row, Col, Image, Tab, Nav, Alert } from 'react-bootstrap'
-import { parseKle, readKleLayerState, writeKleLayerState } from "./KLEParser"
+import { parseKle, readKleLayerState, writeKleLayerState, normalizeYakbSettings } from "./KLEParser"
 import { buildPlate, zoneOutlineDefaults } from "./PlateBuilder"
 import {
   switchFamilies,
@@ -203,6 +203,40 @@ function App() {
     fileDownload(fileData, filename)
   }
 
+  const currentYakbSettings = () => normalizeYakbSettings({
+    switchCutoutType,
+    stabilizerCutoutType,
+    acousticCutoutType,
+    switchRadius,
+    stabilizerRadius,
+    acousticRadius,
+    unitWidth,
+    unitHeight,
+    kerf,
+    stampSwitchFamily,
+    stampFit,
+    mirrorStamps,
+    chocSpacingId,
+  })
+
+  const applyYakbSettings = (raw) => {
+    const yakb = normalizeYakbSettings(raw)
+    if (!yakb) return
+    if (yakb.stampSwitchFamily) setStampSwitchFamily(yakb.stampSwitchFamily)
+    if (yakb.stampFit) setStampFit(yakb.stampFit)
+    if (yakb.switchCutoutType) setSwitchCutoutType(yakb.switchCutoutType)
+    if (yakb.stabilizerCutoutType) setStabilizerCutoutType(yakb.stabilizerCutoutType)
+    if (yakb.acousticCutoutType) setAcousticCutoutType(yakb.acousticCutoutType)
+    if (yakb.switchRadius != null) setSwitchRadius(yakb.switchRadius)
+    if (yakb.stabilizerRadius != null) setStabilizerRadius(yakb.stabilizerRadius)
+    if (yakb.acousticRadius != null) setAcousticRadius(yakb.acousticRadius)
+    if (yakb.unitWidth != null) setUnitWidth(yakb.unitWidth)
+    if (yakb.unitHeight != null) setUnitHeight(yakb.unitHeight)
+    if (yakb.kerf != null) setKerf(yakb.kerf)
+    if (yakb.chocSpacingId) setChocSpacingId(yakb.chocSpacingId)
+    if (yakb.mirrorStamps != null) setMirrorStamps(!!yakb.mirrorStamps)
+  }
+
   const persistLayerState = (notes, outlines, title, titleBlock) => {
     const written = writeKleLayerState(kleText, {
       notes,
@@ -214,6 +248,7 @@ function App() {
         jobNo: titleJobNo,
         notes: titleNotes,
       },
+      yakb: currentYakbSettings(),
     })
     if (written != null) {
       setKleText(written)
@@ -238,7 +273,26 @@ function App() {
       }
     }, 400)
     return () => window.clearTimeout(timer)
-  }, [keyboardTitle, titleDate, titleDesigner, titleJobNo, titleNotes])
+  }, [
+    keyboardTitle,
+    titleDate,
+    titleDesigner,
+    titleJobNo,
+    titleNotes,
+    switchCutoutType,
+    stabilizerCutoutType,
+    acousticCutoutType,
+    switchRadius,
+    stabilizerRadius,
+    acousticRadius,
+    unitWidth,
+    unitHeight,
+    kerf,
+    stampSwitchFamily,
+    stampFit,
+    mirrorStamps,
+    chocSpacingId,
+  ])
 
   const flashClip = (msg) => {
     setClipStatus(msg)
@@ -279,6 +333,9 @@ function App() {
       setTitleJobNo(parsed.titleBlock.jobNo || "")
       setTitleNotes(parsed.titleBlock.notes || "")
     }
+    if (parsed.yakb) {
+      applyYakbSettings(parsed.yakb)
+    }
     const hasNotes = Object.keys(parsed.notes).length
     const hasOutlines = Object.keys(parsed.outlines).length
     if (hasNotes || hasOutlines) {
@@ -302,6 +359,7 @@ function App() {
           jobNo: titleJobNo,
           notes: titleNotes,
         },
+        yakb: parsed.yakb || currentYakbSettings(),
       })
       setKleText(written != null ? written : text)
       return
@@ -434,8 +492,8 @@ function App() {
                   autoComplete="off"
                 />
                 <Form.Text className="text-muted d-block mb-3">
-                  Saved as KLE <code>name</code> plus <code>_titleBlock</code> so it round-trips with Copy / Paste.
-                  Drawing No. is set by layer (1.1 Top plate, 1.2 Dots, 1.3 Back cut, 2.1 Holes, 2.2 Hotswap, 3.1 Shell).
+                  Saved as KLE <code>name</code>, <code>_titleBlock</code>, and <code>_yakb</code> (cutouts, Choc spacing, fillets, stamps).
+                  Copy / Paste carries those settings. Drawing No. is set by layer (1.1–3.1).
                 </Form.Text>
                 <Row className="g-2">
                   <Col md={6}>
@@ -548,7 +606,7 @@ function App() {
                 </Form.Select>
                 <Form.Label>Stabilizer Cutout Type</Form.Label>
                 <Form.Select aria-label="stabilizer-cutout-type"
-                  selected="mx-basic"
+                  value={stabilizerCutoutType}
                   className="mb-4"
                   onChange={e => setStabilizerCutoutType(e.target.value)}
                 >
@@ -562,7 +620,7 @@ function App() {
                 </Form.Select>
                 <Form.Label>Acoustic Cutout Type</Form.Label>
                 <Form.Select aria-label="acoustic-cutout-type"
-                  selected="none"
+                  value={acousticCutoutType}
                   className="mb-4"
                   onChange={e => setAcousticCutoutType(e.target.value)}
                 >
@@ -584,7 +642,7 @@ function App() {
                   step=".001"
                   min="0"
                   max="100"
-                  defaultValue="0.5"
+                  value={switchRadius}
                   id="switch-cutout-fillet-radius"
                   className="mb-4"
                   onChange={e => setSwitchRadius(e.target.value)}
@@ -596,7 +654,7 @@ function App() {
                   step=".001"
                   min="0"
                   max="100"
-                  defaultValue="0.5"
+                  value={stabilizerRadius}
                   id="stabilizer-cutout-fillet-radius"
                   className="mb-4"
                   onChange={e => setStabilizerRadius(e.target.value)}
@@ -608,7 +666,7 @@ function App() {
                   step=".001"
                   min="0"
                   max="100"
-                  defaultValue="0.5"
+                  value={acousticRadius}
                   id="acoustic-cutout-fillet-radius"
                   className="mb-4"
                   onChange={e => setAcousticRadius(e.target.value)}
@@ -672,7 +730,7 @@ function App() {
                   step=".001"
                   min="0"
                   max="100"
-                  defaultValue="0"
+                  value={kerf}
                   id="kerf"
                   className="mb-4"
                   onChange={e => setKerf(e.target.value)}

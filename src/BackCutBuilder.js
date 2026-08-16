@@ -312,14 +312,66 @@ export function unionRectsToLoop(rects) {
   return simplifyColinear(loop)
 }
 
-export function offsetLoop(loop, distance) {
+function snapLoop(loop, eps = 0.03) {
   if (!loop || loop.length < 3) return []
-  if (Math.abs(distance) < 1e-9) return loop.map(p => ({ x: p.x, y: p.y }))
-  const n = loop.length
+  const out = loop.map(p => ({ x: p.x, y: p.y }))
+  const n = out.length
+  for (let i = 0; i < n; i++) {
+    const a = out[i]
+    const b = out[(i + 1) % n]
+    if (Math.abs(a.x - b.x) < eps) {
+      const x = (a.x + b.x) / 2
+      a.x = x
+      b.x = x
+    }
+    if (Math.abs(a.y - b.y) < eps) {
+      const y = (a.y + b.y) / 2
+      a.y = y
+      b.y = y
+    }
+  }
+  return simplifyColinear(out)
+}
+
+function joinOpenPolylines(opens) {
+  const parts = opens.map(loop => loop.map(p => ({ x: p.x, y: p.y })))
+  while (parts.length > 1) {
+    let best = null
+    for (let i = 0; i < parts.length; i++) {
+      for (let j = i + 1; j < parts.length; j++) {
+        const a = parts[i]
+        const b = parts[j]
+        const pairs = [
+          { d: hypot2(a[a.length - 1].x - b[0].x, a[a.length - 1].y - b[0].y), ai: i, aj: j, ar: false, br: false },
+          { d: hypot2(a[a.length - 1].x - b[b.length - 1].x, a[a.length - 1].y - b[b.length - 1].y), ai: i, aj: j, ar: false, br: true },
+          { d: hypot2(a[0].x - b[0].x, a[0].y - b[0].y), ai: i, aj: j, ar: true, br: false },
+          { d: hypot2(a[0].x - b[b.length - 1].x, a[0].y - b[b.length - 1].y), ai: i, aj: j, ar: true, br: true },
+        ]
+        const hit = pairs.sort((p, q) => p.d - q.d)[0]
+        if (!best || hit.d < best.d) best = hit
+      }
+    }
+    if (!best || best.d > 0.25) break
+    const a = best.ar ? parts[best.ai].slice().reverse() : parts[best.ai]
+    const b = best.br ? parts[best.aj].slice().reverse() : parts[best.aj]
+    const merged = a.concat(b.slice(1))
+    const next = parts.filter((_, idx) => idx !== best.ai && idx !== best.aj)
+    next.push(merged)
+    parts.length = 0
+    parts.push(...next)
+  }
+  return parts
+}
+
+export function offsetLoop(loop, distance) {
+  const snapped = snapLoop(loop)
+  if (!snapped || snapped.length < 3) return []
+  if (Math.abs(distance) < 1e-9) return snapped.map(p => ({ x: p.x, y: p.y }))
+  const n = snapped.length
   const shifted = []
   for (let i = 0; i < n; i++) {
-    const a = loop[i]
-    const b = loop[(i + 1) % n]
+    const a = snapped[i]
+    const b = snapped[(i + 1) % n]
     const dx = b.x - a.x
     const dy = b.y - a.y
     const len = Math.hypot(dx, dy) || 1
@@ -336,13 +388,13 @@ export function offsetLoop(loop, distance) {
   for (let i = 0; i < n; i++) {
     const prev = shifted[(i - 1 + n) % n]
     const cur = shifted[i]
-    const prevH = Math.abs(prev.y2 - prev.y1) < 1e-9
-    const curH = Math.abs(cur.y2 - cur.y1) < 1e-9
+    const prevH = Math.abs(prev.y2 - prev.y1) < EPS
+    const curH = Math.abs(cur.y2 - cur.y1) < EPS
     if (prevH && !curH) out.push({ x: cur.x1, y: prev.y1 })
     else if (!prevH && curH) out.push({ x: prev.x1, y: cur.y1 })
     else out.push({ x: cur.x1, y: cur.y1 })
   }
-  return simplifyColinear(out)
+  return snapLoop(out)
 }
 
 function uniqueSorted(vals) {
@@ -450,13 +502,36 @@ function modelToClosedLoops(model) {
   if (!model) return []
   const copy = makerjs.model.clone(model)
   makerjs.model.originate(copy)
-  const chains = makerjs.model.findChains(copy, { pointMatchingDistance: 0.08 }) || []
+  const chains = makerjs.model.findChains(copy, { pointMatchingDistance: 0.15 }) || []
   const list = Array.isArray(chains) ? chains : []
-  return list.map(chain => {
-    const pts = makerjs.chain.toKeyPoints(chain, 0.35) || []
-    if (pts.length < 3) return null
-    return simplifyColinear(pts.map(p => ({ x: p[0], y: p[1] })))
-  }).filter(Boolean)
+  const closed = []
+  const opens = []
+  for (const chain of list) {
+    const pts = makerjs.chain.toKeyPoints(chain, 0.25) || []
+    if (pts.length < 3) continue
+    const loop = pts.map(p => ({ x: p[0], y: p[1] }))
+    const first = loop[0]
+    const last = loop[loop.length - 1]
+    if (chain.endless || hypot2(first.x - last.x, first.y - last.y) < 0.2) {
+      if (hypot2(first.x - last.x, first.y - last.y) < 0.2 && loop.length > 1) {
+        loop.pop()
+      }
+      closed.push(snapLoop(loop))
+    } else {
+      opens.push(loop)
+    }
+  }
+  const joined = joinOpenPolylines(opens)
+  for (const part of joined) {
+    if (part.length < 3) continue
+    const first = part[0]
+    const last = part[part.length - 1]
+    if (hypot2(first.x - last.x, first.y - last.y) < 0.25 && part.length > 1) {
+      part.pop()
+    }
+    closed.push(snapLoop(part))
+  }
+  return closed.filter(loop => loop.length >= 3)
 }
 
 function isOutlineStabType(type) {
@@ -588,13 +663,22 @@ function outlineFromLoop(loop, settings, bumpPlan) {
   const n = loop.length
   const model = { paths: {}, models: {} }
   const blends = {}
+  const switchBox = bumpPlan && bumpPlan.switchBox
+  const jogOnlySwitch = bumpPlan && bumpPlan.mode === "switchTB"
   for (let i = 0; i < n; i++) {
     const a = loop[(i - 1 + n) % n]
     const b = loop[i]
     const c = loop[(i + 1) % n]
     const d = loop[(i + 2) % n]
     const blend = jogBlend(a, b, c, d)
-    if (blend) blends[i] = blend
+    if (!blend) continue
+    if (jogOnlySwitch && switchBox) {
+      const onSwitch = [a.y, b.y, c.y, d.y].some(y =>
+        Math.abs(y - switchBox.maxY) < 0.2 || Math.abs(y - switchBox.minY) < 0.2
+      )
+      if (!onSwitch) continue
+    }
+    blends[i] = blend
   }
 
   for (let i = 0; i < n; i++) {
@@ -745,8 +829,9 @@ function buildKeyBackCut(key, switchGenerator, stabilizerGenerator, settings, ge
 
   if (hasStabs && isOutlineStabType(stabType)) {
     const switchLoop = offsetLoop(boxToLoop(switchBox), local.offset)
-    const stabLoops = modelToClosedLoops(stabModel).map(loop => offsetLoop(loop, local.offset))
-    const grownStab = stabLoops.length > 1 ? unionLoopsToLoop(stabLoops) : stabLoops[0]
+    const stabLoops = modelToClosedLoops(stabModel)
+    const mergedStab = stabLoops.length > 1 ? unionLoopsToLoop(stabLoops) : stabLoops[0]
+    const grownStab = mergedStab && mergedStab.length ? offsetLoop(mergedStab, local.offset) : null
     outlineLoop = grownStab
       ? unionLoopsToLoop([switchLoop, grownStab])
       : switchLoop

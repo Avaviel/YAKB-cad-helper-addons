@@ -327,6 +327,46 @@ function tryParseKleArray(kleText) {
     return null
 }
 
+export const YAKB_SETTINGS_VERSION = 1
+
+const YAKB_STRING_KEYS = [
+    "switchCutoutType",
+    "stabilizerCutoutType",
+    "acousticCutoutType",
+    "stampSwitchFamily",
+    "stampFit",
+    "chocSpacingId",
+]
+const YAKB_NUMBER_KEYS = [
+    "switchRadius",
+    "stabilizerRadius",
+    "acousticRadius",
+    "unitWidth",
+    "unitHeight",
+    "kerf",
+]
+
+export function normalizeYakbSettings(raw) {
+    if (!raw || typeof raw !== "object") {
+        return null
+    }
+    const out = { v: YAKB_SETTINGS_VERSION }
+    for (const key of YAKB_STRING_KEYS) {
+        if (raw[key] != null && String(raw[key]).trim() !== "") {
+            out[key] = String(raw[key])
+        }
+    }
+    for (const key of YAKB_NUMBER_KEYS) {
+        if (raw[key] != null && raw[key] !== "" && Number.isFinite(Number(raw[key]))) {
+            out[key] = Number(raw[key])
+        }
+    }
+    if (raw.mirrorStamps != null) {
+        out.mirrorStamps = !!raw.mirrorStamps
+    }
+    return out
+}
+
 function kleMeta(parsed) {
     return parsed.data.find(row => row && typeof row === "object" && !Array.isArray(row)) || null
 }
@@ -371,7 +411,8 @@ export function readKleLayerState(kleText) {
             notes: meta._titleBlock.notes != null ? String(meta._titleBlock.notes) : "",
         }
     }
-    return { notes, outlines, name, titleBlock }
+    const yakb = normalizeYakbSettings(meta._yakb)
+    return { notes, outlines, name, titleBlock, yakb }
 }
 
 export function readLayerNotes(kleText) {
@@ -431,6 +472,14 @@ export function writeKleLayerState(kleText, state) {
             delete meta._titleBlock
         }
     }
+    if (state && Object.prototype.hasOwnProperty.call(state, "yakb")) {
+        const yakb = normalizeYakbSettings(state.yakb)
+        if (yakb && Object.keys(yakb).length > 1) {
+            meta._yakb = yakb
+        } else {
+            delete meta._yakb
+        }
+    }
     const pretty = JSON.stringify(data, null, 2)
     if (parsed.stripped) {
         return pretty.replace(/^\[/, "").replace(/\]\s*$/, "")
@@ -445,5 +494,6 @@ export function writeLayerNotes(kleText, notes) {
         outlines: current.outlines,
         name: current.name,
         titleBlock: current.titleBlock,
+        yakb: current.yakb,
     })
 }
