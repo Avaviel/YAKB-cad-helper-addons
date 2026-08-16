@@ -36,6 +36,16 @@ function App() {
   const [kleText, setKleText] = useState("")
   // Keyboard title used in download filenames (e.g. Macropad.lm9k2a.dxf)
   const [keyboardTitle, setKeyboardTitle] = useState("Keyboard")
+  const [titleDate, setTitleDate] = useState(() => {
+    const d = new Date()
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, "0")
+    const day = String(d.getDate()).padStart(2, "0")
+    return `${y}-${m}-${day}`
+  })
+  const [titleDesigner, setTitleDesigner] = useState("")
+  const [titleJobNo, setTitleJobNo] = useState("")
+  const [titleNotes, setTitleNotes] = useState("")
   const [layerNotes, setLayerNotes] = useState({})
   const [layerOutlines, setLayerOutlines] = useState({})
 
@@ -98,6 +108,12 @@ function App() {
       layerNotes,
       layerOutlines,
       keyboardTitle,
+      titleBlock: {
+        date: titleDate,
+        designer: titleDesigner,
+        jobNo: titleJobNo,
+        notes: titleNotes,
+      },
       stampFamilyId: stampSwitchFamily,
       skipEmbeddedOutlines: true,
     }
@@ -163,6 +179,10 @@ function App() {
     layerNotes,
     layerOutlines,
     keyboardTitle,
+    titleDate,
+    titleDesigner,
+    titleJobNo,
+    titleNotes,
   ])
 
 
@@ -333,17 +353,67 @@ function App() {
             <Col xl={5} className="pt-3 pb-0 ps-4 pe-4">
               <h3>KLE Data</h3>
               <p>Please see the info block at the bottom for features such as rotating stabilizers.</p>
-              <Form className="mt-3 mb-3 text-start">
-                <Form.Label>Keyboard title</Form.Label>
+              <Form className="mt-3 mb-3 text-start" onSubmit={e => e.preventDefault()}>
+                <h5 className="mb-2">Title block</h5>
+                <Form.Label>Title</Form.Label>
                 <Form.Control
                   type="text"
                   value={keyboardTitle}
                   placeholder="e.g. Macropad"
                   onChange={e => handleTitleChange(e.target.value)}
                   aria-label="keyboard-title"
+                  autoComplete="off"
                 />
-                <Form.Text className="text-muted">
-                  Saved as KLE <code>name</code>, drawn on each layer, and used in download names.
+                <Form.Text className="text-muted d-block mb-3">
+                  Saved as KLE <code>name</code>, shown in the title block, and used in download names.
+                  Drawing No. is set by layer (1.1 Top plate, 1.2 Dots, 1.3 Back cut, 2.1 Holes, 2.2 Hotswap, 3.1 Shell).
+                </Form.Text>
+                <Row className="g-2">
+                  <Col md={6}>
+                    <Form.Label>Date</Form.Label>
+                    <Form.Control
+                      type="date"
+                      value={titleDate}
+                      onChange={e => setTitleDate(e.target.value)}
+                      aria-label="title-block-date"
+                    />
+                  </Col>
+                  <Col md={6}>
+                    <Form.Label>Designer</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={titleDesigner}
+                      placeholder="Your name"
+                      onChange={e => setTitleDesigner(e.target.value)}
+                      aria-label="title-block-designer"
+                      autoComplete="name"
+                    />
+                  </Col>
+                  <Col md={6}>
+                    <Form.Label>Job / Project No.</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={titleJobNo}
+                      placeholder="Optional"
+                      onChange={e => setTitleJobNo(e.target.value)}
+                      aria-label="title-block-job"
+                      autoComplete="off"
+                    />
+                  </Col>
+                  <Col md={6}>
+                    <Form.Label>Notes</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={titleNotes}
+                      placeholder="Optional short note"
+                      onChange={e => setTitleNotes(e.target.value)}
+                      aria-label="title-block-notes"
+                      autoComplete="off"
+                    />
+                  </Col>
+                </Row>
+                <Form.Text className="text-muted d-block mt-2 mb-0">
+                  Drawn by is always YAKB CAD Helper. These fields do not go into the KLE paste box.
                 </Form.Text>
               </Form>
             </Col>

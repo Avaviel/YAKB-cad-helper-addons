@@ -1,6 +1,15 @@
 import makerjs from 'makerjs'
 import Decimal from 'decimal.js'
-import { annotatedLayerName, strokeTextModel } from './strokeText'
+import { annotatedLayerName } from './strokeText'
+import {
+  TITLE_BLOCK_LAYER,
+  TITLE_BLOCK_FULL_DRAWING_NAME,
+  TITLE_BLOCK_FULL_DRAWING_NO,
+  buildTitleBlock,
+  placeTitleBlock,
+  titleBlockFieldsFromOptions,
+  drawingInfoForLayer,
+} from './TitleBlockBuilder'
 import { buildOutlineModel, zoneOutlineDefaults } from './PlateBuilder'
 import { defaultShellFromPlate, defaultShellFromSelf } from './otherPartsConfig'
 import { buildBackCutPart } from './BackCutBuilder'
@@ -267,9 +276,9 @@ export function buildExportAssembly(assembly, keysArray, generatorOptions, mainP
   applyLayerNotes(
     canvas,
     generatorOptions && generatorOptions.layerNotes,
-    assembly,
-    generatorOptions && generatorOptions.keyboardTitle
+    assembly
   )
+  attachTitleBlock(canvas, generatorOptions)
 
   return orderAssemblyModels(canvas)
 }
@@ -281,6 +290,7 @@ const assemblyModelOrder = [
   "LinkHoleCuts",
   "LinkHotswap",
   "Shell",
+  "TitleBlock",
 ]
 
 function orderAssemblyModels(canvas) {
@@ -327,6 +337,9 @@ function layerSortRank(name) {
   }
   if (base.indexOf("Shell") === 0) {
     return 60
+  }
+  if (base === TITLE_BLOCK_LAYER) {
+    return 80
   }
   return 90
 }
@@ -459,10 +472,10 @@ function noteForLayer(layerNotes, noteId, layerName) {
 }
 
 /**
- * Rename each export layer with the operator note and draw that note
- * at the bottom-left of the layer's geometry.
+ * Rename each export layer with the operator note.
+ * Keyboard title lives in the fixed title block, not per-layer floating text.
  */
-export function applyLayerNotes(canvas, layerNotes, assembly, keyboardTitle) {
+export function applyLayerNotes(canvas, layerNotes, assembly) {
   if (!canvas || !canvas.models) {
     return canvas
   }
@@ -490,7 +503,6 @@ export function applyLayerNotes(canvas, layerNotes, assembly, keyboardTitle) {
     })
   }
 
-  // Hotswap note is stored under the stable id Link-MX_HOTSWAP
   for (const pair of pairs) {
     if (pair.layerName && pair.layerName.indexOf("Link-MX_HOTSWAP") === 0) {
       pair.noteId = "Link-MX_HOTSWAP"
@@ -506,31 +518,53 @@ export function applyLayerNotes(canvas, layerNotes, assembly, keyboardTitle) {
       continue
     }
     const note = noteForLayer(layerNotes, pair.noteId, pair.layerName)
-    const title = String(keyboardTitle || "").trim()
-    const labelText = [title, note].filter(Boolean).join("  ")
-    const named = note ? annotatedLayerName(pair.layerName, note) : pair.layerName
     if (note) {
-      applyLayer(model, named)
+      applyLayer(model, annotatedLayerName(pair.layerName, note))
     }
-    if (!labelText) {
-      continue
-    }
-
-    const extents = makerjs.measure.modelExtents(model)
-    if (!extents || !extents.low) {
-      continue
-    }
-    const label = strokeTextModel(labelText, 3)
-    applyLayer(label, named)
-    const gap = 2
-    label.origin = [extents.low[0], extents.low[1] - gap - 3]
-    if (!model.models) {
-      model.models = {}
-    }
-    model.models.LayerNote = label
   }
 
   return canvas
+}
+
+export function attachTitleBlock(canvas, generatorOptions, drawingName, drawingNo) {
+  if (!canvas || !canvas.models) {
+    return canvas
+  }
+  const extents = makerjs.measure.modelExtents(canvas)
+  if (!extents || !extents.low || !extents.high) {
+    return canvas
+  }
+  const fields = titleBlockFieldsFromOptions(
+    generatorOptions,
+    drawingName || TITLE_BLOCK_FULL_DRAWING_NAME,
+    drawingNo || TITLE_BLOCK_FULL_DRAWING_NO
+  )
+  const block = placeTitleBlock(buildTitleBlock(fields), extents)
+  if (!block) {
+    return canvas
+  }
+  applyLayer(block, TITLE_BLOCK_LAYER)
+  canvas.models.TitleBlock = block
+  canvas.titleBlockOrigin = block.origin ? block.origin.slice() : [0, 0]
+  canvas.titleBlockFields = fields
+  canvas.globalExtents = extents
+  return canvas
+}
+
+function titleBlockForLayer(parentModel, layerName) {
+  if (!parentModel || !parentModel.titleBlockOrigin) {
+    return parentModel && parentModel.models && parentModel.models.TitleBlock
+  }
+  const info = drawingInfoForLayer(layerName)
+  const base = parentModel.titleBlockFields || {}
+  const block = buildTitleBlock({
+    ...base,
+    drawingName: info.drawingName,
+    drawingNo: info.drawingNo,
+  })
+  block.origin = parentModel.titleBlockOrigin.slice()
+  applyLayer(block, TITLE_BLOCK_LAYER)
+  return block
 }
 
 const previewGroupKeys = {
@@ -544,11 +578,17 @@ export function previewLayerPanes(model) {
   if (!model || !model.models) {
     return []
   }
-  return Object.keys(model.models).map(key => {
+  return Object.keys(model.models).filter(key => key !== "TitleBlock").map(key => {
     const child = model.models[key]
-    const exported = exportOtherPart({ models: { [key]: child } })
+    const layerName = (child && child.layer) || key
+    const models = { [key]: child }
+    const block = titleBlockForLayer(model, layerName)
+    if (block) {
+      models.TitleBlock = block
+    }
+    const exported = exportOtherPart({ models })
     return {
-      title: (child && child.layer) || key,
+      title: layerName,
       svg: exported && exported.previewSvg,
     }
   })
@@ -568,6 +608,9 @@ export function previewSubset(model, groups) {
   }
   if (!Object.keys(models).length) {
     return null
+  }
+  if (model.models.TitleBlock) {
+    models.TitleBlock = model.models.TitleBlock
   }
   return { models }
 }
