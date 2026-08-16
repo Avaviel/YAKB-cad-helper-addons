@@ -764,6 +764,7 @@ function App() {
                               </Col>
                             </Row>
                           ) : layer.outlineKind === "backcut" ? (
+                            <>
                             <Row className="g-2 mb-2">
                               <Col md={stampSwitchFamily === "choc" ? 12 : 4}>
                                 <Form.Label className="mb-1">Offset from switch + stabs (mm)</Form.Label>
@@ -805,6 +806,7 @@ function App() {
                               MX Spec already includes the bar, so that outline is expanded as-is and only the switch top and bottom get bobbles.
                               New corners use the stabilizer cutout fillet radius.
                             </Form.Text>
+                            </>
                           ) : layer.outlineKind === "plate" ? (
                             <Row className="g-2 mb-2">
                               <Col md={6}>
