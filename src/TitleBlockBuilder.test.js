@@ -136,19 +136,18 @@ test("tiny gaps keep title-block corners from meeting", () => {
   const endpoints = Object.values(paths).flatMap(path => [path.origin, path.end])
   for (const corner of corners) {
     const hits = endpoints.filter(pt =>
-      Math.abs(pt[0] - corner[0]) < 0.01 && Math.abs(pt[1] - corner[1]) < 0.01
+      Math.abs(pt[0] - corner[0]) < 0.001 && Math.abs(pt[1] - corner[1]) < 0.001
     )
     expect(hits.length).toBe(0)
   }
-  expect(TITLE_BLOCK_GAP).toBeGreaterThan(0.05)
-  expect(TITLE_BLOCK_GAP).toBeLessThan(1)
+  expect(TITLE_BLOCK_GAP).toBeCloseTo(0.01)
 })
 
 test("title-block letters O and R include an open cut box", () => {
   const text = strokeTextModel("OR", 2.35, { breakProfiles: true })
   const paths = Object.values(text.paths)
   expect(paths.length).toBeGreaterThan(10)
-  const chains = makerjs.model.findChains(text, { pointMatchingDistance: 0.05 }) || []
+  const chains = makerjs.model.findChains(text, { pointMatchingDistance: 0.004 }) || []
   expect(chains.filter(chain => chain.endless)).toHaveLength(0)
 })
 
@@ -176,7 +175,7 @@ test("every title-block path including text is opened so Select All will not pro
   const endpoints = paths.flatMap(path => [path.origin, path.end])
   for (const corner of corners) {
     const hits = endpoints.filter(pt =>
-      Math.abs(pt[0] - corner[0]) < 0.01 && Math.abs(pt[1] - corner[1]) < 0.01
+      Math.abs(pt[0] - corner[0]) < 0.001 && Math.abs(pt[1] - corner[1]) < 0.001
     )
     expect(hits.length).toBe(0)
   }
@@ -191,7 +190,7 @@ test("every title-block path including text is opened so Select All will not pro
   gapAllPaths(box)
   const boxEnds = Object.values(box.paths).flatMap(path => [path.origin, path.end])
   for (const corner of [[0, 0], [10, 0], [10, 10], [0, 10]]) {
-    expect(boxEnds.some(pt => Math.abs(pt[0] - corner[0]) < 0.01 && Math.abs(pt[1] - corner[1]) < 0.01)).toBe(false)
+    expect(boxEnds.some(pt => Math.abs(pt[0] - corner[0]) < 0.001 && Math.abs(pt[1] - corner[1]) < 0.001)).toBe(false)
   }
 })
 

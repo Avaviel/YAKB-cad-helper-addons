@@ -73,32 +73,33 @@ function glyphSegments(ch) {
   return segs
 }
 
-// Small boxes that sit on closed bowls so Fusion cannot treat O / 0 / R / …
-// as sketch profiles. Units are the same 0.6 × 1.4 glyph cell.
-// Bottom of O/0, top of R/P, both bowls of B/8.
+// Hairline nick through one stroke of each closed bowl. x,y is the centre
+// in the 0.6 × 1.4 glyph cell. Thickness is LETTER_SLIT_MM after scale.
+export const LETTER_SLIT_MM = 0.01
+
 const GLYPH_OPENERS = {
-  "0": [{ x: 0.12, y: -0.04, w: 0.36, h: 0.26 }],
-  "4": [{ x: 0.08, y: 0.32, w: 0.44, h: 0.22 }],
-  "6": [{ x: 0.10, y: -0.04, w: 0.40, h: 0.28 }],
+  "0": [{ x: 0.30, y: 0, across: 0.14, axis: "h" }],
+  "4": [{ x: 0.30, y: 0.45, across: 0.14, axis: "h" }],
+  "6": [{ x: 0.30, y: 0, across: 0.14, axis: "h" }],
   "8": [
-    { x: 0.12, y: -0.04, w: 0.36, h: 0.24 },
-    { x: 0.12, y: 0.58, w: 0.36, h: 0.24 },
+    { x: 0.35, y: 0, across: 0.14, axis: "h" },
+    { x: 0.30, y: 1.4, across: 0.14, axis: "h" },
   ],
-  "9": [{ x: 0.10, y: 1.12, w: 0.40, h: 0.28 }],
-  A: [{ x: 0.10, y: 0.40, w: 0.40, h: 0.22 }],
+  "9": [{ x: 0.30, y: 1.4, across: 0.14, axis: "h" }],
+  A: [{ x: 0.30, y: 0.5, across: 0.14, axis: "h" }],
   B: [
-    { x: 0.08, y: 1.04, w: 0.38, h: 0.32 },
-    { x: 0.08, y: -0.04, w: 0.38, h: 0.28 },
+    { x: 0.22, y: 1.4, across: 0.14, axis: "h" },
+    { x: 0.20, y: 0, across: 0.14, axis: "h" },
   ],
-  D: [{ x: 0.16, y: -0.04, w: 0.34, h: 0.26 }],
-  O: [{ x: 0.12, y: -0.04, w: 0.36, h: 0.26 }],
-  P: [{ x: 0.08, y: 1.04, w: 0.40, h: 0.32 }],
-  Q: [{ x: 0.12, y: -0.04, w: 0.36, h: 0.26 }],
-  R: [{ x: 0.08, y: 1.04, w: 0.40, h: 0.32 }],
-  ".": [{ x: 0.18, y: -0.04, w: 0.24, h: 0.20 }],
+  D: [{ x: 0.18, y: 0, across: 0.14, axis: "h" }],
+  O: [{ x: 0.30, y: 0, across: 0.14, axis: "h" }],
+  P: [{ x: 0.22, y: 1.4, across: 0.14, axis: "h" }],
+  Q: [{ x: 0.30, y: 0, across: 0.14, axis: "h" }],
+  R: [{ x: 0.22, y: 1.4, across: 0.14, axis: "h" }],
+  ".": [{ x: 0.30, y: 0, across: 0.08, axis: "h" }],
   ":": [
-    { x: 0.20, y: 0.98, w: 0.26, h: 0.24 },
-    { x: 0.20, y: 0.12, w: 0.26, h: 0.24 },
+    { x: 0.33, y: 1.05, across: 0.08, axis: "h" },
+    { x: 0.33, y: 0.2, across: 0.08, axis: "h" },
   ],
 }
 
@@ -107,6 +108,26 @@ export function glyphOpeners(ch) {
     ? ch
     : String(ch || "").toUpperCase()
   return GLYPH_OPENERS[key] || []
+}
+
+export function slitToBox(slit, scale) {
+  const s = Number(scale) || 1
+  const thick = LETTER_SLIT_MM / s
+  const across = Number(slit.across) || 0.14
+  if (slit.axis === "v") {
+    return {
+      x: slit.x - thick / 2,
+      y: slit.y - across / 2,
+      w: thick,
+      h: across,
+    }
+  }
+  return {
+    x: slit.x - across / 2,
+    y: slit.y - thick / 2,
+    w: across,
+    h: thick,
+  }
 }
 
 function lerp(a, b, t) {
@@ -141,7 +162,8 @@ function insideInterval(a, b, box) {
   return t0 < t1 ? [t0, t1] : null
 }
 
-function clipSegmentOutsideBoxes(a, b, boxes, inset = 0.03) {
+function clipSegmentOutsideBoxes(a, b, boxes, inset) {
+  const pad = Number.isFinite(inset) ? inset : 0.001
   let parts = [[a, b]]
   for (const box of boxes) {
     const next = []
@@ -152,28 +174,25 @@ function clipSegmentOutsideBoxes(a, b, boxes, inset = 0.03) {
         continue
       }
       const [t0, t1] = hit
-      if (t0 > 0.02) {
-        next.push([p, lerp(p, q, Math.max(0, t0 - inset))])
+      if (t0 > 0.001) {
+        next.push([p, lerp(p, q, Math.max(0, t0 - pad))])
       }
-      if (t1 < 0.98) {
-        next.push([lerp(p, q, Math.min(1, t1 + inset)), q])
+      if (t1 < 0.999) {
+        next.push([lerp(p, q, Math.min(1, t1 + pad)), q])
       }
     }
     parts = next
   }
-  return parts.filter(([p, q]) => Math.hypot(q[0] - p[0], q[1] - p[1]) > 0.02)
+  return parts.filter(([p, q]) => Math.hypot(q[0] - p[0], q[1] - p[1]) > 0.002)
 }
 
 function openRectangleSegments(box) {
   const { x, y, w, h } = box
-  const gap = Math.max(h * 0.35, 0.08)
-  const mid = y + h / 2
+  // Three sides only — omit one short end so the nick itself is not a profile.
   return [
     [[x, y], [x + w, y]],
     [[x, y + h], [x + w, y + h]],
     [[x, y], [x, y + h]],
-    [[x + w, y], [x + w, mid - gap / 2]],
-    [[x + w, mid + gap / 2], [x + w, y + h]],
   ]
 }
 
@@ -198,10 +217,10 @@ export function strokeTextModel(text, heightMm = 3, options) {
     if (ch === "\n") {
       continue
     }
-    const openers = breakProfiles ? glyphOpeners(ch) : []
+    const openers = breakProfiles ? glyphOpeners(ch).map(slit => slitToBox(slit, scale)) : []
     const segs = glyphSegments(ch)
     const clipped = openers.length
-      ? segs.flatMap(([a, b]) => clipSegmentOutsideBoxes(a, b, openers))
+      ? segs.flatMap(([a, b]) => clipSegmentOutsideBoxes(a, b, openers, 0.001))
       : segs
     for (const [a, b] of clipped) {
       paths["s" + n] = new makerjs.paths.Line(

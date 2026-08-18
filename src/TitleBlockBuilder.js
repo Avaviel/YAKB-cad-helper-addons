@@ -8,7 +8,7 @@ export const TITLE_BLOCK_MARGIN = 8
 export const TITLE_BLOCK_DRAWN_BY = "YAKB CAD Helper"
 export const TITLE_BLOCK_FULL_DRAWING_NO = "1.1-3.1"
 export const TITLE_BLOCK_FULL_DRAWING_NAME = "Plate export"
-export const TITLE_BLOCK_GAP = 0.25
+export const TITLE_BLOCK_GAP = 0.01
 
 const DRAWING_NUMBERS = {
   "Top-SWITCH_PLATE": "1.1",
@@ -285,7 +285,9 @@ export function buildTitleBlock(fields) {
   }
 
   makerjs.model.originate(model)
-  gapAllPaths(model, TITLE_BLOCK_GAP)
+  // Only the frame is nicked. Letter bowls are opened by a 0.01 mm slit in
+  // strokeText; gapping every text segment made counters look like they fell.
+  gapAllPaths(model.models.frame, TITLE_BLOCK_GAP)
   return model
 }
 
