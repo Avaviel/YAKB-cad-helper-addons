@@ -80,6 +80,7 @@ function App() {
   const [stampFit, setStampFit] = useState(defaultFitId)
   // Left-right mirror of stamp geometry only
   const [mirrorStamps, setMirrorStamps] = useState(false)
+  const [includeDots, setIncludeDots] = useState(true)
   // Single full export (preview + dxf + svg)
   const [exportOutput, setExportOutput] = useState(null)
   const [geometryModel, setGeometryModel] = useState(null)
@@ -89,8 +90,9 @@ function App() {
   const [chocSpacingId, setChocSpacingId] = useState("18x17")
 
   const selectedFamily = switchFamilies.find(f => f.id === stampSwitchFamily) || switchFamilies[0]
-  const exportSummary = getExportSummary(stampSwitchFamily, stampFit)
-  const exportAssembly = getExportAssembly(stampSwitchFamily, stampFit)
+  const dotsOptions = { includeDots: includeDots && selectedFamily?.includeDots !== false }
+  const exportSummary = getExportSummary(stampSwitchFamily, stampFit, dotsOptions)
+  const exportAssembly = getExportAssembly(stampSwitchFamily, stampFit, dotsOptions)
   const zoneDefaults = useMemo(() => {
     const parsed = parseKle(kleText)
     return zoneOutlineDefaults((parsed && parsed.outlines) || [])
@@ -142,6 +144,7 @@ function App() {
       stampSwitchFamily,
       stampFit,
       mirrorStamps,
+      includeDots,
     })
   }, [
     kleText,
@@ -157,6 +160,7 @@ function App() {
     stampSwitchFamily,
     stampFit,
     mirrorStamps,
+    includeDots,
     layerOutlines,
   ])
 
@@ -192,7 +196,7 @@ function App() {
   useEffect(() => {
     const parsed = parseKle(kleText)
     const kleReturn = parsed && parsed.keys ? parsed.keys : parsed
-    const assembly = getExportAssembly(stampSwitchFamily, stampFit)
+    const assembly = getExportAssembly(stampSwitchFamily, stampFit, dotsOptions)
     const generatorOptions = {
       ...titleExportOptions(),
       layerNotes: appliedNotes,
@@ -237,7 +241,7 @@ function App() {
 
   // Title blocks + SVG/DXF strings only. Safe to run after notes typing.
   useEffect(() => {
-    const assembly = getExportAssembly(stampSwitchFamily, stampFit)
+    const assembly = getExportAssembly(stampSwitchFamily, stampFit, dotsOptions)
     if (!geometryModel) {
       return
     }
@@ -275,6 +279,7 @@ function App() {
     stampSwitchFamily,
     stampFit,
     mirrorStamps,
+    includeDots,
     chocSpacingId,
   })
 
@@ -294,6 +299,7 @@ function App() {
     if (yakb.kerf != null) setKerf(yakb.kerf)
     if (yakb.chocSpacingId) setChocSpacingId(yakb.chocSpacingId)
     if (yakb.mirrorStamps != null) setMirrorStamps(!!yakb.mirrorStamps)
+    if (yakb.includeDots != null) setIncludeDots(!!yakb.includeDots)
   }
 
   const persistLayerState = (notes, outlines, title, titleBlock) => {
@@ -353,6 +359,7 @@ function App() {
     stampSwitchFamily,
     stampFit,
     mirrorStamps,
+    includeDots,
     chocSpacingId,
   ])
 
@@ -963,6 +970,23 @@ function App() {
                   <Col md={12} className="mb-3">
                     <Form.Check
                       type="checkbox"
+                      id="include-dots"
+                      className="mb-2"
+                      checked={includeDots && selectedFamily?.includeDots !== false}
+                      disabled={selectedFamily?.includeDots === false}
+                      onChange={e => setIncludeDots(e.target.checked)}
+                      label={
+                        <span>
+                          <strong>Include Top-Dots</strong>
+                          <span className="text-muted">
+                            {' '}— 1.8 mm support bosses for a printed sandwich. Uncheck for a
+                            plain plate (laser/CNC, or if you will place bosses yourself).
+                          </span>
+                        </span>
+                      }
+                    />
+                    <Form.Check
+                      type="checkbox"
                       id="mirror-stamps"
                       checked={mirrorStamps}
                       onChange={e => setMirrorStamps(e.target.checked)}
@@ -986,8 +1010,7 @@ function App() {
                     another <strong>{defaultShellFromSelf} mm</strong> from itself (inner + outer).
                     Cut / Extrude plus the amount print in that drawing&apos;s title block (same DXF layer as the drawing).
                     The note box is that drawing&apos;s title-block NOTES (not cut/extrude). The overall title block uses the Notes field above.
-                    Top-Dots: Stamp is the old 4-corner X. Ex 1 / 2 / 3 place pegs on leftover 3 mm stock
-                    (off the back-cut) so the plate can still flex. Glance over the result.
+                    Top-Dots are optional support bosses (H in the column webs). Uncheck Include Top-Dots to omit that layer.
                   </p>
                   {(exportAssembly.layerGroups || []).map(group => (
                     <div key={group.group} className="mb-4">

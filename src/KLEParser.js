@@ -364,6 +364,9 @@ export function normalizeYakbSettings(raw) {
     if (raw.mirrorStamps != null) {
         out.mirrorStamps = !!raw.mirrorStamps
     }
+    if (raw.includeDots != null) {
+        out.includeDots = !!raw.includeDots
+    }
     return out
 }
 

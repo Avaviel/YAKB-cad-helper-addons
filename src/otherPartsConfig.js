@@ -171,13 +171,13 @@ export function familyForCutoutType(cutoutType) {
  *
  * FUTURE — Kailh Choc: add Link-CHOC_* (or similar) layers; keep Top-* + one download.
  */
-export function getExportAssembly(switchFamilyId, fitId) {
+export function getExportAssembly(switchFamilyId, fitId, options = {}) {
   const family = switchFamilies.find(f => f.id === switchFamilyId) || switchFamilies[0]
   const fit = (family?.fits || []).find(f => f.id === fitId)
     || (family?.fits || []).find(f => f.id === family?.defaultFitId)
     || (family?.fits || [])[0]
 
-  const switchplace = family.includeDots === false
+  const switchplace = family.includeDots === false || options.includeDots === false
     ? null
     : stampOrNull(
       'switchplace-extrude',
@@ -258,13 +258,13 @@ export function layerFeatureDefault(id) {
 }
 
 /** @deprecated use getExportAssembly — kept as thin wrapper for callers */
-export function getExportAssemblies(switchFamilyId, fitId) {
-  return [getExportAssembly(switchFamilyId, fitId)]
+export function getExportAssemblies(switchFamilyId, fitId, options) {
+  return [getExportAssembly(switchFamilyId, fitId, options)]
 }
 
 /** Short summary of layers for UI helper text. */
-export function getExportSummary(switchFamilyId, fitId) {
-  return getExportAssembly(switchFamilyId, fitId)?.layerSummary || '—'
+export function getExportSummary(switchFamilyId, fitId, options) {
+  return getExportAssembly(switchFamilyId, fitId, options)?.layerSummary || '—'
 }
 
 export const defaultSwitchFamilyId = switchFamilies[0]?.id || 'mx'
