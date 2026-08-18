@@ -1,6 +1,8 @@
 import makerjs from "makerjs"
 
 export const DOTS_OVERKILL_MM = 0.5
+/** Disks closer than 2 * radius overlap. Collapse those clusters to one peg. */
+export const DOTS_CLUSTER_MM = 3
 
 /**
  * AutoCAD-style OVERKILL for circles: if two centres are within tolerance
@@ -57,6 +59,101 @@ export function overkillCircles(model, toleranceMm = DOTS_OVERKILL_MM) {
   }
 
   return { removed: drop.size, kept }
+}
+
+/**
+ * Merge overlapping pegs (three-in-a-row, stagger stacks, shared H uprights)
+ * into one circle at the cluster centroid. Transitive: A-B and B-C become one
+ * group even if A-C is just over the threshold.
+ */
+export function clusterMergeCircles(model, minDistMm = DOTS_CLUSTER_MM) {
+  if (!model) {
+    return { removed: 0, kept: 0, clusters: 0 }
+  }
+  const raw = Number(minDistMm)
+  const minDist = Number.isFinite(raw) && raw > 0 ? raw : DOTS_CLUSTER_MM
+
+  makerjs.model.originate(model)
+
+  const items = []
+  makerjs.model.walk(model, {
+    onPath: walked => {
+      const path = walked.pathContext
+      if (!path || path.type !== "circle" || !path.origin) {
+        return
+      }
+      items.push({
+        x: path.origin[0],
+        y: path.origin[1],
+        r: Number(path.radius) || 0,
+        parent: walked.modelContext,
+        id: walked.pathId,
+        path,
+      })
+    },
+  })
+
+  const n = items.length
+  if (n < 2) {
+    return { removed: 0, kept: n, clusters: n }
+  }
+
+  const parent = items.map((_, i) => i)
+  const find = i => {
+    while (parent[i] !== i) {
+      parent[i] = parent[parent[i]]
+      i = parent[i]
+    }
+    return i
+  }
+  const unite = (a, b) => {
+    const pa = find(a)
+    const pb = find(b)
+    if (pa !== pb) parent[pb] = pa
+  }
+
+  const min2 = minDist * minDist
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      const dx = items[i].x - items[j].x
+      const dy = items[i].y - items[j].y
+      if (dx * dx + dy * dy < min2) {
+        unite(i, j)
+      }
+    }
+  }
+
+  const groups = new Map()
+  for (let i = 0; i < n; i++) {
+    const root = find(i)
+    if (!groups.has(root)) groups.set(root, [])
+    groups.get(root).push(i)
+  }
+
+  let removed = 0
+  let kept = 0
+  for (const members of groups.values()) {
+    kept += 1
+    let sx = 0
+    let sy = 0
+    for (const i of members) {
+      sx += items[i].x
+      sy += items[i].y
+    }
+    const cx = sx / members.length
+    const cy = sy / members.length
+    const keep = items[members[0]]
+    keep.path.origin = [cx, cy]
+    for (let k = 1; k < members.length; k++) {
+      const item = items[members[k]]
+      if (item.parent && item.parent.paths && item.parent.paths[item.id]) {
+        delete item.parent.paths[item.id]
+        removed += 1
+      }
+    }
+  }
+
+  return { removed, kept, clusters: groups.size }
 }
 
 function toNum(value) {

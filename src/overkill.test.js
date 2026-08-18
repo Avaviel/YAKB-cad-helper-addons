@@ -1,5 +1,5 @@
 import makerjs from "makerjs"
-import { overkillCircles, isKeyStaggered, stripTopStampCircles } from "./overkill"
+import { overkillCircles, clusterMergeCircles, isKeyStaggered, stripTopStampCircles } from "./overkill"
 
 test("overkill keeps one circle when two share a centre", () => {
   const model = {
@@ -36,6 +36,37 @@ test("a 0.5U-shifted key under another row is staggered; ortho is not", () => {
   expect(isKeyStaggered(staggered, [above, staggered])).toBe(true)
   expect(isKeyStaggered(ortho, [above, ortho])).toBe(false)
   expect(isKeyStaggered(above, [above, staggered])).toBe(false)
+})
+
+test("cluster merge collapses three overlapping circles in a row to one centroid", () => {
+  const model = {
+    paths: {
+      a: new makerjs.paths.Circle([0, 0], 1.5),
+      b: new makerjs.paths.Circle([1.2, 0], 1.5),
+      c: new makerjs.paths.Circle([2.4, 0], 1.5),
+    },
+  }
+  const result = clusterMergeCircles(model, 3)
+  expect(result.removed).toBe(2)
+  expect(result.kept).toBe(1)
+  expect(Object.keys(model.paths).length).toBe(1)
+  const kept = Object.values(model.paths)[0]
+  expect(kept.origin[0]).toBeCloseTo(1.2, 5)
+  expect(kept.origin[1]).toBeCloseTo(0, 5)
+})
+
+test("cluster merge leaves H uprights on one key alone", () => {
+  const model = {
+    paths: {
+      a: new makerjs.paths.Circle([-9.525, 4.5], 1.5),
+      b: new makerjs.paths.Circle([9.525, 4.5], 1.5),
+      c: new makerjs.paths.Circle([-9.525, -4.5], 1.5),
+      d: new makerjs.paths.Circle([9.525, -4.5], 1.5),
+    },
+  }
+  const result = clusterMergeCircles(model, 3)
+  expect(result.removed).toBe(0)
+  expect(result.kept).toBe(4)
 })
 
 test("stripTopStampCircles removes only the +Y pair", () => {

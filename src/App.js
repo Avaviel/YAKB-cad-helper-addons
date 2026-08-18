@@ -1092,8 +1092,10 @@ function App() {
                                   ))}
                                 </Form.Select>
                                 <Form.Text className="text-muted d-block mt-1">
-                                  Stamp: four corners per switch. Ex 1: rim pegs. Ex 2: hex grid. Ex 3: outline corners.
-                                  Generated pegs skip back-cut pockets so they extrude from 3 mm, not 1.5 mm.
+                                  Default: H-shaped pegs in the column webs (stagger-safe). Stab keys keep
+                                  standard tops, two brought-in under the switch, and two outer bottom corners.
+                                  Overlapping pegs merge to one. A peg that nicks the back-cut is deleted whole.
+                                  Ex 1: rim. Ex 2: hex. Ex 3: outline corners.
                                 </Form.Text>
                               </Col>
                             </Row>

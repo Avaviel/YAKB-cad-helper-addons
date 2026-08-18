@@ -15,8 +15,8 @@ import {
 import { buildOutlineModel, zoneOutlineDefaults } from './PlateBuilder'
 import { defaultShellFromPlate, defaultShellFromSelf, layerFeatureDefault } from './otherPartsConfig'
 import { buildBackCutPart } from './BackCutBuilder'
-import { overkillCircles, isKeyStaggered, stripTopStampCircles } from './overkill'
-import { buildGeneratedDots, dotsModeFromOutlines } from './DotsBuilder'
+import { clusterMergeCircles, isKeyStaggered, stripTopStampCircles } from './overkill'
+import { buildGeneratedDots, buildPlacedDots, dotsModeFromOutlines } from './DotsBuilder'
 
 /**
  * Convert a stamp JSON document into a maker.js model.
@@ -264,16 +264,29 @@ export function buildExportAssembly(assembly, keysArray, generatorOptions, mainP
       canvas.models[key] = backCut
       continue
     }
-    if (key === "TopDots" && dotsModeFromOutlines(generatorOptions && generatorOptions.layerOutlines) !== "stamp") {
-      const generated = buildGeneratedDots(
-        generatorOptions,
-        stamp.layerName,
-        canvas.models.TopBackCut
-      )
-      if (generated) {
-        canvas.models[key] = generated
-        continue
+    if (key === "TopDots") {
+      const mode = dotsModeFromOutlines(generatorOptions && generatorOptions.layerOutlines)
+      let dots = null
+      if (mode !== "stamp") {
+        dots = buildGeneratedDots(
+          generatorOptions,
+          stamp.layerName,
+          canvas.models.TopBackCut
+        )
       }
+      if (!dots) {
+        dots = buildPlacedDots(
+          keysArray,
+          generatorOptions,
+          stamp.layerName,
+          canvas.models.TopBackCut
+        )
+      }
+      if (dots) {
+        clusterMergeCircles(dots)
+        canvas.models[key] = dots
+      }
+      continue
     }
     if (!stamp.stampData) {
       continue
@@ -284,11 +297,8 @@ export function buildExportAssembly(assembly, keysArray, generatorOptions, mainP
       generatorOptions,
       stamp.layerName,
       false,
-      key === "TopDots" ? { dropStaggeredTops: true } : null
+      null
     )
-    if (key === "TopDots") {
-      overkillCircles(stampModel)
-    }
     canvas.models[key] = stampModel
   }
 
