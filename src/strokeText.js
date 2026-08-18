@@ -51,6 +51,54 @@ const GLYPHS = {
   "(": [[[0.45, 1.4], [0.2, 1.1], [0.15, 0.7], [0.2, 0.3], [0.45, 0]]],
   ")": [[[0.15, 1.4], [0.4, 1.1], [0.45, 0.7], [0.4, 0.3], [0.15, 0]]],
   ":": [[[0.28, 1.05], [0.38, 1.05], [0.38, 1.15], [0.28, 1.15], [0.28, 1.05]], [[0.28, 0.2], [0.38, 0.2], [0.38, 0.3], [0.28, 0.3], [0.28, 0.2]]],
+  "'": [[[0.28, 1.05], [0.22, 1.4]]],
+  "`": [[[0.28, 1.05], [0.22, 1.4]]],
+  "\"": [[[0.15, 1.05], [0.1, 1.4]], [[0.42, 1.05], [0.37, 1.4]]],
+  "?": [
+    [[0.1, 1.15], [0.15, 1.35], [0.45, 1.4], [0.55, 1.2], [0.4, 0.85], [0.3, 0.65], [0.3, 0.4]],
+    [[0.28, 0], [0.32, 0.16]],
+  ],
+  "!": [[[0.3, 0.4], [0.3, 1.4]], [[0.28, 0], [0.32, 0.16]]],
+  ";": [[[0.28, 1.05], [0.38, 1.05], [0.38, 1.15], [0.28, 1.15], [0.28, 1.05]], [[0.32, 0.12], [0.22, -0.2]]],
+}
+
+const CHAR_ALIASES = {
+  "\u2018": "'",
+  "\u2019": "'",
+  "\u201B": "'",
+  "\u2032": "'",
+  "\u201C": "\"",
+  "\u201D": "\"",
+}
+
+const LOWERCASE_SCALE = 0.72
+
+export function normalizeGlyphChar(ch) {
+  return CHAR_ALIASES[ch] || ch
+}
+
+function isLowercaseLetter(ch) {
+  return ch >= "a" && ch <= "z"
+}
+
+export function glyphAdvanceFactor(ch) {
+  const n = normalizeGlyphChar(ch)
+  if (n === "\n") return 0
+  if (n === "'" || n === "`") return 0.32
+  if (n === "\"") return 0.5
+  if (isLowercaseLetter(n)) return 0.75 * LOWERCASE_SCALE
+  return 0.75
+}
+
+export function measureStrokeWidth(text, heightMm) {
+  const h = Number(heightMm) || 3
+  const scale = h / 1.4
+  let w = 0
+  for (const ch of String(text || "")) {
+    if (ch === "\n") continue
+    w += glyphAdvanceFactor(ch) * scale
+  }
+  return w
 }
 
 function polylineToSegments(poly) {
@@ -62,7 +110,8 @@ function polylineToSegments(poly) {
 }
 
 function glyphSegments(ch) {
-  const raw = GLYPHS[ch] || GLYPHS[ch.toUpperCase()]
+  const n = normalizeGlyphChar(ch)
+  const raw = GLYPHS[n] || GLYPHS[n.toUpperCase()]
   if (!raw) {
     return polylineToSegments([[0.05, 0], [0.55, 1.4], [0.55, 0], [0.05, 1.4]])
   }
@@ -104,9 +153,10 @@ const GLYPH_OPENERS = {
 }
 
 export function glyphOpeners(ch) {
-  const key = Object.prototype.hasOwnProperty.call(GLYPH_OPENERS, ch)
-    ? ch
-    : String(ch || "").toUpperCase()
+  const n = normalizeGlyphChar(ch)
+  const key = Object.prototype.hasOwnProperty.call(GLYPH_OPENERS, n)
+    ? n
+    : String(n || "").toUpperCase()
   return GLYPH_OPENERS[key] || []
 }
 
@@ -207,8 +257,7 @@ function openRectangleSegments(box) {
 export function strokeTextModel(text, heightMm = 3, options) {
   const breakProfiles = !!(options && options.breakProfiles)
   const h = Number(heightMm) || 3
-  const scale = h / 1.4
-  const advance = 0.75 * scale
+  const baseScale = h / 1.4
   const paths = {}
   let n = 0
   let x = 0
@@ -217,6 +266,7 @@ export function strokeTextModel(text, heightMm = 3, options) {
     if (ch === "\n") {
       continue
     }
+    const scale = isLowercaseLetter(normalizeGlyphChar(ch)) ? baseScale * LOWERCASE_SCALE : baseScale
     const openers = breakProfiles ? glyphOpeners(ch).map(slit => slitToBox(slit, scale)) : []
     const segs = glyphSegments(ch)
     const clipped = openers.length
@@ -240,7 +290,7 @@ export function strokeTextModel(text, heightMm = 3, options) {
         }
       }
     }
-    x += advance
+    x += glyphAdvanceFactor(ch) * baseScale
   }
   return { paths }
 }

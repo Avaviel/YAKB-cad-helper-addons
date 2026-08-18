@@ -10,11 +10,13 @@ import {
   getExportSummary,
   defaultShellFromPlate,
   defaultShellFromSelf,
+  layerFeatureDefault,
   chocSpacingPresets,
   supportedCutoutTypes,
   familyForCutoutType,
 } from "./otherPartsConfig"
 import { backCutDefaultsForFamily } from "./BackCutBuilder"
+import { todayISODate } from "./TitleBlockBuilder"
 import {
   buildExportAssembly,
   exportOtherPart,
@@ -327,8 +329,8 @@ function App() {
     if (parsed.name) {
       setKeyboardTitle(parsed.name)
     }
+    setTitleDate(todayISODate())
     if (parsed.titleBlock) {
-      if (parsed.titleBlock.date) setTitleDate(parsed.titleBlock.date)
       setTitleDesigner(parsed.titleBlock.designer || "")
       setTitleJobNo(parsed.titleBlock.jobNo || "")
       setTitleNotes(parsed.titleBlock.notes || "")
@@ -353,11 +355,11 @@ function App() {
         notes: layerNotes,
         outlines: layerOutlines,
         name: parsed.name || keyboardTitle,
-        titleBlock: parsed.titleBlock || {
-          date: titleDate,
-          designer: titleDesigner,
-          jobNo: titleJobNo,
-          notes: titleNotes,
+        titleBlock: {
+          date: todayISODate(),
+          designer: (parsed.titleBlock && parsed.titleBlock.designer) || titleDesigner,
+          jobNo: (parsed.titleBlock && parsed.titleBlock.jobNo) || titleJobNo,
+          notes: (parsed.titleBlock && parsed.titleBlock.notes) || titleNotes,
         },
         yakb: parsed.yakb || currentYakbSettings(),
       })
@@ -495,6 +497,7 @@ function App() {
                   Saved as KLE <code>name</code>, <code>_titleBlock</code>, and <code>_yakb</code> (cutouts, Choc spacing, fillets, stamps).
                   Copy / Paste carries those settings. Drawing No. is set by layer (1.1–3.1).
                   Cut / Extrude and the amount live on each drawing&apos;s own title block.
+                  The Notes field here prints only on the overall title block. Each drawing uses its section note.
                 </Form.Text>
                 <Row className="g-2">
                   <Col md={6}>
@@ -920,7 +923,7 @@ function App() {
                     Shell starts <strong>{defaultShellFromPlate} mm</strong> out from the plate outline, then
                     another <strong>{defaultShellFromSelf} mm</strong> from itself (inner + outer).
                     Cut / Extrude plus the amount print in that drawing&apos;s title block (same DXF layer as the drawing).
-                    The note box is optional extra text; when filled it is saved in the KLE data and appended to the layer name.
+                    The note box is that drawing&apos;s title-block NOTES (not cut/extrude). The overall title block uses the Notes field above.
                   </p>
                   {(exportAssembly.layerGroups || []).map(group => (
                     <div key={group.group} className="mb-4">
@@ -1038,7 +1041,7 @@ function App() {
                             <Col md={6}>
                               <Form.Label className="mb-1">Cut or extrude</Form.Label>
                               <Form.Select
-                                value={outlineField(layer.id, "op", "cut")}
+                                value={outlineField(layer.id, "op", layerFeatureDefault(layer.id).op)}
                                 onChange={e => handleLayerOutlineChange(layer.id, "op", e.target.value)}
                                 aria-label={`${layer.id}-op`}
                               >
@@ -1051,7 +1054,7 @@ function App() {
                               <Form.Control
                                 type="number"
                                 step="0.1"
-                                value={outlineField(layer.id, "opMm", "")}
+                                value={outlineField(layer.id, "opMm", layerFeatureDefault(layer.id).opMm)}
                                 onChange={e => handleLayerOutlineChange(layer.id, "opMm", e.target.value)}
                                 aria-label={`${layer.id}-op-mm`}
                                 placeholder="e.g. 1.5"
@@ -1062,7 +1065,7 @@ function App() {
                           <Form.Control
                             type="text"
                             value={layerNotes[layer.id] || ""}
-                            placeholder="optional extra note"
+                            placeholder="note for this drawing's title block"
                             onChange={e => handleLayerNoteChange(layer.id, e.target.value)}
                             aria-label={`layer-note-${layer.id}`}
                           />

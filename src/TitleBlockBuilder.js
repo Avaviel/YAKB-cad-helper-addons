@@ -1,5 +1,5 @@
 import makerjs from "makerjs"
-import { strokeTextModel } from "./strokeText"
+import { measureStrokeWidth, strokeTextModel } from "./strokeText"
 
 export const TITLE_BLOCK_LAYER = "TITLE_BLOCK"
 export const TITLE_BLOCK_WIDTH = 156
@@ -85,10 +85,7 @@ export function formatFeatureLine(feature) {
 }
 
 function strokeWidth(text, heightMm) {
-  const h = Number(heightMm) || 3
-  const scale = h / 1.4
-  const advance = 0.75 * scale
-  return String(text || "").replace(/\n/g, "").length * advance
+  return measureStrokeWidth(text, heightMm)
 }
 
 function fitText(text, heightMm, maxWidth) {
@@ -99,8 +96,30 @@ function fitText(text, heightMm, maxWidth) {
   return t
 }
 
-function placeText(text, x, y, heightMm, maxWidth) {
-  const value = fitText(text, heightMm, maxWidth)
+export function wrapTextLines(text, heightMm, maxWidth) {
+  const words = String(text || "").trim().split(/\s+/).filter(Boolean)
+  if (!words.length) {
+    return []
+  }
+  const lines = []
+  let current = ""
+  for (const word of words) {
+    const trial = current ? `${current} ${word}` : word
+    if (current && strokeWidth(trial, heightMm) > maxWidth) {
+      lines.push(current)
+      current = word
+    } else {
+      current = trial
+    }
+  }
+  if (current) {
+    lines.push(current)
+  }
+  return lines
+}
+
+function placeText(text, x, y, heightMm, maxWidth, clip = true) {
+  const value = clip ? fitText(text, heightMm, maxWidth) : String(text || "")
   const model = strokeTextModel(value, heightMm, { breakProfiles: true })
   model.origin = [x, y]
   return model
@@ -128,6 +147,19 @@ function labeledIndented(label, value, x, y, width) {
       value: placeText(value, x + 8, y + 1.1, valueH, width - 9),
     },
   }
+}
+
+function notesFromTop(lines, x, yTop, width, labelH, valueH, lineGap) {
+  const models = {
+    label: placeText("NOTES", x, yTop - labelH - 0.15, labelH, width - 0.4),
+  }
+  let y = yTop - labelH - 0.85 - valueH
+  const list = lines && lines.length ? lines : [""]
+  list.forEach((line, i) => {
+    models["line" + i] = placeText(line, x, y, valueH, width, false)
+    y -= valueH + lineGap
+  })
+  return { models }
 }
 
 /**
@@ -198,14 +230,15 @@ export function gapAllPaths(model, gap = TITLE_BLOCK_GAP) {
   return model
 }
 
-export function titleBlockOriginFromExtents(extents, margin = TITLE_BLOCK_MARGIN) {
+export function titleBlockOriginFromExtents(extents, margin = TITLE_BLOCK_MARGIN, height = TITLE_BLOCK_HEIGHT) {
   if (!extents || !extents.high || !extents.low) {
     return [0, 0]
   }
   const gap = Number.isFinite(margin) ? margin : TITLE_BLOCK_MARGIN
+  const h = Number.isFinite(height) && height > 0 ? height : TITLE_BLOCK_HEIGHT
   return [
     extents.high[0] - TITLE_BLOCK_WIDTH,
-    extents.low[1] - gap - TITLE_BLOCK_HEIGHT,
+    extents.low[1] - gap - h,
   ]
 }
 
@@ -216,7 +249,6 @@ export function titleBlockOriginFromExtents(extents, margin = TITLE_BLOCK_MARGIN
  */
 export function buildTitleBlock(fields) {
   const W = TITLE_BLOCK_WIDTH
-  const H = TITLE_BLOCK_HEIGHT
   const title = String((fields && fields.title) || "").trim()
   const drawingName = String((fields && fields.drawingName) || TITLE_BLOCK_FULL_DRAWING_NAME).trim()
   const drawingNo = String((fields && fields.drawingNo) || TITLE_BLOCK_FULL_DRAWING_NO).trim()
@@ -228,15 +260,30 @@ export function buildTitleBlock(fields) {
   const showFeature = !!(fields && fields.showFeature)
   const drawnBy = TITLE_BLOCK_DRAWN_BY
 
-  const botH = 11
   const midH = 12
-  const yMid = botH
-  const yHead = botH + midH
-  const headerW = 100
-  const headerRow = (H - yHead) / 3
+  const headerH = TITLE_BLOCK_HEIGHT - 11 - midH
   const pad = 1.5
-  const col = W / 3
   const jobW = W * 0.55
+  const notesValueH = 2.25
+  const notesLabelH = 1.55
+  const notesLineGap = 0.65
+  const notesInnerW = W - jobW - pad * 2
+  const noteLines = wrapTextLines(notes, notesValueH, notesInnerW)
+  const notesBodyH = notesLabelH + 1.0 + Math.max(1, noteLines.length) * (notesValueH + notesLineGap)
+  let botH = Math.max(11, notesBodyH + 1.6)
+  let yMid = botH
+  let yHead = botH + midH
+  let H = yHead + headerH
+  const minH = Number(fields && fields.minHeight)
+  if (Number.isFinite(minH) && minH > H) {
+    botH += minH - H
+    yMid = botH
+    yHead = botH + midH
+    H = minH
+  }
+  const headerW = 100
+  const headerRow = headerH / 3
+  const col = W / 3
 
   const frame = {
     paths: {
@@ -265,8 +312,8 @@ export function buildTitleBlock(fields) {
       date: labeledIndented("DATE", date, pad, yMid + 1, col - pad * 2),
       drawnBy: labeledIndented("DRAWN BY", drawnBy, col + pad, yMid + 1, col - pad * 2),
       designer: labeledIndented("DESIGNER", designer, col * 2 + pad, yMid + 1, col - pad * 2),
-      job: labeledIndented("JOB NO.", jobNo, pad, 1, jobW - pad * 2),
-      notes: labeledIndented("NOTES", notes, jobW + pad, 1, W - jobW - pad * 2),
+      job: labeledIndented("JOB NO.", jobNo, pad, yMid - 10, jobW - pad * 2),
+      notes: notesFromTop(noteLines, jobW + pad, yMid - 0.4, notesInnerW, notesLabelH, notesValueH, notesLineGap),
     },
     layer: TITLE_BLOCK_LAYER,
     width: W,
@@ -295,7 +342,7 @@ export function placeTitleBlock(block, extents, margin = TITLE_BLOCK_MARGIN) {
   if (!block) {
     return null
   }
-  block.origin = titleBlockOriginFromExtents(extents, margin)
+  block.origin = titleBlockOriginFromExtents(extents, margin, block.height || TITLE_BLOCK_HEIGHT)
   return block
 }
 

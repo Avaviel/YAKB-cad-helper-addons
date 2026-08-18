@@ -248,6 +248,15 @@ export function getExportAssembly(switchFamilyId, fitId) {
 export const defaultShellFromPlate = 0.5
 export const defaultShellFromSelf = 5
 
+const LAYER_FEATURE_DEFAULTS = {
+  "Top-SWITCH_PLATE": { op: "extrude", opMm: 3 },
+  "Top-Dots": { op: "extrude", opMm: 1.8 },
+}
+
+export function layerFeatureDefault(id) {
+  return LAYER_FEATURE_DEFAULTS[id] || { op: "cut", opMm: "" }
+}
+
 /** @deprecated use getExportAssembly — kept as thin wrapper for callers */
 export function getExportAssemblies(switchFamilyId, fitId) {
   return [getExportAssembly(switchFamilyId, fitId)]

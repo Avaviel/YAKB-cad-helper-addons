@@ -1,6 +1,7 @@
 import makerjs from "makerjs"
 import { strokeTextModel } from "./strokeText"
 import {
+  wrapTextLines,
   TITLE_BLOCK_LAYER,
   TITLE_BLOCK_WIDTH,
   TITLE_BLOCK_HEIGHT,
@@ -192,6 +193,43 @@ test("every title-block path including text is opened so Select All will not pro
   for (const corner of [[0, 0], [10, 0], [10, 10], [0, 10]]) {
     expect(boxEnds.some(pt => Math.abs(pt[0] - corner[0]) < 0.001 && Math.abs(pt[1] - corner[1]) < 0.001)).toBe(false)
   }
+})
+
+test("long notes wrap, keep apostrophes, and grow the bottom band", () => {
+  const sample = "Here's some data for us. Can you please give me more text to test. ".repeat(3).trim()
+  const lines = wrapTextLines(sample, 2.25, 40)
+  expect(lines.length).toBeGreaterThan(2)
+  expect(lines.join(" ")).toContain("Here's")
+  expect(lines.join(" ")).toContain("test")
+  const block = buildTitleBlock({
+    title: "Desk",
+    drawingName: "Top-SWITCH_PLATE",
+    drawingNo: "1.1",
+    notes: sample,
+    showFeature: true,
+  })
+  expect(block.height).toBeGreaterThan(TITLE_BLOCK_HEIGHT)
+  expect(block.models.notes.models.line0).toBeTruthy()
+  expect(block.models.notes.models.line1).toBeTruthy()
+})
+
+test("overall title block keeps main notes; per-drawing block can take a section note", () => {
+  const overall = buildTitleBlock({
+    title: "Desk",
+    notes: "Main pack note",
+  })
+  expect(overall.models.notes.models.line0).toBeTruthy()
+  const drawing = buildTitleBlock({
+    title: "Desk",
+    drawingName: "Top-SWITCH_PLATE",
+    drawingNo: "1.1",
+    notes: "Switch plate only",
+    op: "extrude",
+    opMm: 3,
+    showFeature: true,
+  })
+  expect(drawing.models.feature).toBeTruthy()
+  expect(drawing.models.notes.models.line0).toBeTruthy()
 })
 
 test("per-drawing feature block is a child model, not a sibling TITLE_BLOCK layer", () => {

@@ -1,5 +1,5 @@
 import makerjs from "makerjs"
-import { glyphOpeners, strokeTextModel, LETTER_SLIT_MM, slitToBox } from "./strokeText"
+import { glyphOpeners, strokeTextModel, LETTER_SLIT_MM, slitToBox, measureStrokeWidth } from "./strokeText"
 
 test("O and 0 get a bottom opener, R gets a top opener", () => {
   const o = glyphOpeners("O")
@@ -28,4 +28,18 @@ test("plain stroke text still draws a closed O (notes, not title block)", () => 
   const model = strokeTextModel("O", 3)
   const chains = makerjs.model.findChains(model, { pointMatchingDistance: 0.05 }) || []
   expect(chains.some(chain => chain.endless)).toBe(true)
+})
+
+test("apostrophe and curly quotes are not drawn as X", () => {
+  const tick = strokeTextModel("Here's", 3)
+  const curly = strokeTextModel("Here\u2019s", 3)
+  const unknown = strokeTextModel("\u2603", 3)
+  expect(Object.keys(tick.paths).length).toBe(Object.keys(curly.paths).length)
+  expect(Object.keys(tick.paths).length).toBeGreaterThan(Object.keys(unknown.paths).length)
+})
+
+test("lowercase letters stay smaller than capitals", () => {
+  const upper = measureStrokeWidth("HERE", 3)
+  const lower = measureStrokeWidth("here", 3)
+  expect(lower).toBeLessThan(upper)
 })

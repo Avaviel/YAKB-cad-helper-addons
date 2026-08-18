@@ -48,8 +48,9 @@ export function DataHelpPane() {
             <h4 style={{ textTransform: "lowercase" }}>_layerNotes</h4>
             <p>Value type: Object (layer id → text)</p>
             <p>
-                Optional extra note for each export layer. Edited under Other plate parts. Not a switch hole.
-                When filled, appended to that DXF layer name.
+                Note for that drawing&apos;s title block. Edited under Other plate parts.
+                Cut / Extrude is a separate field on the same row (<code>op</code> / <code>opMm</code>).
+                The overall title block uses <code>_titleBlock.notes</code> instead.
             </p>
             <h4 style={{ textTransform: "lowercase" }}>_layerOutlines</h4>
             <p>Value type: Object (layer id → offset / rounding / <code>op</code> / <code>opMm</code>)</p>

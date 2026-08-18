@@ -1,18 +1,19 @@
 import makerjs from 'makerjs'
 import Decimal from 'decimal.js'
-import { annotatedLayerName } from './strokeText'
 import {
   TITLE_BLOCK_LAYER,
+  TITLE_BLOCK_HEIGHT,
   TITLE_BLOCK_FULL_DRAWING_NAME,
   TITLE_BLOCK_FULL_DRAWING_NO,
   buildTitleBlock,
   titleBlockFieldsFromOptions,
   drawingInfoForLayer,
   titleBlockOriginFromExtents,
+  TITLE_BLOCK_MARGIN,
   featureFromOutline,
 } from './TitleBlockBuilder'
 import { buildOutlineModel, zoneOutlineDefaults } from './PlateBuilder'
-import { defaultShellFromPlate, defaultShellFromSelf } from './otherPartsConfig'
+import { defaultShellFromPlate, defaultShellFromSelf, layerFeatureDefault } from './otherPartsConfig'
 import { buildBackCutPart } from './BackCutBuilder'
 
 /**
@@ -523,57 +524,9 @@ function noteForLayer(layerNotes, noteId, layerName) {
 }
 
 /**
- * Rename each export layer with the operator note.
- * Keyboard title lives in the fixed title block, not per-layer floating text.
+ * Layer notes print in that drawing's title block. DXF layer names stay clean.
  */
-export function applyLayerNotes(canvas, layerNotes, assembly) {
-  if (!canvas || !canvas.models) {
-    return canvas
-  }
-
-  const pairs = []
-  if (assembly && assembly.includeMainPlate) {
-    pairs.push({
-      modelKey: "TopSwitchPlate",
-      noteId: "Top-SWITCH_PLATE",
-      layerName: assembly.mainPlateLayerName || "Top-SWITCH_PLATE",
-    })
-  }
-  for (const stamp of (assembly && assembly.stamps) || []) {
-    pairs.push({
-      modelKey: stamp.modelKey || stamp.id,
-      noteId: stamp.noteId || stamp.layerName,
-      layerName: stamp.layerName,
-    })
-  }
-  if (canvas.models.Shell) {
-    pairs.push({
-      modelKey: "Shell",
-      noteId: "Shell",
-      layerName: "Shell",
-    })
-  }
-
-  for (const pair of pairs) {
-    if (pair.layerName && pair.layerName.indexOf("Link-MX_HOTSWAP") === 0) {
-      pair.noteId = "Link-MX_HOTSWAP"
-    }
-    if (pair.layerName === "Top-Dots") {
-      pair.noteId = "Top-Dots"
-    }
-  }
-
-  for (const pair of pairs) {
-    const model = canvas.models[pair.modelKey]
-    if (!model) {
-      continue
-    }
-    const note = noteForLayer(layerNotes, pair.noteId, pair.layerName)
-    if (note) {
-      applyLayer(model, annotatedLayerName(pair.layerName, note))
-    }
-  }
-
+export function applyLayerNotes(canvas) {
   return canvas
 }
 
@@ -610,13 +563,30 @@ function outlineIdCandidates(key, model) {
 
 function featureForModel(generatorOptions, key, model) {
   const outlines = (generatorOptions && generatorOptions.layerOutlines) || {}
+  const ids = outlineIdCandidates(key, model)
   let saved = {}
-  for (const id of outlineIdCandidates(key, model)) {
+  let defaults = { op: "cut", opMm: "" }
+  for (const id of ids) {
+    const row = layerFeatureDefault(id)
+    if (row && (row.opMm !== "" || (row.op && row.op !== "cut"))) {
+      defaults = row
+    }
     if (outlines[id]) {
       saved = { ...saved, ...outlines[id] }
     }
   }
-  return { ...featureFromOutline(saved), showFeature: true }
+  return { ...featureFromOutline({ ...defaults, ...saved }), showFeature: true }
+}
+
+function noteForModel(generatorOptions, key, model) {
+  const notes = (generatorOptions && generatorOptions.layerNotes) || {}
+  for (const id of outlineIdCandidates(key, model)) {
+    const note = noteForLayer(notes, id, id)
+    if (note) {
+      return note
+    }
+  }
+  return ""
 }
 
 export function attachTitleBlock(canvas, generatorOptions) {
@@ -628,38 +598,75 @@ export function attachTitleBlock(canvas, generatorOptions) {
     return canvas
   }
   const fields = titleBlockFieldsFromOptions(generatorOptions)
-  const origin = titleBlockOriginFromExtents(extents)
-  canvas.titleBlockOrigin = origin.slice()
-  canvas.titleBlockFields = fields
-  canvas.globalExtents = extents
-  canvas.layerFeatures = {}
+  const drafts = []
+  let maxH = TITLE_BLOCK_HEIGHT
 
   for (const [key, model] of Object.entries(canvas.models)) {
     if (!model || String(key).indexOf("TitleBlock") === 0) continue
     const layerName = model.layer || layerNameForModel(key, model)
     const info = drawingInfoForLayer(layerName)
     const feature = featureForModel(generatorOptions, key, model)
-    canvas.layerFeatures[key] = feature
-    const block = buildTitleBlock({
+    const layerNote = noteForModel(generatorOptions, key, model)
+    drafts.push({
+      key,
+      model,
+      layerName,
+      feature,
+      layerNote,
+      info,
+    })
+    const probe = buildTitleBlock({
       ...fields,
       drawingName: info.drawingName,
       drawingNo: info.drawingNo,
+      notes: layerNote,
       op: feature.op,
       opMm: feature.opMm,
       showFeature: true,
     })
+    if (probe.height > maxH) maxH = probe.height
+  }
+
+  const overallProbe = buildTitleBlock({
+    ...fields,
+    drawingName: TITLE_BLOCK_FULL_DRAWING_NAME,
+    drawingNo: TITLE_BLOCK_FULL_DRAWING_NO,
+  })
+  if (overallProbe.height > maxH) maxH = overallProbe.height
+
+  const origin = titleBlockOriginFromExtents(extents, TITLE_BLOCK_MARGIN, maxH)
+  canvas.titleBlockOrigin = origin.slice()
+  canvas.titleBlockFields = fields
+  canvas.globalExtents = extents
+  canvas.layerFeatures = {}
+  canvas.layerTitleNotes = {}
+
+  for (const draft of drafts) {
+    canvas.layerFeatures[draft.key] = draft.feature
+    canvas.layerTitleNotes[draft.key] = draft.layerNote
+    const block = buildTitleBlock({
+      ...fields,
+      drawingName: draft.info.drawingName,
+      drawingNo: draft.info.drawingNo,
+      notes: draft.layerNote,
+      op: draft.feature.op,
+      opMm: draft.feature.opMm,
+      showFeature: true,
+      minHeight: maxH,
+    })
     block.origin = origin.slice()
-    applyLayer(block, layerName)
-    if (!model.models) {
-      model.models = {}
+    applyLayer(block, draft.layerName)
+    if (!draft.model.models) {
+      draft.model.models = {}
     }
-    model.models.TitleBlock = block
+    draft.model.models.TitleBlock = block
   }
 
   const overall = buildTitleBlock({
     ...fields,
     drawingName: TITLE_BLOCK_FULL_DRAWING_NAME,
     drawingNo: TITLE_BLOCK_FULL_DRAWING_NO,
+    minHeight: maxH,
   })
   overall.origin = origin.slice()
   applyLayer(overall, TITLE_BLOCK_LAYER)
@@ -674,10 +681,12 @@ function titleBlockForLayer(parentModel, layerName, key) {
   const info = drawingInfoForLayer(layerName)
   const base = parentModel.titleBlockFields || {}
   const feature = (parentModel.layerFeatures && (parentModel.layerFeatures[key] || parentModel.layerFeatures[layerName])) || {}
+  const layerNote = (parentModel.layerTitleNotes && (parentModel.layerTitleNotes[key] || parentModel.layerTitleNotes[layerName])) || ""
   const block = buildTitleBlock({
     ...base,
     drawingName: info.drawingName,
     drawingNo: info.drawingNo,
+    notes: layerNote,
     op: feature.op,
     opMm: feature.opMm,
     showFeature: true,
