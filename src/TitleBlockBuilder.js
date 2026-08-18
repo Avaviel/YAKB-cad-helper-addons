@@ -101,7 +101,7 @@ function fitText(text, heightMm, maxWidth) {
 
 function placeText(text, x, y, heightMm, maxWidth) {
   const value = fitText(text, heightMm, maxWidth)
-  const model = strokeTextModel(value, heightMm)
+  const model = strokeTextModel(value, heightMm, { breakProfiles: true })
   model.origin = [x, y]
   return model
 }

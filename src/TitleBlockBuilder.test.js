@@ -1,4 +1,5 @@
 import makerjs from "makerjs"
+import { strokeTextModel } from "./strokeText"
 import {
   TITLE_BLOCK_LAYER,
   TITLE_BLOCK_WIDTH,
@@ -141,6 +142,14 @@ test("tiny gaps keep title-block corners from meeting", () => {
   }
   expect(TITLE_BLOCK_GAP).toBeGreaterThan(0.05)
   expect(TITLE_BLOCK_GAP).toBeLessThan(1)
+})
+
+test("title-block letters O and R include an open cut box", () => {
+  const text = strokeTextModel("OR", 2.35, { breakProfiles: true })
+  const paths = Object.values(text.paths)
+  expect(paths.length).toBeGreaterThan(10)
+  const chains = makerjs.model.findChains(text, { pointMatchingDistance: 0.05 }) || []
+  expect(chains.filter(chain => chain.endless)).toHaveLength(0)
 })
 
 test("every title-block path including text is opened so Select All will not profile the block", () => {
