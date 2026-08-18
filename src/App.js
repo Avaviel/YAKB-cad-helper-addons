@@ -924,6 +924,8 @@ function App() {
                     another <strong>{defaultShellFromSelf} mm</strong> from itself (inner + outer).
                     Cut / Extrude plus the amount print in that drawing&apos;s title block (same DXF layer as the drawing).
                     The note box is that drawing&apos;s title-block NOTES (not cut/extrude). The overall title block uses the Notes field above.
+                    Top-Dots: Overkill merges stacked corners, then drops any boss that sits in a switch keep-out
+                    (0.5U stagger puts a neighbour corner on the switch centreline and blocks the snap).
                   </p>
                   {(exportAssembly.layerGroups || []).map(group => (
                     <div key={group.group} className="mb-4">

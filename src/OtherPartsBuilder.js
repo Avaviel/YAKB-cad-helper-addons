@@ -15,6 +15,7 @@ import {
 import { buildOutlineModel, zoneOutlineDefaults } from './PlateBuilder'
 import { defaultShellFromPlate, defaultShellFromSelf, layerFeatureDefault } from './otherPartsConfig'
 import { buildBackCutPart } from './BackCutBuilder'
+import { overkillCircles, cullDotsInSwitchKeepout } from './overkill'
 
 /**
  * Convert a stamp JSON document into a maker.js model.
@@ -269,6 +270,10 @@ export function buildExportAssembly(assembly, keysArray, generatorOptions, mainP
       stamp.layerName,
       false
     )
+    if (key === "TopDots") {
+      overkillCircles(stampModel)
+      cullDotsInSwitchKeepout(stampModel, keysArray, generatorOptions)
+    }
     canvas.models[key] = stampModel
   }
 
