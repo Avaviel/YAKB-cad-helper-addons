@@ -16,7 +16,7 @@ import { buildOutlineModel, zoneOutlineDefaults } from './PlateBuilder'
 import { defaultShellFromPlate, defaultShellFromSelf, layerFeatureDefault } from './otherPartsConfig'
 import { buildBackCutPart } from './BackCutBuilder'
 import { clusterMergeCircles, isKeyStaggered, stripTopStampCircles } from './overkill'
-import { buildGeneratedDots, buildPlacedDots, dotsModeFromOutlines } from './DotsBuilder'
+import { buildPlacedDots } from './DotsBuilder'
 
 /**
  * Convert a stamp JSON document into a maker.js model.
@@ -265,23 +265,12 @@ export function buildExportAssembly(assembly, keysArray, generatorOptions, mainP
       continue
     }
     if (key === "TopDots") {
-      const mode = dotsModeFromOutlines(generatorOptions && generatorOptions.layerOutlines)
-      let dots = null
-      if (mode !== "stamp") {
-        dots = buildGeneratedDots(
-          generatorOptions,
-          stamp.layerName,
-          canvas.models.TopBackCut
-        )
-      }
-      if (!dots) {
-        dots = buildPlacedDots(
-          keysArray,
-          generatorOptions,
-          stamp.layerName,
-          canvas.models.TopBackCut
-        )
-      }
+      const dots = buildPlacedDots(
+        keysArray,
+        generatorOptions,
+        stamp.layerName,
+        canvas.models.TopBackCut
+      )
       if (dots) {
         clusterMergeCircles(dots)
         canvas.models[key] = dots

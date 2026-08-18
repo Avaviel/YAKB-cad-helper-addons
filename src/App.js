@@ -24,7 +24,6 @@ import {
   sanitizeFilenamePart,
 } from "./OtherPartsBuilder"
 import { annotatedLayerName } from "./strokeText"
-import { DOTS_MODES } from "./DotsBuilder"
 import Decimal from "decimal.js"
 import fileDownload from 'js-file-download'
 import logo from './logo.png'
@@ -1079,26 +1078,11 @@ function App() {
                             </Form.Text>
                             </>
                           ) : layer.outlineKind === "dots" ? (
-                            <Row className="g-2 mb-2">
-                              <Col md={12}>
-                                <Form.Label className="mb-1">Dots layout</Form.Label>
-                                <Form.Select
-                                  value={outlineField(layer.id, "dotsMode", "stamp")}
-                                  onChange={e => handleLayerOutlineChange(layer.id, "dotsMode", e.target.value)}
-                                  aria-label={`${layer.id}-dots-mode`}
-                                >
-                                  {DOTS_MODES.map(mode => (
-                                    <option key={mode.id} value={mode.id}>{mode.label}</option>
-                                  ))}
-                                </Form.Select>
-                                <Form.Text className="text-muted d-block mt-1">
-                                  Default: H-shaped pegs in the column webs (stagger-safe). Stab keys keep
-                                  standard tops, two brought-in under the switch, and two outer bottom corners.
-                                  Overlapping pegs merge to one. A peg that nicks the back-cut is deleted whole.
-                                  Ex 1: rim. Ex 2: hex. Ex 3: outline corners.
-                                </Form.Text>
-                              </Col>
-                            </Row>
+                            <Form.Text className="text-muted d-block mb-2">
+                              H-shaped pegs in the column webs so the plate can flex. Stab keys keep
+                              standard tops, two brought-in under the switch, and two outer bottom corners.
+                              Overlapping pegs merge to one. A peg that nicks the back-cut is deleted whole.
+                            </Form.Text>
                           ) : layer.outlineKind === "plate" ? (
                             <Row className="g-2 mb-2">
                               <Col md={6}>
