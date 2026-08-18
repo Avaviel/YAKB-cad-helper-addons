@@ -8,8 +8,8 @@ import {
   buildTitleBlock,
   titleBlockFieldsFromOptions,
   drawingInfoForLayer,
-  titleBlockLayerName,
   titleBlockOriginFromExtents,
+  featureFromOutline,
 } from './TitleBlockBuilder'
 import { buildOutlineModel, zoneOutlineDefaults } from './PlateBuilder'
 import { defaultShellFromPlate, defaultShellFromSelf } from './otherPartsConfig'
@@ -590,6 +590,35 @@ function layerNameForModel(key, model) {
   return key
 }
 
+function outlineIdCandidates(key, model) {
+  const layer = layerNameForModel(key, model)
+  const base = String(layer || "").split("__")[0]
+  const ids = []
+  if (key === "TopSwitchPlate") ids.push("Top-SWITCH_PLATE")
+  if (key === "TopDots") ids.push("Top-Dots")
+  if (key === "TopBackCut") ids.push("Top-BACK_CUT")
+  if (key === "LinkHoleCuts") ids.push("Link-HOLE_CUTS")
+  if (key === "LinkHotswap") ids.push("Link-MX_HOTSWAP", "Link-CHOC_HOTSWAP")
+  if (key === "Shell") ids.push("Shell")
+  if (base && ids.indexOf(base) < 0) ids.push(base)
+  if (/HOTSWAP/i.test(base) || /^Link-CHOC/i.test(base)) {
+    if (ids.indexOf("Link-MX_HOTSWAP") < 0) ids.push("Link-MX_HOTSWAP")
+    if (ids.indexOf("Link-CHOC_HOTSWAP") < 0) ids.push("Link-CHOC_HOTSWAP")
+  }
+  return ids
+}
+
+function featureForModel(generatorOptions, key, model) {
+  const outlines = (generatorOptions && generatorOptions.layerOutlines) || {}
+  let saved = {}
+  for (const id of outlineIdCandidates(key, model)) {
+    if (outlines[id]) {
+      saved = { ...saved, ...outlines[id] }
+    }
+  }
+  return { ...featureFromOutline(saved), showFeature: true }
+}
+
 export function attachTitleBlock(canvas, generatorOptions) {
   if (!canvas || !canvas.models) {
     return canvas
@@ -603,18 +632,28 @@ export function attachTitleBlock(canvas, generatorOptions) {
   canvas.titleBlockOrigin = origin.slice()
   canvas.titleBlockFields = fields
   canvas.globalExtents = extents
+  canvas.layerFeatures = {}
 
   for (const [key, model] of Object.entries(canvas.models)) {
     if (!model || String(key).indexOf("TitleBlock") === 0) continue
-    const info = drawingInfoForLayer(layerNameForModel(key, model))
+    const layerName = model.layer || layerNameForModel(key, model)
+    const info = drawingInfoForLayer(layerName)
+    const feature = featureForModel(generatorOptions, key, model)
+    canvas.layerFeatures[key] = feature
     const block = buildTitleBlock({
       ...fields,
       drawingName: info.drawingName,
       drawingNo: info.drawingNo,
+      op: feature.op,
+      opMm: feature.opMm,
+      showFeature: true,
     })
     block.origin = origin.slice()
-    applyLayer(block, titleBlockLayerName(info.drawingNo))
-    canvas.models["TitleBlock_" + String(info.drawingNo).replace(/[^A-Za-z0-9]+/g, "_")] = block
+    applyLayer(block, layerName)
+    if (!model.models) {
+      model.models = {}
+    }
+    model.models.TitleBlock = block
   }
 
   const overall = buildTitleBlock({
@@ -628,19 +667,23 @@ export function attachTitleBlock(canvas, generatorOptions) {
   return canvas
 }
 
-function titleBlockForLayer(parentModel, layerName) {
+function titleBlockForLayer(parentModel, layerName, key) {
   if (!parentModel || !parentModel.titleBlockOrigin) {
     return null
   }
   const info = drawingInfoForLayer(layerName)
   const base = parentModel.titleBlockFields || {}
+  const feature = (parentModel.layerFeatures && (parentModel.layerFeatures[key] || parentModel.layerFeatures[layerName])) || {}
   const block = buildTitleBlock({
     ...base,
     drawingName: info.drawingName,
     drawingNo: info.drawingNo,
+    op: feature.op,
+    opMm: feature.opMm,
+    showFeature: true,
   })
   block.origin = parentModel.titleBlockOrigin.slice()
-  applyLayer(block, titleBlockLayerName(info.drawingNo))
+  applyLayer(block, layerName)
   return block
 }
 
@@ -676,12 +719,7 @@ export function previewLayerPanes(model) {
   return Object.keys(model.models).filter(key => String(key).indexOf("TitleBlock") !== 0).map(key => {
     const child = model.models[key]
     const layerName = layerNameForModel(key, child)
-    const models = { [key]: child }
-    const block = titleBlockForLayer(model, layerName)
-    if (block) {
-      models.TitleBlock = block
-    }
-    const exported = exportOtherPart({ models })
+    const exported = exportOtherPart({ models: { [key]: child } })
     return {
       title: layerName,
       svg: exported && exported.previewSvg,
@@ -709,7 +747,8 @@ export function previewSubset(model, groups) {
     cleaned.TitleBlock = model.models.TitleBlock
   } else {
     const firstKey = Object.keys(models)[0]
-    const block = titleBlockForLayer(model, layerNameForModel(firstKey, models[firstKey]))
+    const first = models[firstKey]
+    const block = titleBlockForLayer(model, layerNameForModel(firstKey, first), firstKey)
     if (block) cleaned.TitleBlock = block
   }
   return { models: cleaned }

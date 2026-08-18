@@ -5,12 +5,18 @@ import {
   TITLE_BLOCK_HEIGHT,
   TITLE_BLOCK_MARGIN,
   TITLE_BLOCK_DRAWN_BY,
+  TITLE_BLOCK_GAP,
   drawingInfoForLayer,
   titleBlockLayerName,
   titleBlockOriginFromExtents,
   buildTitleBlock,
   placeTitleBlock,
+  addGappedLine,
+  gapAllPaths,
+  formatFeatureLine,
+  featureFromOutline,
 } from "./TitleBlockBuilder"
+
 test("title-block DXF layer names do not contain periods", () => {
   expect(titleBlockLayerName("1.1")).toBe("TITLE_BLOCK_1_1")
   expect(titleBlockLayerName("1.1-3.1")).toBe("TITLE_BLOCK")
@@ -57,8 +63,10 @@ test("title block is on TITLE_BLOCK and always credits YAKB CAD Helper", () => {
   expect(block.layer).toBe(TITLE_BLOCK_LAYER)
   expect(block.models.job).toBeTruthy()
   expect(block.models.drawingNo).toBeTruthy()
-  expect(block.paths.headBlank).toBeTruthy()
+  expect(block.models.frame).toBeTruthy()
+  expect(block.models.frame.paths.headBlank).toBeTruthy()
   expect(block.models.drawnBy).toBeTruthy()
+  expect(block.models.feature).toBeFalsy()
   expect(TITLE_BLOCK_DRAWN_BY).toBe("YAKB CAD Helper")
   const placed = placeTitleBlock(block, { low: [0, 0], high: [160, 80] })
   expect(placed.origin[0]).toBeCloseTo(160 - TITLE_BLOCK_WIDTH)
@@ -85,4 +93,115 @@ test("title block origin uses the union of all geometry, not a single child", ()
   const origin = titleBlockOriginFromExtents(extents)
   expect(origin[0]).toBeCloseTo(extents.high[0] - TITLE_BLOCK_WIDTH)
   expect(origin[1]).toBeCloseTo(extents.low[1] - TITLE_BLOCK_MARGIN - TITLE_BLOCK_HEIGHT)
+})
+
+test("cut / extrude prints in the title-block feature box", () => {
+  expect(featureFromOutline({ op: "extrude", opMm: "2" })).toEqual({ op: "extrude", opMm: 2 })
+  expect(formatFeatureLine({ op: "cut", opMm: 1.5 })).toBe("CUT 1.5 mm")
+  expect(formatFeatureLine({ op: "extrude" })).toBe("EXTRUDE")
+  const block = buildTitleBlock({
+    title: "Desk",
+    drawingName: "Top-SWITCH_PLATE",
+    drawingNo: "1.1",
+    op: "extrude",
+    opMm: 2,
+    showFeature: true,
+  })
+  expect(block.models.feature).toBeTruthy()
+})
+
+function collectPaths(model, out = []) {
+  if (!model) return out
+  if (model.paths) out.push(...Object.values(model.paths).filter(Boolean))
+  if (model.models) {
+    for (const child of Object.values(model.models)) collectPaths(child, out)
+  }
+  return out
+}
+
+test("tiny gaps keep title-block corners from meeting", () => {
+  const paths = {}
+  addGappedLine(paths, "bottom", [0, 0], [TITLE_BLOCK_WIDTH, 0])
+  addGappedLine(paths, "right", [TITLE_BLOCK_WIDTH, 0], [TITLE_BLOCK_WIDTH, TITLE_BLOCK_HEIGHT])
+  addGappedLine(paths, "top", [TITLE_BLOCK_WIDTH, TITLE_BLOCK_HEIGHT], [0, TITLE_BLOCK_HEIGHT])
+  addGappedLine(paths, "left", [0, TITLE_BLOCK_HEIGHT], [0, 0])
+  expect(Object.keys(paths).length).toBe(4)
+  const corners = [
+    [0, 0],
+    [TITLE_BLOCK_WIDTH, 0],
+    [TITLE_BLOCK_WIDTH, TITLE_BLOCK_HEIGHT],
+    [0, TITLE_BLOCK_HEIGHT],
+  ]
+  const endpoints = Object.values(paths).flatMap(path => [path.origin, path.end])
+  for (const corner of corners) {
+    const hits = endpoints.filter(pt =>
+      Math.abs(pt[0] - corner[0]) < 0.01 && Math.abs(pt[1] - corner[1]) < 0.01
+    )
+    expect(hits.length).toBe(0)
+  }
+  expect(TITLE_BLOCK_GAP).toBeGreaterThan(0.05)
+  expect(TITLE_BLOCK_GAP).toBeLessThan(1)
+})
+
+test("every title-block path including text is opened so Select All will not profile the block", () => {
+  const block = buildTitleBlock({
+    title: "BOOD 808",
+    drawingName: "Top-SWITCH_PLATE",
+    drawingNo: "1.1",
+    date: "2026-08-16",
+    designer: "ODO",
+    jobNo: "800",
+    notes: "O",
+    op: "cut",
+    opMm: 1.5,
+    showFeature: true,
+  })
+  const corners = [
+    [0, 0],
+    [TITLE_BLOCK_WIDTH, 0],
+    [TITLE_BLOCK_WIDTH, TITLE_BLOCK_HEIGHT],
+    [0, TITLE_BLOCK_HEIGHT],
+  ]
+  const paths = collectPaths(block)
+  expect(paths.length).toBeGreaterThan(20)
+  const endpoints = paths.flatMap(path => [path.origin, path.end])
+  for (const corner of corners) {
+    const hits = endpoints.filter(pt =>
+      Math.abs(pt[0] - corner[0]) < 0.01 && Math.abs(pt[1] - corner[1]) < 0.01
+    )
+    expect(hits.length).toBe(0)
+  }
+  const box = {
+    paths: {
+      a: new makerjs.paths.Line([0, 0], [10, 0]),
+      b: new makerjs.paths.Line([10, 0], [10, 10]),
+      c: new makerjs.paths.Line([10, 10], [0, 10]),
+      d: new makerjs.paths.Line([0, 10], [0, 0]),
+    },
+  }
+  gapAllPaths(box)
+  const boxEnds = Object.values(box.paths).flatMap(path => [path.origin, path.end])
+  for (const corner of [[0, 0], [10, 0], [10, 10], [0, 10]]) {
+    expect(boxEnds.some(pt => Math.abs(pt[0] - corner[0]) < 0.01 && Math.abs(pt[1] - corner[1]) < 0.01)).toBe(false)
+  }
+})
+
+test("per-drawing feature block is a child model, not a sibling TITLE_BLOCK layer", () => {
+  const drawing = {
+    layer: "Top-SWITCH_PLATE",
+    models: {},
+  }
+  const block = buildTitleBlock({
+    title: "Desk",
+    drawingName: "Top-SWITCH_PLATE",
+    drawingNo: "1.1",
+    op: "extrude",
+    opMm: 2,
+    showFeature: true,
+  })
+  block.layer = drawing.layer
+  drawing.models.TitleBlock = block
+  expect(drawing.models.TitleBlock.layer).toBe("Top-SWITCH_PLATE")
+  expect(drawing.models.TitleBlock.models.feature).toBeTruthy()
+  expect(drawing.layer).toBe("Top-SWITCH_PLATE")
 })

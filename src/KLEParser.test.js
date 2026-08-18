@@ -48,13 +48,18 @@ test("yakb plate settings write back and survive a second key row", () => {
 test("title block writes back into KLE meta and reads out again", () => {
   const written = writeKleLayerState(compactDeskHead, {
     notes: {},
-    outlines: {},
+    outlines: {
+      "Top-SWITCH_PLATE": { op: "extrude", opMm: "2", offset: "1" },
+    },
     name: "CAD desk (split islands)",
     titleBlock: { date: "2026-08-16", designer: "Avaviel", jobNo: "J-1", notes: "cut 2mm" },
   })
   expect(written).toContain("_titleBlock")
+  expect(written).toContain("extrude")
   const state = readKleLayerState(written)
   expect(state.titleBlock.designer).toBe("Avaviel")
   expect(state.titleBlock.jobNo).toBe("J-1")
   expect(state.name).toBe("CAD desk (split islands)")
+  expect(state.outlines["Top-SWITCH_PLATE"].op).toBe("extrude")
+  expect(state.outlines["Top-SWITCH_PLATE"].opMm).toBe("2")
 })

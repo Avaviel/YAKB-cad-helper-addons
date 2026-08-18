@@ -494,6 +494,7 @@ function App() {
                 <Form.Text className="text-muted d-block mb-3">
                   Saved as KLE <code>name</code>, <code>_titleBlock</code>, and <code>_yakb</code> (cutouts, Choc spacing, fillets, stamps).
                   Copy / Paste carries those settings. Drawing No. is set by layer (1.1–3.1).
+                  Cut / Extrude and the amount live on each drawing&apos;s own title block.
                 </Form.Text>
                 <Row className="g-2">
                   <Col md={6}>
@@ -918,8 +919,8 @@ function App() {
                     (Top-SWITCH_PLATE and Link-HOLE_CUTS). Offset and rounding are in mm.
                     Shell starts <strong>{defaultShellFromPlate} mm</strong> out from the plate outline, then
                     another <strong>{defaultShellFromSelf} mm</strong> from itself (inner + outer).
-                    The note box is optional (<code>cut 1.5mm</code>, <code>extrude 2mm</code>); when filled it is
-                    saved in the KLE data, drawn at the bottom-left of that layer, and appended to the layer name.
+                    Cut / Extrude plus the amount print in that drawing&apos;s title block (same DXF layer as the drawing).
+                    The note box is optional extra text; when filled it is saved in the KLE data and appended to the layer name.
                   </p>
                   {(exportAssembly.layerGroups || []).map(group => (
                     <div key={group.group} className="mb-4">
@@ -1033,11 +1034,35 @@ function App() {
                               </Col>
                             </Row>
                           ) : null}
+                          <Row className="g-2 mb-2">
+                            <Col md={6}>
+                              <Form.Label className="mb-1">Cut or extrude</Form.Label>
+                              <Form.Select
+                                value={outlineField(layer.id, "op", "cut")}
+                                onChange={e => handleLayerOutlineChange(layer.id, "op", e.target.value)}
+                                aria-label={`${layer.id}-op`}
+                              >
+                                <option value="cut">Cut</option>
+                                <option value="extrude">Extrude</option>
+                              </Form.Select>
+                            </Col>
+                            <Col md={6}>
+                              <Form.Label className="mb-1">Amount (mm)</Form.Label>
+                              <Form.Control
+                                type="number"
+                                step="0.1"
+                                value={outlineField(layer.id, "opMm", "")}
+                                onChange={e => handleLayerOutlineChange(layer.id, "opMm", e.target.value)}
+                                aria-label={`${layer.id}-op-mm`}
+                                placeholder="e.g. 1.5"
+                              />
+                            </Col>
+                          </Row>
                           <Form.Label className="mb-1">Note</Form.Label>
                           <Form.Control
                             type="text"
                             value={layerNotes[layer.id] || ""}
-                            placeholder="e.g. extrude 2mm"
+                            placeholder="optional extra note"
                             onChange={e => handleLayerNoteChange(layer.id, e.target.value)}
                             aria-label={`layer-note-${layer.id}`}
                           />
