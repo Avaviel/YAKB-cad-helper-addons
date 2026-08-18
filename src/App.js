@@ -24,6 +24,7 @@ import {
   sanitizeFilenamePart,
 } from "./OtherPartsBuilder"
 import { annotatedLayerName } from "./strokeText"
+import { DOTS_MODES } from "./DotsBuilder"
 import Decimal from "decimal.js"
 import fileDownload from 'js-file-download'
 import logo from './logo.png'
@@ -986,8 +987,8 @@ function App() {
                     another <strong>{defaultShellFromSelf} mm</strong> from itself (inner + outer).
                     Cut / Extrude plus the amount print in that drawing&apos;s title block (same DXF layer as the drawing).
                     The note box is that drawing&apos;s title-block NOTES (not cut/extrude). The overall title block uses the Notes field above.
-                    Top-Dots: Overkill merges stacked corners. Staggered keys drop only their top pair of
-                    bosses so they do not sit on the switch above. Still glance over the rest.
+                    Top-Dots: Stamp is the old 4-corner X. Ex 1 / 2 / 3 place pegs on leftover 3 mm stock
+                    (off the back-cut) so the plate can still flex. Glance over the result.
                   </p>
                   {(exportAssembly.layerGroups || []).map(group => (
                     <div key={group.group} className="mb-4">
@@ -1077,6 +1078,25 @@ function App() {
                               New corners use the stabilizer cutout fillet radius.
                             </Form.Text>
                             </>
+                          ) : layer.outlineKind === "dots" ? (
+                            <Row className="g-2 mb-2">
+                              <Col md={12}>
+                                <Form.Label className="mb-1">Dots layout</Form.Label>
+                                <Form.Select
+                                  value={outlineField(layer.id, "dotsMode", "stamp")}
+                                  onChange={e => handleLayerOutlineChange(layer.id, "dotsMode", e.target.value)}
+                                  aria-label={`${layer.id}-dots-mode`}
+                                >
+                                  {DOTS_MODES.map(mode => (
+                                    <option key={mode.id} value={mode.id}>{mode.label}</option>
+                                  ))}
+                                </Form.Select>
+                                <Form.Text className="text-muted d-block mt-1">
+                                  Stamp: four corners per switch. Ex 1: rim pegs. Ex 2: hex grid. Ex 3: outline corners.
+                                  Generated pegs skip back-cut pockets so they extrude from 3 mm, not 1.5 mm.
+                                </Form.Text>
+                              </Col>
+                            </Row>
                           ) : layer.outlineKind === "plate" ? (
                             <Row className="g-2 mb-2">
                               <Col md={6}>

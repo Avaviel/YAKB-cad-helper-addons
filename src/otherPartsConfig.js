@@ -225,7 +225,7 @@ export function getExportAssembly(switchFamilyId, fitId) {
         layers: [
           { id: 'Top-SWITCH_PLATE', layerName: 'Top-SWITCH_PLATE', label: 'Top-SWITCH_PLATE', outlineKind: 'plate' },
           { id: 'Top-BACK_CUT', layerName: 'Top-BACK_CUT', label: 'Top-BACK_CUT', outlineKind: 'backcut' },
-          switchplace ? { id: 'Top-Dots', layerName: 'Top-Dots', label: 'Top-Dots' } : null,
+          switchplace ? { id: 'Top-Dots', layerName: 'Top-Dots', label: 'Top-Dots', outlineKind: 'dots' } : null,
         ].filter(Boolean),
       },
       {

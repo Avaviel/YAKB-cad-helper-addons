@@ -16,6 +16,7 @@ import { buildOutlineModel, zoneOutlineDefaults } from './PlateBuilder'
 import { defaultShellFromPlate, defaultShellFromSelf, layerFeatureDefault } from './otherPartsConfig'
 import { buildBackCutPart } from './BackCutBuilder'
 import { overkillCircles, isKeyStaggered, stripTopStampCircles } from './overkill'
+import { buildGeneratedDots, dotsModeFromOutlines } from './DotsBuilder'
 
 /**
  * Convert a stamp JSON document into a maker.js model.
@@ -262,6 +263,17 @@ export function buildExportAssembly(assembly, keysArray, generatorOptions, mainP
       applyLayer(backCut, stamp.layerName)
       canvas.models[key] = backCut
       continue
+    }
+    if (key === "TopDots" && dotsModeFromOutlines(generatorOptions && generatorOptions.layerOutlines) !== "stamp") {
+      const generated = buildGeneratedDots(
+        generatorOptions,
+        stamp.layerName,
+        canvas.models.TopBackCut
+      )
+      if (generated) {
+        canvas.models[key] = generated
+        continue
+      }
     }
     if (!stamp.stampData) {
       continue
