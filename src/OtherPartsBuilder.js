@@ -15,7 +15,7 @@ import {
 import { buildOutlineModel, zoneOutlineDefaults } from './PlateBuilder'
 import { defaultShellFromPlate, defaultShellFromSelf, layerFeatureDefault } from './otherPartsConfig'
 import { buildBackCutPart } from './BackCutBuilder'
-import { overkillCircles, cullDotsInSwitchKeepout } from './overkill'
+import { overkillCircles, isKeyStaggered, stripTopStampCircles } from './overkill'
 
 /**
  * Convert a stamp JSON document into a maker.js model.
@@ -133,7 +133,7 @@ function applyLayer(model, layerName) {
  *
  * FUTURE (Kailh Choc): same mirrorStamps + non-mirrored registration rules.
  */
-export function buildStampPart(stampData, keysArray, generatorOptions, layerName, includeRegistration = true) {
+export function buildStampPart(stampData, keysArray, generatorOptions, layerName, includeRegistration = true, stampOptions) {
   let template = stampJsonToModel(stampData, layerName)
 
   // Left-right flip of the stamp pattern (not registration)
@@ -161,6 +161,9 @@ export function buildStampPart(stampData, keysArray, generatorOptions, layerName
 
     // Match switch cutout placement: rotate by -(angle + independentSwitchAngle), then set origin
     let instance = makerjs.model.clone(template)
+    if (stampOptions && stampOptions.dropStaggeredTops && isKeyStaggered(key, keysArray)) {
+      stripTopStampCircles(instance)
+    }
     instance = makerjs.model.rotate(
       instance,
       key.angle.plus(key.independentSwitchAngle).times(-1).toNumber()
@@ -268,11 +271,11 @@ export function buildExportAssembly(assembly, keysArray, generatorOptions, mainP
       keysArray,
       generatorOptions,
       stamp.layerName,
-      false
+      false,
+      key === "TopDots" ? { dropStaggeredTops: true } : null
     )
     if (key === "TopDots") {
       overkillCircles(stampModel)
-      cullDotsInSwitchKeepout(stampModel, keysArray, generatorOptions)
     }
     canvas.models[key] = stampModel
   }
@@ -285,15 +288,17 @@ export function buildExportAssembly(assembly, keysArray, generatorOptions, mainP
     generatorOptions && generatorOptions.layerNotes,
     assembly
   )
-  attachTitleBlock(canvas, generatorOptions)
+  if (!(generatorOptions && generatorOptions.skipTitleBlock)) {
+    attachTitleBlock(canvas, generatorOptions)
+  }
 
   return orderAssemblyModels(canvas)
 }
 
 const assemblyModelOrder = [
   "TopSwitchPlate",
-  "TopDots",
   "TopBackCut",
+  "TopDots",
   "LinkHoleCuts",
   "LinkHotswap",
   "Shell",
@@ -324,10 +329,10 @@ function layerSortRank(name) {
   if (base === "Top-SWITCH_PLATE") {
     return 10
   }
-  if (base === "Top-Dots") {
+  if (base === "Top-BACK_CUT") {
     return 20
   }
-  if (base === "Top-BACK_CUT") {
+  if (base === "Top-Dots") {
     return 25
   }
   if (base.indexOf("Top") === 0) {
@@ -720,7 +725,7 @@ function withoutEmbeddedTitleBlocks(model) {
 }
 
 const previewGroupKeys = {
-  top: ["TopSwitchPlate", "TopDots", "TopBackCut"],
+  top: ["TopSwitchPlate", "TopBackCut", "TopDots"],
   link: ["LinkHotswap", "LinkHoleCuts"],
   shell: ["Shell"],
 }
@@ -769,8 +774,32 @@ export function previewSubset(model, groups) {
 }
 
 /**
- * Export a maker.js model to preview SVG, download SVG, and DXF strings.
+ * Clone a geometry-only assembly, stamp title blocks, and build preview/download strings.
  */
+export function decorateAndExport(model, generatorOptions) {
+  if (!model) {
+    return { ready: false }
+  }
+  const next = makerjs.model.clone(model)
+  attachTitleBlock(next, generatorOptions)
+  const exported = exportOtherPart(next)
+  const together = exportOtherPart(previewSubset(next, ["top", "link", "shell"]))
+  const topOnly = exportOtherPart(previewSubset(next, ["top"]))
+  const shellOnly = exportOtherPart(previewSubset(next, ["shell"]))
+  const topShell = exportOtherPart(previewSubset(next, ["top", "shell"]))
+  const linkOnly = exportOtherPart(previewSubset(next, ["link"]))
+  return {
+    ...(exported || {}),
+    previewSvg: (together && together.previewSvg) || (exported && exported.previewSvg),
+    previewTop: topOnly && topOnly.previewSvg,
+    previewShell: shellOnly && shellOnly.previewSvg,
+    previewTopShell: topShell && topShell.previewSvg,
+    previewLink: linkOnly && linkOnly.previewSvg,
+    previewEach: previewLayerPanes(next),
+    ready: !!exported,
+  }
+}
+
 export function exportOtherPart(model) {
   if (!model) {
     return null

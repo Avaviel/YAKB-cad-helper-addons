@@ -27,8 +27,8 @@ test("title-block DXF layer names do not contain periods", () => {
 
 test("drawing numbers follow the Top / Link / Shell scheme", () => {
   expect(drawingInfoForLayer("Top-SWITCH_PLATE").drawingNo).toBe("1.1")
-  expect(drawingInfoForLayer("Top-Dots").drawingNo).toBe("1.2")
-  expect(drawingInfoForLayer("Top-BACK_CUT").drawingNo).toBe("1.3")
+  expect(drawingInfoForLayer("Top-BACK_CUT").drawingNo).toBe("1.2")
+  expect(drawingInfoForLayer("Top-Dots").drawingNo).toBe("1.3")
   expect(drawingInfoForLayer("Link-HOLE_CUTS").drawingNo).toBe("2.1")
   expect(drawingInfoForLayer("Link-MX_HOTSWAP_BF").drawingNo).toBe("2.2")
   expect(drawingInfoForLayer("Link-CHOC_HOTSWAP").drawingNo).toBe("2.2")

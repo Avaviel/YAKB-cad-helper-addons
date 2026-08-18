@@ -19,9 +19,7 @@ import { backCutDefaultsForFamily } from "./BackCutBuilder"
 import { todayISODate } from "./TitleBlockBuilder"
 import {
   buildExportAssembly,
-  exportOtherPart,
-  previewSubset,
-  previewLayerPanes,
+  decorateAndExport,
   makeDownloadFilename,
   sanitizeFilenamePart,
 } from "./OtherPartsBuilder"
@@ -84,6 +82,8 @@ function App() {
   const [mirrorStamps, setMirrorStamps] = useState(false)
   // Single full export (preview + dxf + svg)
   const [exportOutput, setExportOutput] = useState(null)
+  const [geometryModel, setGeometryModel] = useState(null)
+  const [appliedNotes, setAppliedNotes] = useState({})
   const [previewMode, setPreviewMode] = useState("together")
   const [previewLayout, setPreviewLayout] = useState("landscape")
   const [chocSpacingId, setChocSpacingId] = useState("18x17")
@@ -104,82 +104,45 @@ function App() {
     return fallback
   }
 
-  // Build one multi-layer DXF/SVG: Top + Link layers (no registration)
-  useEffect(() => {
+  const geometrySignature = useMemo(() => {
     const parsed = parseKle(kleText)
-    const kleReturn = parsed && parsed.keys ? parsed.keys : parsed
-    const outlines = (parsed && parsed.outlines) || []
-    const generatorOptions = {
-      switchCutoutType: switchCutoutType,
-      stabilizerCutoutType: stabilizerCutoutType,
-      acousticCutoutType: acousticCutoutType,
-      switchFilletRadius: new Decimal(switchRadius),
-      stabilizerFilletRadius: new Decimal(stabilizerRadius),
-      acousticFilletRadius: new Decimal(acousticRadius),
-      unitWidth: new Decimal(String(unitWidth).trim() || "invalid"),
-      unitHeight: new Decimal(String(unitHeight).trim() || "invalid"),
-      kerf: new Decimal(kerf),
-      mirrorStamps: !!mirrorStamps,
-      outlines,
-      layerNotes,
-      layerOutlines,
-      keyboardTitle: appliedTitle.keyboardTitle || keyboardTitle,
-      titleBlock: {
-        date: appliedTitle.date || titleDate,
-        designer: appliedTitle.designer,
-        jobNo: appliedTitle.jobNo,
-        notes: appliedTitle.notes,
-      },
-      stampFamilyId: stampSwitchFamily,
-      skipEmbeddedOutlines: true,
+    const keys = (parsed && parsed.keys) || []
+    const keySig = keys.map(key => [
+      String(key.centerX),
+      String(key.centerY),
+      String(key.width),
+      String(key.height),
+      String(key.angle),
+      String(key.independentSwitchAngle),
+      String(key.stabilizerAngle),
+      !!key.shift6UStabilizers,
+      !!key.skipOrientationFix,
+    ])
+    const outlineGeom = {}
+    for (const [id, row] of Object.entries(layerOutlines || {})) {
+      if (!row || typeof row !== "object") continue
+      const next = { ...row }
+      delete next.op
+      delete next.opMm
+      if (Object.keys(next).length) outlineGeom[id] = next
     }
-
-    const assembly = getExportAssembly(stampSwitchFamily, stampFit)
-
-    if (!kleReturn || kleReturn.length === 0) {
-      setExportOutput({
-        id: assembly.id,
-        label: assembly.label,
-        description: assembly.description,
-        layerSummary: assembly.layerSummary,
-        ready: false,
-      })
-      return
-    }
-
-    try {
-      const mainPlateModel = buildPlate(kleReturn, generatorOptions)
-      const model = buildExportAssembly(assembly, kleReturn, generatorOptions, mainPlateModel)
-      const exported = exportOtherPart(model)
-      const together = exportOtherPart(previewSubset(model, ["top", "link", "shell"]))
-      const topOnly = exportOtherPart(previewSubset(model, ["top"]))
-      const shellOnly = exportOtherPart(previewSubset(model, ["shell"]))
-      const topShell = exportOtherPart(previewSubset(model, ["top", "shell"]))
-      const linkOnly = exportOtherPart(previewSubset(model, ["link"]))
-      setExportOutput({
-        id: assembly.id,
-        label: assembly.label,
-        description: assembly.description,
-        layerSummary: assembly.layerSummary,
-        ...(exported || {}),
-        previewSvg: (together && together.previewSvg) || (exported && exported.previewSvg),
-        previewTop: topOnly && topOnly.previewSvg,
-        previewShell: shellOnly && shellOnly.previewSvg,
-        previewTopShell: topShell && topShell.previewSvg,
-        previewLink: linkOnly && linkOnly.previewSvg,
-        previewEach: previewLayerPanes(model),
-        ready: !!exported,
-      })
-    } catch (error) {
-      console.log('Export build failed:', error)
-      setExportOutput({
-        id: assembly.id,
-        label: assembly.label,
-        description: assembly.description,
-        layerSummary: assembly.layerSummary,
-        ready: false,
-      })
-    }
+    return JSON.stringify({
+      keySig,
+      outlines: (parsed && parsed.outlines) || [],
+      outlineGeom,
+      switchCutoutType,
+      stabilizerCutoutType,
+      acousticCutoutType,
+      switchRadius,
+      stabilizerRadius,
+      acousticRadius,
+      unitWidth,
+      unitHeight,
+      kerf,
+      stampSwitchFamily,
+      stampFit,
+      mirrorStamps,
+    })
   }, [
     kleText,
     switchCutoutType,
@@ -194,10 +157,104 @@ function App() {
     stampSwitchFamily,
     stampFit,
     mirrorStamps,
-    layerNotes,
     layerOutlines,
-    appliedTitle,
   ])
+
+  const titleExportOptions = () => {
+    const parsed = parseKle(kleText)
+    return {
+      switchCutoutType,
+      stabilizerCutoutType,
+      acousticCutoutType,
+      switchFilletRadius: new Decimal(switchRadius),
+      stabilizerFilletRadius: new Decimal(stabilizerRadius),
+      acousticFilletRadius: new Decimal(acousticRadius),
+      unitWidth: new Decimal(String(unitWidth).trim() || "invalid"),
+      unitHeight: new Decimal(String(unitHeight).trim() || "invalid"),
+      kerf: new Decimal(kerf),
+      mirrorStamps: !!mirrorStamps,
+      outlines: (parsed && parsed.outlines) || [],
+      layerNotes: appliedNotes,
+      layerOutlines,
+      keyboardTitle: appliedTitle.keyboardTitle || keyboardTitle,
+      titleBlock: {
+        date: appliedTitle.date || titleDate,
+        designer: appliedTitle.designer,
+        jobNo: appliedTitle.jobNo,
+        notes: appliedTitle.notes,
+      },
+      stampFamilyId: stampSwitchFamily,
+      skipEmbeddedOutlines: true,
+    }
+  }
+
+  // Heavy plate + stamps. Skips title-only KLE edits (notes, date, _yakb).
+  useEffect(() => {
+    const parsed = parseKle(kleText)
+    const kleReturn = parsed && parsed.keys ? parsed.keys : parsed
+    const assembly = getExportAssembly(stampSwitchFamily, stampFit)
+    const generatorOptions = {
+      ...titleExportOptions(),
+      layerNotes: appliedNotes,
+      skipTitleBlock: true,
+    }
+
+    if (!kleReturn || kleReturn.length === 0) {
+      setGeometryModel(null)
+      setExportOutput({
+        id: assembly.id,
+        label: assembly.label,
+        description: assembly.description,
+        layerSummary: assembly.layerSummary,
+        ready: false,
+      })
+      return
+    }
+
+    try {
+      const mainPlateModel = buildPlate(kleReturn, generatorOptions)
+      const model = buildExportAssembly(assembly, kleReturn, generatorOptions, mainPlateModel)
+      setGeometryModel(model)
+      setExportOutput(current => ({
+        ...(current || {}),
+        id: assembly.id,
+        label: assembly.label,
+        description: assembly.description,
+        layerSummary: assembly.layerSummary,
+      }))
+    } catch (error) {
+      console.log('Export build failed:', error)
+      setGeometryModel(null)
+      setExportOutput({
+        id: assembly.id,
+        label: assembly.label,
+        description: assembly.description,
+        layerSummary: assembly.layerSummary,
+        ready: false,
+      })
+    }
+  }, [geometrySignature])
+
+  // Title blocks + SVG/DXF strings only. Safe to run after notes typing.
+  useEffect(() => {
+    const assembly = getExportAssembly(stampSwitchFamily, stampFit)
+    if (!geometryModel) {
+      return
+    }
+    try {
+      const decorated = decorateAndExport(geometryModel, titleExportOptions())
+      setExportOutput(current => ({
+        id: assembly.id,
+        label: assembly.label,
+        description: assembly.description,
+        layerSummary: assembly.layerSummary,
+        ...(current || {}),
+        ...decorated,
+      }))
+    } catch (error) {
+      console.log('Title export failed:', error)
+    }
+  }, [geometryModel, appliedTitle, appliedNotes, layerOutlines])
 
 
   const downloadExport = (fileData, extension) => {
@@ -255,6 +312,7 @@ function App() {
     if (written != null) {
       setKleText(written)
     }
+    return written
   }
 
   const handleTitleChange = (value) => {
@@ -270,6 +328,7 @@ function App() {
         jobNo: titleJobNo,
         notes: titleNotes,
       })
+      setAppliedNotes(layerNotes)
       if (kleText && String(kleText).trim()) {
         persistLayerState(layerNotes, layerOutlines, keyboardTitle)
       }
@@ -281,6 +340,7 @@ function App() {
     titleDesigner,
     titleJobNo,
     titleNotes,
+    layerNotes,
     switchCutoutType,
     stabilizerCutoutType,
     acousticCutoutType,
@@ -303,7 +363,8 @@ function App() {
 
   const copyKleLayout = async () => {
     try {
-      await navigator.clipboard.writeText(kleText || "")
+      const written = persistLayerState(layerNotes, layerOutlines, keyboardTitle)
+      await navigator.clipboard.writeText(written != null ? written : (kleText || ""))
       flashClip("Copied")
     } catch (error) {
       flashClip("Copy failed")
@@ -343,6 +404,7 @@ function App() {
     if (hasNotes || hasOutlines) {
       if (hasNotes) {
         setLayerNotes(parsed.notes)
+        setAppliedNotes(parsed.notes)
       }
       if (hasOutlines) {
         setLayerOutlines(parsed.outlines)
@@ -367,6 +429,7 @@ function App() {
       return
     }
     setLayerNotes({})
+    setAppliedNotes({})
     setLayerOutlines({})
     setKleText(text)
   }
@@ -379,7 +442,6 @@ function App() {
       delete next[id]
     }
     setLayerNotes(next)
-    persistLayerState(next, layerOutlines)
   }
 
   const handleLayerOutlineChange = (id, field, value) => {
@@ -544,7 +606,7 @@ function App() {
                   </Col>
                 </Row>
                 <Form.Text className="text-muted d-block mt-2 mb-0">
-                  Drawn by is always YAKB CAD Helper. Title-block fields write back into the layout after you pause typing.
+                  Drawn by is always YAKB CAD Helper. Title and notes write back after you pause; they do not rebuild the plate.
                 </Form.Text>
               </Form>
             </Col>
@@ -924,8 +986,8 @@ function App() {
                     another <strong>{defaultShellFromSelf} mm</strong> from itself (inner + outer).
                     Cut / Extrude plus the amount print in that drawing&apos;s title block (same DXF layer as the drawing).
                     The note box is that drawing&apos;s title-block NOTES (not cut/extrude). The overall title block uses the Notes field above.
-                    Top-Dots: Overkill merges stacked corners, then drops any boss that sits in a switch keep-out
-                    (0.5U stagger puts a neighbour corner on the switch centreline and blocks the snap).
+                    Top-Dots: Overkill merges stacked corners. Staggered keys drop only their top pair of
+                    bosses so they do not sit on the switch above. Still glance over the rest.
                   </p>
                   {(exportAssembly.layerGroups || []).map(group => (
                     <div key={group.group} className="mb-4">

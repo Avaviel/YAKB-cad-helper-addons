@@ -163,8 +163,8 @@ export function familyForCutoutType(cutoutType) {
  *
  * Layers:
  *   Top-SWITCH_PLATE  — switch/stab/acoustic cutouts + the Top outline
- *   Top-Dots          — switchplace / dots stamp
  *   Top-BACK_CUT      — back-cut stamp (Top part)
+ *   Top-Dots          — switchplace / dots stamp
  *   Link-HOLE_CUTS    — hole stamps + the Link outline
  *   Link-MX_HOTSWAP_* — selected hotswap fit
  *   Shell             — inner/outer case outline
@@ -196,16 +196,16 @@ export function getExportAssembly(switchFamilyId, fitId) {
     : null
 
   const stamps = [
-    switchplace && { ...switchplace, modelKey: 'TopDots', layerName: 'Top-Dots', noteId: 'Top-Dots', hasOutline: false },
     { type: 'backcut', modelKey: 'TopBackCut', layerName: 'Top-BACK_CUT', noteId: 'Top-BACK_CUT', hasOutline: false },
+    switchplace && { ...switchplace, modelKey: 'TopDots', layerName: 'Top-Dots', noteId: 'Top-Dots', hasOutline: false },
     holeCuts && { ...holeCuts, modelKey: 'LinkHoleCuts', layerName: 'Link-HOLE_CUTS', noteId: 'Link-HOLE_CUTS', hasOutline: true },
     hotswap && { ...hotswap, modelKey: 'LinkHotswap', layerName: hotswapLayer, noteId: hotswapNoteId, hasOutline: false },
   ].filter(Boolean)
 
   const layerList = [
     'Top-SWITCH_PLATE',
-    switchplace ? 'Top-Dots' : null,
     'Top-BACK_CUT',
+    switchplace ? 'Top-Dots' : null,
     'Link-HOLE_CUTS',
     hotswapLayer,
     'Shell',
@@ -224,8 +224,8 @@ export function getExportAssembly(switchFamilyId, fitId) {
         group: 'Top',
         layers: [
           { id: 'Top-SWITCH_PLATE', layerName: 'Top-SWITCH_PLATE', label: 'Top-SWITCH_PLATE', outlineKind: 'plate' },
-          switchplace ? { id: 'Top-Dots', layerName: 'Top-Dots', label: 'Top-Dots' } : null,
           { id: 'Top-BACK_CUT', layerName: 'Top-BACK_CUT', label: 'Top-BACK_CUT', outlineKind: 'backcut' },
+          switchplace ? { id: 'Top-Dots', layerName: 'Top-Dots', label: 'Top-Dots' } : null,
         ].filter(Boolean),
       },
       {

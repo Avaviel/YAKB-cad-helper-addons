@@ -59,9 +59,6 @@ export function overkillCircles(model, toleranceMm = DOTS_OVERKILL_MM) {
   return { removed: drop.size, kept }
 }
 
-/** Radius around each switch that must stay clear of dots (mm). */
-export const SWITCH_DOT_KEEPOUT_MM = 11
-
 function toNum(value) {
   if (value == null) return 0
   if (typeof value === "number") return value
@@ -69,71 +66,47 @@ function toNum(value) {
   return Number(value)
 }
 
-function keySwitchWorld(key, unitWidth, unitHeight) {
-  const ux = toNum(unitWidth) || 19.05
-  const uy = toNum(unitHeight) || ux
-  let cx
-  let cy
-  if (key.centerX && typeof key.centerX.times === "function") {
-    cx = toNum(key.centerX.times(unitWidth))
-    cy = toNum(key.centerY.times(unitHeight)) * -1
-  } else {
-    cx = toNum(key.centerX) * ux
-    cy = toNum(key.centerY) * uy * -1
-  }
-  let deg = 0
-  if (key.angle && typeof key.angle.plus === "function") {
-    const extra = key.independentSwitchAngle || 0
-    deg = toNum(key.angle.plus(extra).times(-1))
-  } else {
-    deg = -(toNum(key.angle) + toNum(key.independentSwitchAngle))
-  }
-  const rad = (deg * Math.PI) / 180
-  return { cx, cy, cos: Math.cos(rad), sin: Math.sin(rad) }
-}
-
-function circleHitsKeepout(x, y, sw, keepoutR) {
-  return Math.hypot(x - sw.cx, y - sw.cy) <= keepoutR
-}
-
 /**
- * Delete dots that sit in a circular switch keep-out. A 0.5U stagger puts a
- * neighbour corner on the switch centreline 9.525 mm away — outside the 14 mm
- * hole, but on the MX body so the switch cannot snap in. Own 1U corners sit
- * 13.5 mm out and are kept.
+ * True when this key sits on a seam under another row and does not share a
+ * left edge, right edge, or centre with any key above. Those are the
+ * staggered keys whose top bosses land on the switch above.
  */
-export function cullDotsInSwitchKeepout(model, keysArray, generatorOptions, keepoutHalfMm = SWITCH_DOT_KEEPOUT_MM) {
-  if (!model || !keysArray || !keysArray.length) {
-    return { removed: 0 }
+export function isKeyStaggered(key, keysArray, seamU = 0.2) {
+  if (!key || !keysArray || !keysArray.length) {
+    return false
   }
-  const keep = Number(keepoutHalfMm)
-  const half = Number.isFinite(keep) && keep > 0 ? keep : SWITCH_DOT_KEEPOUT_MM
-  const unitWidth = generatorOptions && generatorOptions.unitWidth
-  const unitHeight = generatorOptions && generatorOptions.unitHeight
-
-  makerjs.model.originate(model)
-
-  const switches = keysArray.map(key => keySwitchWorld(key, unitWidth, unitHeight))
-  const drop = []
-  makerjs.model.walk(model, {
-    onPath: walked => {
-      const path = walked.pathContext
-      if (!path || path.type !== "circle" || !path.origin) return
-      const x = path.origin[0]
-      const y = path.origin[1]
-      for (const sw of switches) {
-        if (circleHitsKeepout(x, y, sw, half)) {
-          drop.push({ parent: walked.modelContext, id: walked.pathId })
-          return
-        }
-      }
-    },
+  const myTop = toNum(key.y)
+  const above = keysArray.filter(other => {
+    if (other === key) return false
+    const bottom = toNum(other.y) + toNum(other.height)
+    return Math.abs(bottom - myTop) < seamU
   })
+  if (!above.length) {
+    return false
+  }
+  const myLeft = toNum(key.x)
+  const myRight = myLeft + toNum(key.width)
+  const myCx = toNum(key.centerX)
+  const linedUp = above.some(other => {
+    const left = toNum(other.x)
+    const right = left + toNum(other.width)
+    const cx = toNum(other.centerX)
+    return Math.abs(left - myLeft) < 0.1 || Math.abs(right - myRight) < 0.1 || Math.abs(cx - myCx) < 0.1
+  })
+  return !linedUp
+}
 
-  for (const item of drop) {
-    if (item.parent && item.parent.paths && item.parent.paths[item.id]) {
-      delete item.parent.paths[item.id]
+/** Remove stamp circles on the key-local top (+Y) before rotation. */
+export function stripTopStampCircles(model) {
+  if (!model || !model.paths) {
+    return 0
+  }
+  let removed = 0
+  for (const [id, path] of Object.entries(model.paths)) {
+    if (path && path.type === "circle" && path.origin && path.origin[1] > 0.1) {
+      delete model.paths[id]
+      removed += 1
     }
   }
-  return { removed: drop.length }
+  return removed
 }
