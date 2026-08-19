@@ -1,6 +1,6 @@
 import makerjs from "makerjs"
 import Decimal from "decimal.js"
-import { isKeyStaggered } from "./overkill"
+import { isKeyStaggered, isKeyStaggeredBelow } from "./overkill"
 
 export const DOT_RADIUS_MM = 1.5
 /** 1U X corners: half of 19.05. */
@@ -60,10 +60,13 @@ export function mxStabSpacing(key) {
  * Key-local millimetres, switch at origin, +Y up (stamp space).
  *
  * 1U ortho: four X corners (±9.525, ±9.525).
- * Staggered 1U: (±9.525, -5.25) plus a centre boss at y=+13.8 (the key
- * above's y=-5.25). Cluster-merge collapses extras.
+ * Staggered 1U (row above is offset): (±9.525, -5.25) plus a centre boss
+ * at y=+13.8. Cluster-merge collapses extras.
+ * 1U with a staggered row below (number row over QWERTY): keep the ortho
+ * top pair, drop the bottom X so it does not land on Q/W/E.
  * Stab keys: one boss under each housing at y=-12.5, plus an outboard
- * pair at y=-5, 4.1 mm outside the housing (~±19.5 on a 2U).
+ * pair at y=-5. Vertical 2U (+, numpad Enter) mirrors that set so both
+ * sides of the key get bosses.
  */
 export function keyDotLocals(key, keysArray, generatorOptions) {
   const unitW = unitMm(generatorOptions, "unitWidth")
@@ -74,6 +77,7 @@ export function keyDotLocals(key, keysArray, generatorOptions) {
   const h = toNum(key.height)
   const swapped = !!(key && !key.skipOrientationFix && h > w)
   const staggered = isKeyStaggered(key, keysArray)
+  const staggerBelow = isKeyStaggeredBelow(key, keysArray)
   const pts = []
 
   if (keyHasStabs(key)) {
@@ -90,6 +94,9 @@ export function keyDotLocals(key, keysArray, generatorOptions) {
     pts.push({ x: -halfU, y: STAGGER_DOWN_Y_MM })
     pts.push({ x: halfU, y: STAGGER_DOWN_Y_MM })
     pts.push({ x: 0, y: unitH + STAGGER_DOWN_Y_MM })
+  } else if (staggerBelow) {
+    pts.push({ x: -halfU, y: halfV })
+    pts.push({ x: halfU, y: halfV })
   } else {
     pts.push({ x: -halfU, y: halfV })
     pts.push({ x: halfU, y: halfV })
@@ -98,7 +105,11 @@ export function keyDotLocals(key, keysArray, generatorOptions) {
   }
 
   if (swapped) {
-    return pts.map(p => ({ x: p.y, y: -p.x }))
+    const rotated = pts.map(p => ({ x: p.y, y: -p.x }))
+    if (keyHasStabs(key)) {
+      return rotated.concat(rotated.map(p => ({ x: -p.x, y: p.y })))
+    }
+    return rotated
   }
   return pts
 }

@@ -163,10 +163,19 @@ function toNum(value) {
   return Number(value)
 }
 
+function sharesColumn(key, other) {
+  const myLeft = toNum(key.x)
+  const myRight = myLeft + toNum(key.width)
+  const myCx = toNum(key.centerX)
+  const left = toNum(other.x)
+  const right = left + toNum(other.width)
+  const cx = toNum(other.centerX)
+  return Math.abs(left - myLeft) < 0.1 || Math.abs(right - myRight) < 0.1 || Math.abs(cx - myCx) < 0.1
+}
+
 /**
  * True when this key sits on a seam under another row and does not share a
- * left edge, right edge, or centre with any key above. Those are the
- * staggered keys whose top bosses land on the switch above.
+ * left edge, right edge, or centre with any key above (Q under 1/2, Z under A).
  */
 export function isKeyStaggered(key, keysArray, seamU = 0.2) {
   if (!key || !keysArray || !keysArray.length) {
@@ -181,16 +190,27 @@ export function isKeyStaggered(key, keysArray, seamU = 0.2) {
   if (!above.length) {
     return false
   }
-  const myLeft = toNum(key.x)
-  const myRight = myLeft + toNum(key.width)
-  const myCx = toNum(key.centerX)
-  const linedUp = above.some(other => {
-    const left = toNum(other.x)
-    const right = left + toNum(other.width)
-    const cx = toNum(other.centerX)
-    return Math.abs(left - myLeft) < 0.1 || Math.abs(right - myRight) < 0.1 || Math.abs(cx - myCx) < 0.1
+  return !above.some(other => sharesColumn(key, other))
+}
+
+/**
+ * True when a row below is on this key's bottom seam and does not line up.
+ * Number-row X bottoms land on QWERTY; those keys need this so we drop
+ * the bottom pair and keep the ortho tops.
+ */
+export function isKeyStaggeredBelow(key, keysArray, seamU = 0.2) {
+  if (!key || !keysArray || !keysArray.length) {
+    return false
+  }
+  const myBottom = toNum(key.y) + toNum(key.height)
+  const below = keysArray.filter(other => {
+    if (other === key) return false
+    return Math.abs(toNum(other.y) - myBottom) < seamU
   })
-  return !linedUp
+  if (!below.length) {
+    return false
+  }
+  return !below.some(other => sharesColumn(key, other))
 }
 
 /** Remove stamp circles on the key-local top (+Y) before rotation. */

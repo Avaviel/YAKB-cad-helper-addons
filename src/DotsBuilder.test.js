@@ -38,6 +38,15 @@ test("1U ortho is the four X corners", () => {
   expect(pts.every(p => Math.abs(Math.abs(p.y) - 9.525) < 1e-6)).toBe(true)
 })
 
+test("number-row key over staggered Q keeps ortho tops and drops bottom X", () => {
+  const number = fakeKey({ x: 0, y: 0, w: 1, h: 1 })
+  const q = fakeKey({ x: 0.5, y: 1, w: 1, h: 1 })
+  const pts = keyDotLocals(number, [number, q], MX)
+  expect(pts).toHaveLength(2)
+  expect(pts.every(p => p.y > 0)).toBe(true)
+  expect(pts.every(p => Math.abs(Math.abs(p.x) - 9.525) < 1e-6)).toBe(true)
+})
+
 test("staggered 1U is ±9.525 at y=-5.25 plus centre at y=+13.8", () => {
   const above = fakeKey({ x: 0, y: 0, w: 1, h: 1 })
   const staggered = fakeKey({ x: 0.5, y: 1, w: 1, h: 1 })
@@ -72,6 +81,15 @@ test("6.25U outboard tracks the far housing, not 2U 19.5", () => {
   const out = pts.filter(p => Math.abs(p.y - STAB_OUTBOARD_Y_MM) < 1e-6)
   expect(out).toHaveLength(2)
   expect(Math.abs(out[0].x)).toBeCloseTo(57.6, 1)
+})
+
+test("vertical 2U (numpad +) mirrors bosses to both sides", () => {
+  const key = fakeKey({ x: 0, y: 0, w: 1, h: 2 })
+  const pts = keyDotLocals(key, [key], MX)
+  expect(pts.length).toBe(8)
+  const xs = pts.map(p => p.x)
+  expect(xs.some(x => x > 0.1)).toBe(true)
+  expect(xs.some(x => x < -0.1)).toBe(true)
 })
 
 test("placed 2U dots keep the under-stab pair and drop old X bottoms", () => {

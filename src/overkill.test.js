@@ -1,5 +1,5 @@
 import makerjs from "makerjs"
-import { overkillCircles, clusterMergeCircles, isKeyStaggered, stripTopStampCircles } from "./overkill"
+import { overkillCircles, clusterMergeCircles, isKeyStaggered, isKeyStaggeredBelow, stripTopStampCircles } from "./overkill"
 
 test("overkill keeps one circle when two share a centre", () => {
   const model = {
@@ -36,6 +36,9 @@ test("a 0.5U-shifted key under another row is staggered; ortho is not", () => {
   expect(isKeyStaggered(staggered, [above, staggered])).toBe(true)
   expect(isKeyStaggered(ortho, [above, ortho])).toBe(false)
   expect(isKeyStaggered(above, [above, staggered])).toBe(false)
+  expect(isKeyStaggeredBelow(above, [above, staggered])).toBe(true)
+  expect(isKeyStaggeredBelow(staggered, [above, staggered])).toBe(false)
+  expect(isKeyStaggeredBelow(above, [above, ortho])).toBe(false)
 })
 
 test("cluster merge collapses three overlapping circles in a row to one centroid", () => {

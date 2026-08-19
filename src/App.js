@@ -1103,10 +1103,11 @@ function App() {
                             </>
                           ) : layer.outlineKind === "dots" ? (
                             <Form.Text className="text-muted d-block mb-2">
-                              1U: four corners. Staggered 1U: a pair 5.25 mm below centre and one boss
-                              13.8 mm above. Stab keys: one boss under each housing (12.5 mm below)
-                              plus an outboard pair. Overlapping pegs merge. A peg whose centre sits
-                              in the back-cut is deleted whole.
+                              1U: four corners. Staggered 1U (Q under numbers): a pair 5.25 mm below
+                              centre and one boss 13.8 mm above. The row above keeps its ortho tops
+                              and drops the bottoms that would land on QWERTY. Stab keys: under each
+                              housing plus an outboard pair; vertical + / Enter mirrors to both sides.
+                              Overlapping pegs merge. A peg whose centre sits in the back-cut is deleted.
                             </Form.Text>
                           ) : layer.outlineKind === "plate" ? (
                             <Row className="g-2 mb-2">
