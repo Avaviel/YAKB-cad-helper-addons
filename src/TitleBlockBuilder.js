@@ -6,7 +6,7 @@ export const TITLE_BLOCK_WIDTH = 156
 export const TITLE_BLOCK_HEIGHT = 48
 export const TITLE_BLOCK_MARGIN = 8
 export const TITLE_BLOCK_DRAWN_BY = "YAKB CAD Helper"
-export const TITLE_BLOCK_FULL_DRAWING_NO = "1.1-3.2"
+export const TITLE_BLOCK_FULL_DRAWING_NO = "1.1-3.3"
 export const TITLE_BLOCK_FULL_DRAWING_NAME = "Plate export"
 export const TITLE_BLOCK_GAP = 0.01
 
@@ -17,6 +17,7 @@ const DRAWING_NUMBERS = {
   "Link-HOLE_CUTS": "2.1",
   Shell: "3.1",
   Keys: "3.2",
+  "Keys-MASS": "3.3",
 }
 
 export function todayISODate() {

@@ -3,8 +3,10 @@ import makerjs from "makerjs"
 import { parseKle } from "./KLEParser"
 import {
   buildKeyOutlines,
+  buildKeyMass,
   keyRectMm,
   KEYS_LAYER,
+  KEYS_MASS_LAYER,
   KEYS_DEFAULTS,
   resolveKeysSettings,
 } from "./KeyOutlineBuilder"
@@ -31,7 +33,7 @@ function fakeKey({ x, y, w, h, w2, h2, x2, y2, angle, rotx, roty }) {
 const MX = { unitWidth: new Decimal(19.05), unitHeight: new Decimal(19.05) }
 
 function withKeys(layerOutlines) {
-  return { ...MX, layerOutlines: { Keys: layerOutlines } }
+  return { ...MX, layerOutlines }
 }
 
 function countArcs(model) {
@@ -50,7 +52,7 @@ test("1U is the 19.05 mm cell, switch-centred in CAD y-up", () => {
   expect(r.maxX).toBeCloseTo(19.05, 6)
   expect(r.maxY).toBeCloseTo(0, 6)
   expect(r.minY).toBeCloseTo(-19.05, 6)
-  const model = buildKeyOutlines([fakeKey({ x: 0, y: 0, w: 1, h: 1 })], withKeys({ keysMode: "individual", fillet: 0 }))
+  const model = buildKeyOutlines([fakeKey({ x: 0, y: 0, w: 1, h: 1 })], withKeys({ Keys: { fillet: 0 } }))
   expect(model.layer).toBe(KEYS_LAYER)
   const ext = makerjs.measure.modelExtents(model)
   expect(ext.width).toBeCloseTo(19.05, 5)
@@ -60,14 +62,14 @@ test("1U is the 19.05 mm cell, switch-centred in CAD y-up", () => {
 })
 
 test("2U is twice as wide, same height", () => {
-  const model = buildKeyOutlines([fakeKey({ x: 0, y: 0, w: 2, h: 1 })], withKeys({ keysMode: "individual", fillet: 0 }))
+  const model = buildKeyOutlines([fakeKey({ x: 0, y: 0, w: 2, h: 1 })], withKeys({ Keys: { fillet: 0 } }))
   const ext = makerjs.measure.modelExtents(model)
   expect(ext.width).toBeCloseTo(38.1, 5)
   expect(ext.height).toBeCloseTo(19.05, 5)
 })
 
 test("tall 1x2 stays a tall rectangle (keycap, not rotated switch)", () => {
-  const model = buildKeyOutlines([fakeKey({ x: 0, y: 0, w: 1, h: 2 })], withKeys({ keysMode: "individual", fillet: 0 }))
+  const model = buildKeyOutlines([fakeKey({ x: 0, y: 0, w: 1, h: 2 })], withKeys({ Keys: { fillet: 0 } }))
   const ext = makerjs.measure.modelExtents(model)
   expect(ext.width).toBeCloseTo(19.05, 5)
   expect(ext.height).toBeCloseTo(38.1, 5)
@@ -75,8 +77,8 @@ test("tall 1x2 stays a tall rectangle (keycap, not rotated switch)", () => {
 
 test("ISO enter draws one L outline from the stem plus secondary rectangle", () => {
   const key = fakeKey({ x: 0, y: 0, w: 1.25, h: 2, w2: 1.5, h2: 1, x2: -0.25, y2: 0 })
-  const model = buildKeyOutlines([key], withKeys({ keysMode: "individual", fillet: 0 }))
-  expect(model.models.Individual.models.K0).toBeTruthy()
+  const model = buildKeyOutlines([key], withKeys({ Keys: { fillet: 0 } }))
+  expect(model.models.K0).toBeTruthy()
   const ext = makerjs.measure.modelExtents(model)
   expect(ext.width).toBeCloseTo(1.5 * 19.05, 5)
   expect(ext.height).toBeCloseTo(38.1, 5)
@@ -84,7 +86,7 @@ test("ISO enter draws one L outline from the stem plus secondary rectangle", () 
 })
 
 test("Choc 1U uses 18 x 17", () => {
-  const choc = { unitWidth: new Decimal(18), unitHeight: new Decimal(17), layerOutlines: { Keys: { keysMode: "individual", fillet: 0 } } }
+  const choc = { unitWidth: new Decimal(18), unitHeight: new Decimal(17), layerOutlines: { Keys: { fillet: 0 } } }
   const model = buildKeyOutlines([fakeKey({ x: 0, y: 0, w: 1, h: 1 })], choc)
   const ext = makerjs.measure.modelExtents(model)
   expect(ext.width).toBeCloseTo(18, 5)
@@ -95,15 +97,15 @@ test("parseKle ISO x2 survives into the Keys layer", () => {
   const parsed = parseKle('[[{w:1.25,h:2,w2:1.5,h2:1,x2:-0.25},"Enter"]]')
   expect(parsed.keys).toHaveLength(1)
   expect(parsed.keys[0].x2.toNumber()).toBeCloseTo(-0.25, 6)
-  const model = buildKeyOutlines(parsed.keys, withKeys({ keysMode: "individual", fillet: 0 }))
-  expect(model.models.Individual.models.K0).toBeTruthy()
+  const model = buildKeyOutlines(parsed.keys, withKeys({ Keys: { fillet: 0 } }))
+  expect(model.models.K0).toBeTruthy()
 })
 
 test("default key fillet is 1 mm and puts arcs on a 1U", () => {
   expect(KEYS_DEFAULTS.fillet).toBe(1)
   expect(resolveKeysSettings({}).fillet).toBe(1)
-  const sharp = buildKeyOutlines([fakeKey({ x: 0, y: 0, w: 1, h: 1 })], withKeys({ keysMode: "individual", fillet: 0 }))
-  const round = buildKeyOutlines([fakeKey({ x: 0, y: 0, w: 1, h: 1 })], withKeys({ keysMode: "individual", fillet: 1 }))
+  const sharp = buildKeyOutlines([fakeKey({ x: 0, y: 0, w: 1, h: 1 })], withKeys({ Keys: { fillet: 0 } }))
+  const round = buildKeyOutlines([fakeKey({ x: 0, y: 0, w: 1, h: 1 })], withKeys({ Keys: { fillet: 1 } }))
   expect(countArcs(sharp)).toBe(0)
   expect(countArcs(round)).toBe(4)
 })
@@ -117,11 +119,11 @@ test("touching 1U keys combine into one mass; a gap stays two islands", () => {
     fakeKey({ x: 0, y: 0, w: 1, h: 1 }),
     fakeKey({ x: 2, y: 0, w: 1, h: 1 }),
   ]
-  const one = buildKeyOutlines(touching, withKeys({ keysMode: "combined", fillet: 0, offset: 0, round: 0 }))
-  const two = buildKeyOutlines(gapped, withKeys({ keysMode: "combined", fillet: 0, offset: 0, round: 0 }))
-  expect(one.models.Individual).toBeFalsy()
-  expect(Object.keys(one.models.Combined.models.G0.models).length).toBe(1)
-  expect(Object.keys(two.models.Combined.models.G0.models).length).toBe(2)
+  const one = buildKeyMass(touching, withKeys({ "Keys-MASS": { offset: 0, round: 0 } }))
+  const two = buildKeyMass(gapped, withKeys({ "Keys-MASS": { offset: 0, round: 0 } }))
+  expect(one.layer).toBe(KEYS_MASS_LAYER)
+  expect(Object.keys(one.models.G0.models).length).toBe(1)
+  expect(Object.keys(two.models.G0.models).length).toBe(2)
   const ext = makerjs.measure.modelExtents(one)
   expect(ext.width).toBeCloseTo(38.1, 5)
   expect(ext.height).toBeCloseTo(19.05, 5)
@@ -129,24 +131,15 @@ test("touching 1U keys combine into one mass; a gap stays two islands", () => {
 
 test("mass offset expands the combined outline", () => {
   const keys = [fakeKey({ x: 0, y: 0, w: 1, h: 1 })]
-  const raw = buildKeyOutlines(keys, withKeys({ keysMode: "combined", offset: 0, round: 0 }))
-  const grown = buildKeyOutlines(keys, withKeys({ keysMode: "combined", offset: 2, round: 0 }))
+  const raw = buildKeyMass(keys, withKeys({ "Keys-MASS": { offset: 0, round: 0 } }))
+  const grown = buildKeyMass(keys, withKeys({ "Keys-MASS": { offset: 2, round: 0 } }))
   expect(makerjs.measure.modelExtents(raw).width).toBeCloseTo(19.05, 5)
   expect(makerjs.measure.modelExtents(grown).width).toBeCloseTo(23.05, 5)
 })
 
-test("both mode keeps individual keys and the combined mass", () => {
-  const model = buildKeyOutlines(
-    [fakeKey({ x: 0, y: 0, w: 1, h: 1 }), fakeKey({ x: 1, y: 0, w: 1, h: 1 })],
-    withKeys({ keysMode: "both", fillet: 1, offset: 0, round: 1 })
-  )
-  expect(model.models.Individual.models.K0).toBeTruthy()
-  expect(model.models.Individual.models.K1).toBeTruthy()
-  expect(model.models.Combined).toBeTruthy()
-})
-
-test("Keys is drawing 3.2", () => {
+test("Keys is 3.2 and Keys-MASS is 3.3", () => {
   expect(KEYS_LAYER).toBe("Keys")
+  expect(KEYS_MASS_LAYER).toBe("Keys-MASS")
   expect(drawingInfoForLayer("Keys").drawingNo).toBe("3.2")
-  expect(drawingInfoForLayer("Keys").drawingName).toBe("Keys")
+  expect(drawingInfoForLayer("Keys-MASS").drawingNo).toBe("3.3")
 })

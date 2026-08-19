@@ -3,13 +3,15 @@ import Decimal from "decimal.js"
 import { offsetLoop, unionRectsToLoop, unionRectsToLoops } from "./BackCutBuilder"
 
 export const KEYS_LAYER = "Keys"
+export const KEYS_MASS_LAYER = "Keys-MASS"
 
-/** Individual key corner, mass offset, mass rounding, and draw mode. */
 export const KEYS_DEFAULTS = {
   fillet: 1,
+}
+
+export const KEYS_MASS_DEFAULTS = {
   offset: 0,
   round: 1,
-  keysMode: "both",
 }
 
 function toNum(value, fallback = 0) {
@@ -31,12 +33,21 @@ function unitMm(generatorOptions, which) {
 
 export function resolveKeysSettings(layerOutlines) {
   const saved = (layerOutlines && layerOutlines.Keys) || {}
-  const mode = String(saved.keysMode || KEYS_DEFAULTS.keysMode).toLowerCase()
   return {
     fillet: toNum(saved.fillet, KEYS_DEFAULTS.fillet),
-    offset: toNum(saved.offset, KEYS_DEFAULTS.offset),
-    round: toNum(saved.round != null && saved.round !== "" ? saved.round : saved.massFillet, KEYS_DEFAULTS.round),
-    keysMode: mode === "combined" || mode === "individual" ? mode : "both",
+  }
+}
+
+export function resolveKeysMassSettings(layerOutlines) {
+  const mass = (layerOutlines && layerOutlines[KEYS_MASS_LAYER]) || {}
+  const legacy = (layerOutlines && layerOutlines.Keys) || {}
+  const offsetSrc = mass.offset != null && mass.offset !== "" ? mass.offset : legacy.offset
+  const roundSrc = mass.round != null && mass.round !== ""
+    ? mass.round
+    : (legacy.round != null && legacy.round !== "" ? legacy.round : legacy.massFillet)
+  return {
+    offset: toNum(offsetSrc, KEYS_MASS_DEFAULTS.offset),
+    round: toNum(roundSrc, KEYS_MASS_DEFAULTS.round),
   }
 }
 
@@ -162,9 +173,7 @@ function combinedGroupModel(keys, unitW, unitH, offset, round) {
 }
 
 /**
- * Layout outlines for every key (1U, 2U, ISO secondary, rotated clusters).
- * Size is the KLE unit cell. Optional fillet on each key; optional combined
- * mass (union + offset + rounding) for case design.
+ * Drawing 3.2: one filleted rectangle (or ISO L) per key.
  */
 export function buildKeyOutlines(keysArray, generatorOptions, layerName = KEYS_LAYER) {
   if (!keysArray || !keysArray.length) {
@@ -173,38 +182,40 @@ export function buildKeyOutlines(keysArray, generatorOptions, layerName = KEYS_L
   const unitW = unitMm(generatorOptions, "unitWidth")
   const unitH = unitMm(generatorOptions, "unitHeight")
   const settings = resolveKeysSettings(generatorOptions && generatorOptions.layerOutlines)
-  const wantIndividual = settings.keysMode !== "combined"
-  const wantCombined = settings.keysMode !== "individual"
   const canvas = { models: {}, layer: layerName }
+  keysArray.forEach((key, i) => {
+    canvas.models["K" + i] = individualKeyModel(key, unitW, unitH, settings.fillet)
+  })
+  return applyLayer(canvas, layerName)
+}
 
-  if (wantIndividual) {
-    const individual = { models: {} }
-    keysArray.forEach((key, i) => {
-      individual.models["K" + i] = individualKeyModel(key, unitW, unitH, settings.fillet)
-    })
-    canvas.models.Individual = individual
+/**
+ * Drawing 3.3: union of touching keys, then offset and round, for case design.
+ */
+export function buildKeyMass(keysArray, generatorOptions, layerName = KEYS_MASS_LAYER) {
+  if (!keysArray || !keysArray.length) {
+    return null
   }
-
-  if (wantCombined) {
-    const groups = new Map()
-    for (const key of keysArray) {
-      const id = rotationKey(key)
-      if (!groups.has(id)) groups.set(id, [])
-      groups.get(id).push(key)
-    }
-    const combined = { models: {} }
-    let g = 0
-    for (const group of groups.values()) {
-      const island = combinedGroupModel(group, unitW, unitH, settings.offset, settings.round)
-      if (island) {
-        combined.models["G" + g] = island
-        g += 1
-      }
-    }
-    if (Object.keys(combined.models).length) {
-      canvas.models.Combined = combined
+  const unitW = unitMm(generatorOptions, "unitWidth")
+  const unitH = unitMm(generatorOptions, "unitHeight")
+  const settings = resolveKeysMassSettings(generatorOptions && generatorOptions.layerOutlines)
+  const groups = new Map()
+  for (const key of keysArray) {
+    const id = rotationKey(key)
+    if (!groups.has(id)) groups.set(id, [])
+    groups.get(id).push(key)
+  }
+  const canvas = { models: {}, layer: layerName }
+  let g = 0
+  for (const group of groups.values()) {
+    const island = combinedGroupModel(group, unitW, unitH, settings.offset, settings.round)
+    if (island) {
+      canvas.models["G" + g] = island
+      g += 1
     }
   }
-
+  if (!Object.keys(canvas.models).length) {
+    return null
+  }
   return applyLayer(canvas, layerName)
 }

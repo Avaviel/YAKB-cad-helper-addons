@@ -16,7 +16,7 @@ import {
   familyForCutoutType,
 } from "./otherPartsConfig"
 import { backCutDefaultsForFamily } from "./BackCutBuilder"
-import { KEYS_DEFAULTS } from "./KeyOutlineBuilder"
+import { KEYS_DEFAULTS, KEYS_MASS_DEFAULTS } from "./KeyOutlineBuilder"
 import { todayISODate } from "./TitleBlockBuilder"
 import {
   buildExportAssembly,
@@ -569,7 +569,7 @@ function App() {
                 />
                 <Form.Text className="text-muted d-block mb-3">
                   Saved as KLE <code>name</code>, <code>_titleBlock</code>, and <code>_yakb</code> (cutouts, Choc spacing, fillets, stamps).
-                  Copy / Paste carries those settings. Drawing No. is set by layer (1.1–3.2).
+                  Copy / Paste carries those settings. Drawing No. is set by layer (1.1–3.3).
                   Cut / Extrude and the amount live on each drawing&apos;s own title block.
                   The Notes field here prints only on the overall title block. Each drawing uses its section note.
                 </Form.Text>
@@ -885,6 +885,7 @@ function App() {
                   { title: "Link", svg: exportOutput?.previewLink },
                   { title: "Shell", svg: exportOutput?.previewShell },
                   { title: "Keys", svg: exportOutput?.previewKeys },
+                  { title: "Keys-MASS", svg: exportOutput?.previewKeysMass },
                 ]
               : (exportOutput?.previewEach || [])
             ).map(pane => (
@@ -933,8 +934,8 @@ function App() {
                 <strong> Top-*</strong> = switch plate, dots, back cut;
                 <strong> Link-*</strong> = hotswap and hole cuts;
                 <strong> Shell</strong> = case outline (offset from the plate, then from itself);
-                <strong> Keys</strong> = 1U / 2U / … key rectangles (drawing 3.2), overlaid on the plate,
-                with a combined mass for case design.
+                <strong> Keys</strong> = 1U / 2U key rectangles (drawing 3.2);
+                <strong> Keys-MASS</strong> = combined key blob for case design (drawing 3.3).
               </p>
               <Form className="ms-3 me-3 text-start">
                 <Row>
@@ -1019,8 +1020,8 @@ function App() {
                     Cut / Extrude plus the amount print in that drawing&apos;s title block (same DXF layer as the drawing).
                     The note box is that drawing&apos;s title-block NOTES (not cut/extrude). The overall title block uses the Notes field above.
                     Top-Dots are optional support bosses (H in the column webs). Uncheck Include Top-Dots to omit that layer.
-                    Keys (drawing 3.2) is the 1U / 2U layout rectangles over the plate, with an optional
-                    combined mass for case design.
+                    Keys (3.2) is each key rectangle; Keys-MASS (3.3) is the combined blob for case design.
+                    Both always export.
                   </p>
                   {(exportAssembly.layerGroups || []).map(group => (
                     <div key={group.group} className="mb-4">
@@ -1114,21 +1115,7 @@ function App() {
                           ) : layer.outlineKind === "keys" ? (
                             <>
                             <Row className="g-2 mb-2">
-                              <Col md={12}>
-                                <Form.Label className="mb-1">Draw</Form.Label>
-                                <Form.Select
-                                  value={outlineField(layer.id, "keysMode", KEYS_DEFAULTS.keysMode)}
-                                  onChange={e => handleLayerOutlineChange(layer.id, "keysMode", e.target.value)}
-                                  aria-label={`${layer.id}-keys-mode`}
-                                >
-                                  <option value="both">Both</option>
-                                  <option value="individual">Individual keys</option>
-                                  <option value="combined">Combined mass</option>
-                                </Form.Select>
-                              </Col>
-                            </Row>
-                            <Row className="g-2 mb-2">
-                              <Col md={4}>
+                              <Col md={6}>
                                 <Form.Label className="mb-1">Key fillet (mm)</Form.Label>
                                 <Form.Control
                                   type="number"
@@ -1138,32 +1125,39 @@ function App() {
                                   aria-label={`${layer.id}-fillet`}
                                 />
                               </Col>
-                              <Col md={4}>
-                                <Form.Label className="mb-1">Mass offset (mm)</Form.Label>
+                            </Row>
+                            <Form.Text className="text-muted d-block mb-2">
+                              Each key is the layout cell (1U = unit × unit) with a corner fillet
+                              (default 1 mm, typical keycap). Always exported as drawing 3.2.
+                            </Form.Text>
+                            </>
+                          ) : layer.outlineKind === "keys-mass" ? (
+                            <>
+                            <Row className="g-2 mb-2">
+                              <Col md={6}>
+                                <Form.Label className="mb-1">Offset (mm)</Form.Label>
                                 <Form.Control
                                   type="number"
                                   step="0.1"
-                                  value={outlineField(layer.id, "offset", KEYS_DEFAULTS.offset)}
+                                  value={outlineField(layer.id, "offset", KEYS_MASS_DEFAULTS.offset)}
                                   onChange={e => handleLayerOutlineChange(layer.id, "offset", e.target.value)}
                                   aria-label={`${layer.id}-offset`}
                                 />
                               </Col>
-                              <Col md={4}>
-                                <Form.Label className="mb-1">Mass rounding (mm)</Form.Label>
+                              <Col md={6}>
+                                <Form.Label className="mb-1">Rounding (mm)</Form.Label>
                                 <Form.Control
                                   type="number"
                                   step="0.1"
-                                  value={outlineField(layer.id, "round", KEYS_DEFAULTS.round)}
+                                  value={outlineField(layer.id, "round", KEYS_MASS_DEFAULTS.round)}
                                   onChange={e => handleLayerOutlineChange(layer.id, "round", e.target.value)}
                                   aria-label={`${layer.id}-round`}
                                 />
                               </Col>
                             </Row>
                             <Form.Text className="text-muted d-block mb-2">
-                              Each key is the layout cell (1U = unit × unit) with a corner fillet
-                              (default 1 mm, same as KLE&apos;s mm keycap). Combined unions touching
-                              keys into a solid for case design, then expands by mass offset and
-                              rounds the outer corners. Split islands stay separate blobs.
+                              Union of touching keys, then offset and round, for case design.
+                              Split islands stay separate blobs. Always exported as drawing 3.3.
                             </Form.Text>
                             </>
                           ) : layer.outlineKind === "dots" ? (

@@ -17,7 +17,7 @@ import { defaultShellFromPlate, defaultShellFromSelf, layerFeatureDefault } from
 import { buildBackCutPart } from './BackCutBuilder'
 import { clusterMergeCircles, isKeyStaggered, stripTopStampCircles } from './overkill'
 import { buildPlacedDots } from './DotsBuilder'
-import { buildKeyOutlines, KEYS_LAYER } from './KeyOutlineBuilder'
+import { buildKeyOutlines, buildKeyMass, KEYS_LAYER, KEYS_MASS_LAYER } from './KeyOutlineBuilder'
 
 /**
  * Convert a stamp JSON document into a maker.js model.
@@ -299,6 +299,10 @@ export function buildExportAssembly(assembly, keysArray, generatorOptions, mainP
   if (keyOutlines) {
     canvas.models.Keys = keyOutlines
   }
+  const keyMass = buildKeyMass(keysArray, generatorOptions, KEYS_MASS_LAYER)
+  if (keyMass) {
+    canvas.models.KeysMass = keyMass
+  }
   applyLayerNotes(
     canvas,
     generatorOptions && generatorOptions.layerNotes,
@@ -319,6 +323,7 @@ const assemblyModelOrder = [
   "LinkHotswap",
   "Shell",
   "Keys",
+  "KeysMass",
   "TitleBlock",
 ]
 
@@ -366,6 +371,9 @@ function layerSortRank(name) {
   }
   if (base.indexOf("Shell") === 0) {
     return 60
+  }
+  if (base === "Keys-MASS" || base.indexOf("Keys-MASS") === 0) {
+    return 66
   }
   if (base === "Keys" || base.indexOf("Key") === 0) {
     return 65
@@ -571,6 +579,7 @@ function layerNameForModel(key, model) {
   if (key === "LinkHotswap") return "Link-MX_HOTSWAP"
   if (key === "Shell") return "Shell"
   if (key === "Keys") return KEYS_LAYER
+  if (key === "KeysMass") return KEYS_MASS_LAYER
   return key
 }
 
@@ -585,6 +594,7 @@ function outlineIdCandidates(key, model) {
   if (key === "LinkHotswap") ids.push("Link-MX_HOTSWAP", "Link-CHOC_HOTSWAP")
   if (key === "Shell") ids.push("Shell")
   if (key === "Keys") ids.push(KEYS_LAYER)
+  if (key === "KeysMass") ids.push(KEYS_MASS_LAYER)
   if (base && ids.indexOf(base) < 0) ids.push(base)
   if (/HOTSWAP/i.test(base) || /^Link-CHOC/i.test(base)) {
     if (ids.indexOf("Link-MX_HOTSWAP") < 0) ids.push("Link-MX_HOTSWAP")
@@ -751,6 +761,7 @@ const previewGroupKeys = {
   link: ["LinkHotswap", "LinkHoleCuts"],
   shell: ["Shell"],
   keys: ["Keys"],
+  mass: ["KeysMass"],
 }
 
 /** One preview pane per top-level export model, in export order. */
@@ -806,11 +817,12 @@ export function decorateAndExport(model, generatorOptions) {
   const next = makerjs.model.clone(model)
   attachTitleBlock(next, generatorOptions)
   const exported = exportOtherPart(next)
-  const together = exportOtherPart(previewSubset(next, ["top", "link", "shell", "keys"]))
+  const together = exportOtherPart(previewSubset(next, ["top", "link", "shell", "keys", "mass"]))
   const topOnly = exportOtherPart(previewSubset(next, ["top"]))
   const shellOnly = exportOtherPart(previewSubset(next, ["shell"]))
   const keysOnly = exportOtherPart(previewSubset(next, ["keys"]))
-  const topShell = exportOtherPart(previewSubset(next, ["top", "shell", "keys"]))
+  const massOnly = exportOtherPart(previewSubset(next, ["mass"]))
+  const topShell = exportOtherPart(previewSubset(next, ["top", "shell", "keys", "mass"]))
   const linkOnly = exportOtherPart(previewSubset(next, ["link"]))
   return {
     ...(exported || {}),
@@ -818,6 +830,7 @@ export function decorateAndExport(model, generatorOptions) {
     previewTop: topOnly && topOnly.previewSvg,
     previewShell: shellOnly && shellOnly.previewSvg,
     previewKeys: keysOnly && keysOnly.previewSvg,
+    previewKeysMass: massOnly && massOnly.previewSvg,
     previewTopShell: topShell && topShell.previewSvg,
     previewLink: linkOnly && linkOnly.previewSvg,
     previewEach: previewLayerPanes(next),

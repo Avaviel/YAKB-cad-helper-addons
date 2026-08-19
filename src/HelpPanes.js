@@ -58,9 +58,8 @@ export function DataHelpPane() {
                 Outline offset and rounding in mm. Only <code>Top-SWITCH_PLATE</code> and
                 {' '}<code>Link-HOLE_CUTS</code> carry a part outline. Shell uses
                 {' '}<code>fromPlate</code> (default 0.5) then <code>fromSelf</code> (default 5).
-                {' '}<code>Keys</code> is drawing 3.2: 1U / 2U key rectangles (
-                {' '}<code>fillet</code> on each key, <code>keysMode</code> individual/combined/both,
-                {' '}<code>offset</code> + <code>round</code> on the combined mass).
+                {' '}<code>Keys</code> is drawing 3.2 (1U / 2U rectangles, <code>fillet</code>).
+                {' '}<code>Keys-MASS</code> is drawing 3.3 (combined blob, <code>offset</code> + <code>round</code>).
                 {' '}<code>op</code> is <code>cut</code> or <code>extrude</code> (either/or);
                 {' '}<code>opMm</code> is the amount in mm. Both print in that drawing&apos;s title block.
             </p>
