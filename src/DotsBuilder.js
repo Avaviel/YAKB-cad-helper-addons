@@ -11,7 +11,7 @@ export const X_HALF_MM = 9.525
 export const STAGGER_DOWN_Y_MM = -5.25
 /** 19.05 - 5.25: same as the key above's y = -5.25. */
 export const STAGGER_ABOVE_Y_MM = 13.8
-/** Clearance from the stab through-cut outline (below and to each side). */
+/** Clearance from the back-cut outline around each stab (below and to each side). */
 export const STAB_CLEAR_MM = 1.7
 
 function toNum(value) {
@@ -84,9 +84,9 @@ function addStabRing(pts, cx, housing, gap) {
  * at y=+13.8. Cluster-merge collapses extras.
  * 1U with a staggered row below (number row over QWERTY): keep the ortho
  * top pair, drop the bottom X so it does not land on Q/W/E.
- * Stab keys: around each housing, 1.7 mm outside the through-cut
- * (below, left, right) and the same trio mirrored across that housing
- * so vertical + / Enter get both sides. No extra mirror across the switch.
+ * Stab keys: around each housing, 1.7 mm outside the BACK-CUT outline
+ * (housing + back-cut offset), below/left/right, mirrored across that
+ * housing so vertical + / Enter get both sides.
  */
 export function keyDotLocals(key, keysArray, generatorOptions) {
   const unitW = unitMm(generatorOptions, "unitWidth")
@@ -103,9 +103,16 @@ export function keyDotLocals(key, keysArray, generatorOptions) {
   if (keyHasStabs(key)) {
     const spacing = mxStabSpacing(key)
     const housing = mxStabHousing(generatorOptions && generatorOptions.stabilizerCutoutType)
+    const bc = resolveBackCutSettings(
+      generatorOptions && generatorOptions.layerOutlines,
+      generatorOptions && generatorOptions.stampFamilyId,
+      generatorOptions && generatorOptions.switchFilletRadius,
+      generatorOptions && generatorOptions.stabilizerFilletRadius
+    )
+    const gap = (Number(bc.offset) || 1) + STAB_CLEAR_MM
     if (spacing) {
-      addStabRing(pts, -spacing.left, housing, STAB_CLEAR_MM)
-      addStabRing(pts, spacing.right, housing, STAB_CLEAR_MM)
+      addStabRing(pts, -spacing.left, housing, gap)
+      addStabRing(pts, spacing.right, housing, gap)
     }
   } else if (staggered) {
     pts.push({ x: -halfU, y: STAGGER_DOWN_Y_MM })
@@ -148,10 +155,91 @@ export function keyDotWorld(key, keysArray, generatorOptions) {
 }
 
 export function diskHitsKeepout(x, y, radius, loops) {
+  const r = radius == null ? 0 : Number(radius)
   for (const loop of loops || []) {
     if (pointInLoop(x, y, loop)) return true
+    if (r > 0 && distToLoop(x, y, loop) < r) return true
   }
   return false
+}
+
+function distToSegment(px, py, ax, ay, bx, by) {
+  const dx = bx - ax
+  const dy = by - ay
+  const len2 = dx * dx + dy * dy
+  if (len2 < 1e-18) return Math.hypot(px - ax, py - ay)
+  let t = ((px - ax) * dx + (py - ay) * dy) / len2
+  t = Math.max(0, Math.min(1, t))
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+}
+
+function distToLoop(x, y, loop) {
+  let d = Infinity
+  for (let i = 0; i < loop.length; i++) {
+    const a = loop[i]
+    const b = loop[(i + 1) % loop.length]
+    d = Math.min(d, distToSegment(x, y, a.x, a.y, b.x, b.y))
+  }
+  return d
+}
+
+function distToPath(px, py, path) {
+  if (!path) return Infinity
+  if (path.type === "line" && path.origin && path.end) {
+    return distToSegment(px, py, path.origin[0], path.origin[1], path.end[0], path.end[1])
+  }
+  if ((path.type === "circle" || path.type === "arc") && path.origin && path.radius != null) {
+    const dx = px - path.origin[0]
+    const dy = py - path.origin[1]
+    const dist = Math.hypot(dx, dy)
+    if (path.type === "circle") {
+      return Math.abs(dist - path.radius)
+    }
+    const ang = (Math.atan2(dy, dx) * 180) / Math.PI
+    const a0 = path.startAngle
+    const a1 = path.endAngle
+    const norm = a => {
+      let x = a % 360
+      if (x < 0) x += 360
+      return x
+    }
+    const n = norm(ang)
+    const s = norm(a0)
+    const e = norm(a1)
+    const inArc = s <= e ? n >= s && n <= e : n >= s || n <= e
+    if (inArc) return Math.abs(dist - path.radius)
+    const p0 = [
+      path.origin[0] + path.radius * Math.cos((a0 * Math.PI) / 180),
+      path.origin[1] + path.radius * Math.sin((a0 * Math.PI) / 180),
+    ]
+    const p1 = [
+      path.origin[0] + path.radius * Math.cos((a1 * Math.PI) / 180),
+      path.origin[1] + path.radius * Math.sin((a1 * Math.PI) / 180),
+    ]
+    return Math.min(Math.hypot(px - p0[0], py - p0[1]), Math.hypot(px - p1[0], py - p1[1]))
+  }
+  return Infinity
+}
+
+/** True if the peg centre is in the back-cut or the 1.5 mm disk nicks it. */
+export function dotHitsBackCut(x, y, backCutModel, radius = DOT_RADIUS_MM) {
+  if (!backCutModel) return false
+  const copy = makerjs.model.clone(backCutModel)
+  makerjs.model.originate(copy)
+  if (makerjs.measure.isPointInsideModel([x, y], copy)) {
+    return true
+  }
+  let hit = false
+  const r = radius == null ? DOT_RADIUS_MM : Number(radius)
+  makerjs.model.walk(copy, {
+    onPath: walked => {
+      if (hit) return
+      if (distToPath(x, y, walked.pathContext) < r) {
+        hit = true
+      }
+    },
+  })
+  return hit
 }
 
 function pointInLoop(x, y, loop) {
@@ -270,22 +358,25 @@ function backCutBoxLoops(keysArray, generatorOptions) {
 }
 
 /**
- * Place pegs, then drop any whose centre sits inside the back-cut
- * (switch or stab housing boxes, plus traced loops) or outside the plate outline.
+ * Place pegs, then drop any that sit in / nick the back-cut, or lie
+ * outside the plate outline.
  */
 export function buildPlacedDots(keysArray, generatorOptions, layerName, backCutModel) {
   if (!keysArray || !keysArray.length) {
     return null
   }
-  const keepouts = modelToLoops(backCutModel).concat(backCutBoxLoops(keysArray, generatorOptions))
+  const boxKeepouts = backCutBoxLoops(keysArray, generatorOptions)
   const plate = plateLoopsFromOptions(generatorOptions)
   const points = []
   for (const key of keysArray) {
     for (const p of keyDotWorld(key, keysArray, generatorOptions)) {
-      if (keepouts.length && diskHitsKeepout(p.x, p.y, DOT_RADIUS_MM, keepouts)) {
+      if (dotHitsBackCut(p.x, p.y, backCutModel, DOT_RADIUS_MM)) {
         continue
       }
-      if (plate.length && !diskHitsKeepout(p.x, p.y, DOT_RADIUS_MM, plate)) {
+      if (boxKeepouts.length && diskHitsKeepout(p.x, p.y, DOT_RADIUS_MM, boxKeepouts)) {
+        continue
+      }
+      if (plate.length && !pointInAnyLoop(p.x, p.y, plate)) {
         continue
       }
       points.push(p)
@@ -295,4 +386,11 @@ export function buildPlacedDots(keysArray, generatorOptions, layerName, backCutM
     return null
   }
   return circlesModel(points, layerName || "Top-Dots")
+}
+
+function pointInAnyLoop(x, y, loops) {
+  for (const loop of loops || []) {
+    if (pointInLoop(x, y, loop)) return true
+  }
+  return false
 }

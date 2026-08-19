@@ -6,6 +6,7 @@ import {
   keyDotLocals,
   mxStabSpacing,
   mxStabHousing,
+  dotHitsBackCut,
   STAB_CLEAR_MM,
   STAGGER_DOWN_Y_MM,
   STAGGER_ABOVE_Y_MM,
@@ -61,13 +62,14 @@ test("staggered 1U is ±9.525 at y=-5.25 plus centre at y=+13.8", () => {
   expect(up[0].x).toBeCloseTo(0, 5)
 })
 
-test("2U mx-small: 1.7 mm outside each housing, mirrored on the housing", () => {
+test("2U mx-small: 1.7 mm outside the back-cut, mirrored on the housing", () => {
   const key = fakeKey({ x: 0, y: 0, w: 2, h: 1 })
   expect(mxStabSpacing(key)).toEqual({ left: 11.938, right: 11.938 })
   const h = mxStabHousing("mx-small")
-  const yBelow = h.minY - STAB_CLEAR_MM
-  const yAbove = h.maxY + STAB_CLEAR_MM
-  const side = h.halfW + STAB_CLEAR_MM
+  const gap = 1 + STAB_CLEAR_MM
+  const yBelow = h.minY - gap
+  const yAbove = h.maxY + gap
+  const side = h.halfW + gap
   const pts = keyDotLocals(key, [key], MX_SMALL)
   expect(pts).toHaveLength(12)
   const below = pts.filter(p => Math.abs(p.y - yBelow) < 1e-6)
@@ -88,7 +90,7 @@ test("vertical 2U rotates the housing rings to both sides (no switch-center mirr
   expect(pts.some(p => p.x < -0.1)).toBe(true)
 })
 
-test("placed 2U dots sit 1.7 mm below the housing and not in the pocket", () => {
+test("placed 2U dots sit 1.7 mm outside the back-cut; in-pocket centres die", () => {
   const key = fakeKey({ x: 0, y: 0, w: 2, h: 1 })
   const opts = {
     ...MX_SMALL,
@@ -99,16 +101,18 @@ test("placed 2U dots sit 1.7 mm below the housing and not in the pocket", () => 
     stampFamilyId: "mx",
   }
   const back = buildBackCutPart([key], opts, "Top-BACK_CUT")
+  const ox = 19.05
+  const oy = -9.525
+  expect(dotHitsBackCut(ox, oy, back)).toBe(true)
+  expect(dotHitsBackCut(ox + 11.938, oy, back)).toBe(true)
   const model = buildPlacedDots([key], opts, "Top-Dots", back)
   expect(model).toBeTruthy()
   const circles = Object.values(model.paths)
-  const ox = 19.05
-  const oy = -9.525
   const inHousing = circles.some(c =>
     Math.hypot(c.origin[0] - (ox + 11.938), c.origin[1] - oy) < 2
   )
   expect(inHousing).toBe(false)
-  const yBelow = oy + (-8 - STAB_CLEAR_MM)
+  const yBelow = oy + (-8 - 1 - STAB_CLEAR_MM)
   const under = circles.filter(c => Math.abs(c.origin[1] - yBelow) < 0.4)
   expect(under.length).toBeGreaterThanOrEqual(1)
 })
