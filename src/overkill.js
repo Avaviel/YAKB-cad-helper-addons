@@ -163,6 +163,9 @@ function toNum(value) {
   return Number(value)
 }
 
+/** Need this much shared width (U) before a seam neighbour counts as stagger. */
+export const STAGGER_OVERLAP_U = 0.15
+
 function sharesColumn(key, other) {
   const myLeft = toNum(key.x)
   const myRight = myLeft + toNum(key.width)
@@ -173,9 +176,22 @@ function sharesColumn(key, other) {
   return Math.abs(left - myLeft) < 0.1 || Math.abs(right - myRight) < 0.1 || Math.abs(cx - myCx) < 0.1
 }
 
+function horizontalOverlapU(key, other) {
+  const myLeft = toNum(key.x)
+  const myRight = myLeft + toNum(key.width)
+  const left = toNum(other.x)
+  const right = left + toNum(other.width)
+  return Math.min(myRight, right) - Math.max(myLeft, left)
+}
+
 /**
- * True when this key sits on a seam under another row and does not share a
- * left edge, right edge, or centre with any key above (Q under 1/2, Z under A).
+ * True when this key sits on a seam under another row, the two bodies overlap
+ * horizontally, and they do not share a left edge, right edge, or centre
+ * (Q under 1/2, Z under A).
+ *
+ * A neighbour that only touches a corner or sits in the next column does not
+ * count: inverted-T arrows (← vs ↑) and a 2×3 nav block beside the alpha
+ * block stay ortho four-X.
  */
 export function isKeyStaggered(key, keysArray, seamU = 0.2) {
   if (!key || !keysArray || !keysArray.length) {
@@ -185,7 +201,8 @@ export function isKeyStaggered(key, keysArray, seamU = 0.2) {
   const above = keysArray.filter(other => {
     if (other === key) return false
     const bottom = toNum(other.y) + toNum(other.height)
-    return Math.abs(bottom - myTop) < seamU
+    if (Math.abs(bottom - myTop) >= seamU) return false
+    return horizontalOverlapU(key, other) > STAGGER_OVERLAP_U
   })
   if (!above.length) {
     return false
@@ -194,9 +211,12 @@ export function isKeyStaggered(key, keysArray, seamU = 0.2) {
 }
 
 /**
- * True when a row below is on this key's bottom seam and does not line up.
- * Number-row X bottoms land on QWERTY; those keys need this so we drop
- * the bottom pair and keep the ortho tops.
+ * True when a row below is on this key's bottom seam, overlaps it, and does
+ * not line up. Number-row X bottoms land on QWERTY; those keys need this so
+ * we drop the bottom pair and keep the ortho tops.
+ *
+ * The empty TKL row under Ins/Del does not count: Return sits on that seam
+ * but does not overlap the nav keys, so the 2×3 stays ortho.
  */
 export function isKeyStaggeredBelow(key, keysArray, seamU = 0.2) {
   if (!key || !keysArray || !keysArray.length) {
@@ -205,7 +225,8 @@ export function isKeyStaggeredBelow(key, keysArray, seamU = 0.2) {
   const myBottom = toNum(key.y) + toNum(key.height)
   const below = keysArray.filter(other => {
     if (other === key) return false
-    return Math.abs(toNum(other.y) - myBottom) < seamU
+    if (Math.abs(toNum(other.y) - myBottom) >= seamU) return false
+    return horizontalOverlapU(key, other) > STAGGER_OVERLAP_U
   })
   if (!below.length) {
     return false

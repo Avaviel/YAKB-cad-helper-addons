@@ -63,6 +63,33 @@ test("staggered 1U is ±9.525 at y=-5.25 plus centre at y=+13.8", () => {
   expect(up[0].x).toBeCloseTo(0, 5)
 })
 
+test("inverted-T side arrows keep four X corners, not the stagger triple", () => {
+  const up = fakeKey({ x: 1, y: 0, w: 1, h: 1 })
+  const left = fakeKey({ x: 0, y: 1, w: 1, h: 1 })
+  const down = fakeKey({ x: 1, y: 1, w: 1, h: 1 })
+  const right = fakeKey({ x: 2, y: 1, w: 1, h: 1 })
+  const all = [up, left, down, right]
+  for (const key of all) {
+    const pts = keyDotLocals(key, all, MX)
+    expect(pts).toHaveLength(4)
+    expect(pts.every(p => Math.abs(Math.abs(p.x) - 9.525) < 1e-6)).toBe(true)
+    expect(pts.every(p => Math.abs(Math.abs(p.y) - 9.525) < 1e-6)).toBe(true)
+  }
+})
+
+test("2x3 nav over an empty TKL row keeps four X, including bottoms", () => {
+  const top = fakeKey({ x: 19.75, y: 0.5, w: 1, h: 1 })
+  const mid = fakeKey({ x: 19.75, y: 1.5, w: 1, h: 1 })
+  const ret = fakeKey({ x: 16.75, y: 2.5, w: 2.25, h: 1 })
+  const all = [top, mid, ret]
+  const topPts = keyDotLocals(top, all, MX)
+  const midPts = keyDotLocals(mid, all, MX)
+  expect(topPts).toHaveLength(4)
+  expect(midPts).toHaveLength(4)
+  expect(topPts.some(p => p.y < 0)).toBe(true)
+  expect(midPts.some(p => p.y < 0)).toBe(true)
+})
+
 test("2U mx-small: below-dots 1.7 mm from back-cut; outers at ±4 mm from stab centre", () => {
   const key = fakeKey({ x: 0, y: 0, w: 2, h: 1 })
   expect(mxStabSpacing(key)).toEqual({ left: 11.938, right: 11.938 })
