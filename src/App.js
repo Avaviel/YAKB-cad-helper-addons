@@ -1105,9 +1105,10 @@ function App() {
                             <Form.Text className="text-muted d-block mb-2">
                               1U: four corners. Staggered 1U (Q under numbers): a pair 5.25 mm below
                               centre and one boss 13.8 mm above. The row above keeps its ortho tops
-                              and drops the bottoms that would land on QWERTY. Stab keys: under each
-                              housing plus an outboard pair; vertical + / Enter mirrors to both sides.
-                              Overlapping pegs merge. A peg whose centre sits in the back-cut is deleted.
+                              and drops the bottoms that would land on QWERTY. Stab keys: 1.7 mm
+                              outside each housing (below / left / right), mirrored across that
+                              housing — not the switch. Dots whose centre is in the back-cut or
+                              outside the plate outline are removed. Overlapping pegs merge.
                             </Form.Text>
                           ) : layer.outlineKind === "plate" ? (
                             <Row className="g-2 mb-2">

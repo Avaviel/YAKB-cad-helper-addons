@@ -1,6 +1,8 @@
 import makerjs from "makerjs"
 import Decimal from "decimal.js"
 import { isKeyStaggered, isKeyStaggeredBelow } from "./overkill"
+import { buildOutlineModel, zoneOutlineDefaults } from "./PlateBuilder"
+import { resolveBackCutSettings } from "./BackCutBuilder"
 
 export const DOT_RADIUS_MM = 1.5
 /** 1U X corners: half of 19.05. */
@@ -9,13 +11,8 @@ export const X_HALF_MM = 9.525
 export const STAGGER_DOWN_Y_MM = -5.25
 /** 19.05 - 5.25: same as the key above's y = -5.25. */
 export const STAGGER_ABOVE_Y_MM = 13.8
-/** Under each stab housing, below the switch centre. */
-export const STAB_BELOW_Y_MM = -12.5
-/** Outboard pair, slightly below centre. */
-export const STAB_OUTBOARD_Y_MM = -5
-/** Outside the stab housing (2U: 11.938 + 3.5 + 4.1 ≈ 19.5). */
-export const STAB_OUTBOARD_FROM_HOUSING_MM = 4.1
-const MX_HOUSING_HALF_MM = 3.5
+/** Clearance from the stab through-cut outline (below and to each side). */
+export const STAB_CLEAR_MM = 1.7
 
 function toNum(value) {
   if (value == null) return 0
@@ -56,6 +53,29 @@ export function mxStabSpacing(key) {
   return { left: 11.938, right: 11.938 }
 }
 
+/** Stab housing box in switch-local mm (same numbers as the cutout generators). */
+export function mxStabHousing(stabType) {
+  if (stabType === "mx-small") {
+    return { halfW: 3.375, minY: -8, maxY: 6 }
+  }
+  if (stabType === "mx-spec") {
+    return { halfW: 3.327, minY: -7.772, maxY: 5.69 }
+  }
+  return { halfW: 3.5, minY: -9, maxY: 6 }
+}
+
+function addStabRing(pts, cx, housing, gap) {
+  const yBelow = housing.minY - gap
+  const yAbove = housing.maxY + gap
+  const side = housing.halfW + gap
+  pts.push({ x: cx, y: yBelow })
+  pts.push({ x: cx - side, y: yBelow })
+  pts.push({ x: cx + side, y: yBelow })
+  pts.push({ x: cx, y: yAbove })
+  pts.push({ x: cx - side, y: yAbove })
+  pts.push({ x: cx + side, y: yAbove })
+}
+
 /**
  * Key-local millimetres, switch at origin, +Y up (stamp space).
  *
@@ -64,9 +84,9 @@ export function mxStabSpacing(key) {
  * at y=+13.8. Cluster-merge collapses extras.
  * 1U with a staggered row below (number row over QWERTY): keep the ortho
  * top pair, drop the bottom X so it does not land on Q/W/E.
- * Stab keys: one boss under each housing at y=-12.5, plus an outboard
- * pair at y=-5. Vertical 2U (+, numpad Enter) mirrors that set so both
- * sides of the key get bosses.
+ * Stab keys: around each housing, 1.7 mm outside the through-cut
+ * (below, left, right) and the same trio mirrored across that housing
+ * so vertical + / Enter get both sides. No extra mirror across the switch.
  */
 export function keyDotLocals(key, keysArray, generatorOptions) {
   const unitW = unitMm(generatorOptions, "unitWidth")
@@ -82,13 +102,10 @@ export function keyDotLocals(key, keysArray, generatorOptions) {
 
   if (keyHasStabs(key)) {
     const spacing = mxStabSpacing(key)
+    const housing = mxStabHousing(generatorOptions && generatorOptions.stabilizerCutoutType)
     if (spacing) {
-      pts.push({ x: -spacing.left, y: STAB_BELOW_Y_MM })
-      pts.push({ x: spacing.right, y: STAB_BELOW_Y_MM })
-      const outL = spacing.left + MX_HOUSING_HALF_MM + STAB_OUTBOARD_FROM_HOUSING_MM
-      const outR = spacing.right + MX_HOUSING_HALF_MM + STAB_OUTBOARD_FROM_HOUSING_MM
-      pts.push({ x: -outL, y: STAB_OUTBOARD_Y_MM })
-      pts.push({ x: outR, y: STAB_OUTBOARD_Y_MM })
+      addStabRing(pts, -spacing.left, housing, STAB_CLEAR_MM)
+      addStabRing(pts, spacing.right, housing, STAB_CLEAR_MM)
     }
   } else if (staggered) {
     pts.push({ x: -halfU, y: STAGGER_DOWN_Y_MM })
@@ -105,11 +122,7 @@ export function keyDotLocals(key, keysArray, generatorOptions) {
   }
 
   if (swapped) {
-    const rotated = pts.map(p => ({ x: p.y, y: -p.x }))
-    if (keyHasStabs(key)) {
-      return rotated.concat(rotated.map(p => ({ x: -p.x, y: p.y })))
-    }
-    return rotated
+    return pts.map(p => ({ x: p.y, y: -p.x }))
   }
   return pts
 }
@@ -186,19 +199,93 @@ function circlesModel(points, layerName, radius = DOT_RADIUS_MM) {
   return { paths, layer: layerName }
 }
 
+function plateLoopsFromOptions(generatorOptions) {
+  const outlines = (generatorOptions && generatorOptions.outlines) || []
+  if (!outlines.length) return []
+  const saved = ((generatorOptions.layerOutlines || {})["Top-SWITCH_PLATE"]) || {}
+  const defaults = zoneOutlineDefaults(outlines)
+  const offset = saved.offset != null && saved.offset !== "" ? Number(saved.offset) : defaults.offset
+  const fillet = saved.fillet != null && saved.fillet !== "" ? Number(saved.fillet) : defaults.fillet
+  const model = buildOutlineModel(outlines, generatorOptions, {
+    offset: Number.isFinite(offset) ? offset : defaults.offset,
+    fillet: Number.isFinite(fillet) ? fillet : defaults.fillet,
+  })
+  return modelToLoops(model)
+}
+
+function rectLoop(minX, minY, maxX, maxY) {
+  return [
+    { x: minX, y: maxY },
+    { x: maxX, y: maxY },
+    { x: maxX, y: minY },
+    { x: minX, y: minY },
+  ]
+}
+
+function worldLoop(loop, ox, oy, angle) {
+  return loop.map(p => {
+    const r = rotatePt(p, angle)
+    return { x: r.x + ox, y: r.y + oy }
+  })
+}
+
+function backCutBoxLoops(keysArray, generatorOptions) {
+  const settings = resolveBackCutSettings(
+    generatorOptions && generatorOptions.layerOutlines,
+    generatorOptions && generatorOptions.stampFamilyId,
+    generatorOptions && generatorOptions.switchFilletRadius,
+    generatorOptions && generatorOptions.stabilizerFilletRadius
+  )
+  const off = Number(settings.offset) || 1
+  const housing = mxStabHousing(generatorOptions && generatorOptions.stabilizerCutoutType)
+  const unitW = unitMm(generatorOptions, "unitWidth")
+  const unitH = unitMm(generatorOptions, "unitHeight")
+  const loops = []
+  for (const key of keysArray || []) {
+    const ox = toNum(key.centerX) * unitW
+    const oy = toNum(key.centerY) * unitH * -1
+    const angle = -(toNum(key.angle) + toNum(key.independentSwitchAngle))
+    const swapped = !!(key && !key.skipOrientationFix && toNum(key.height) > toNum(key.width))
+    const local = []
+    local.push(rectLoop(-7 - off, -7 - off, 7 + off, 7 + off))
+    const spacing = mxStabSpacing(key)
+    if (spacing) {
+      for (const cx of [-spacing.left, spacing.right]) {
+        local.push(rectLoop(
+          cx - housing.halfW - off,
+          housing.minY - off,
+          cx + housing.halfW + off,
+          housing.maxY + off
+        ))
+      }
+    }
+    for (let loop of local) {
+      if (swapped) {
+        loop = loop.map(p => ({ x: p.y, y: -p.x }))
+      }
+      loops.push(worldLoop(loop, ox, oy, angle))
+    }
+  }
+  return loops
+}
+
 /**
- * Place H/X/stagger/stab pegs, then drop any whose centre sits inside
- * the ungrown back-cut (whole peg gone, no crescents).
+ * Place pegs, then drop any whose centre sits inside the back-cut
+ * (switch or stab housing boxes, plus traced loops) or outside the plate outline.
  */
 export function buildPlacedDots(keysArray, generatorOptions, layerName, backCutModel) {
   if (!keysArray || !keysArray.length) {
     return null
   }
-  const keepouts = modelToLoops(backCutModel)
+  const keepouts = modelToLoops(backCutModel).concat(backCutBoxLoops(keysArray, generatorOptions))
+  const plate = plateLoopsFromOptions(generatorOptions)
   const points = []
   for (const key of keysArray) {
     for (const p of keyDotWorld(key, keysArray, generatorOptions)) {
       if (keepouts.length && diskHitsKeepout(p.x, p.y, DOT_RADIUS_MM, keepouts)) {
+        continue
+      }
+      if (plate.length && !diskHitsKeepout(p.x, p.y, DOT_RADIUS_MM, plate)) {
         continue
       }
       points.push(p)
