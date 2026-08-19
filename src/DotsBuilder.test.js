@@ -8,6 +8,7 @@ import {
   mxStabHousing,
   dotHitsBackCut,
   STAB_CLEAR_MM,
+  STAB_OUTER_FROM_CENTER_MM,
   STAGGER_DOWN_Y_MM,
   STAGGER_ABOVE_Y_MM,
 } from "./DotsBuilder"
@@ -62,24 +63,24 @@ test("staggered 1U is ±9.525 at y=-5.25 plus centre at y=+13.8", () => {
   expect(up[0].x).toBeCloseTo(0, 5)
 })
 
-test("2U mx-small: 1.7 mm outside the back-cut, mirrored on the housing", () => {
+test("2U mx-small: below-dots 1.7 mm from back-cut; outers at ±4 mm from stab centre", () => {
   const key = fakeKey({ x: 0, y: 0, w: 2, h: 1 })
   expect(mxStabSpacing(key)).toEqual({ left: 11.938, right: 11.938 })
   const h = mxStabHousing("mx-small")
   const gap = 1 + STAB_CLEAR_MM
   const yBelow = h.minY - gap
-  const yAbove = h.maxY + gap
+  const cy = (h.minY + h.maxY) / 2
   const side = h.halfW + gap
   const pts = keyDotLocals(key, [key], MX_SMALL)
   expect(pts).toHaveLength(12)
   const below = pts.filter(p => Math.abs(p.y - yBelow) < 1e-6)
-  const above = pts.filter(p => Math.abs(p.y - yAbove) < 1e-6)
-  expect(below).toHaveLength(6)
-  expect(above).toHaveLength(6)
-  const leftCx = -11.938
-  expect(below.some(p => Math.abs(p.x - leftCx) < 1e-6)).toBe(true)
-  expect(below.some(p => Math.abs(p.x - (leftCx - side)) < 1e-6)).toBe(true)
-  expect(below.some(p => Math.abs(p.x - (leftCx + side)) < 1e-6)).toBe(true)
+  const outers = pts.filter(p => Math.abs(Math.abs(p.y - cy) - STAB_OUTER_FROM_CENTER_MM) < 1e-6)
+  expect(below).toHaveLength(2)
+  expect(below.every(p => Math.abs(Math.abs(p.x) - 11.938) < 1e-6)).toBe(true)
+  expect(outers).toHaveLength(8)
+  const outerX = 11.938 + side
+  expect(outers.some(p => Math.abs(Math.abs(p.x) - outerX) < 0.05)).toBe(true)
+  expect(below.some(p => outers.some(o => Math.abs(o.y - p.y) < 0.01))).toBe(false)
 })
 
 test("vertical 2U rotates the housing rings to both sides (no switch-center mirror)", () => {

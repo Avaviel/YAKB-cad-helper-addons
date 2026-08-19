@@ -13,6 +13,8 @@ export const STAGGER_DOWN_Y_MM = -5.25
 export const STAGGER_ABOVE_Y_MM = 13.8
 /** Clearance from the back-cut outline around each stab (below and to each side). */
 export const STAB_CLEAR_MM = 1.7
+/** Outer (left/right) pair: 4 mm from that housing's centre (≈5 mm from the switch). */
+export const STAB_OUTER_FROM_CENTER_MM = 4
 
 function toNum(value) {
   if (value == null) return 0
@@ -68,12 +70,13 @@ function addStabRing(pts, cx, housing, gap) {
   const yBelow = housing.minY - gap
   const yAbove = housing.maxY + gap
   const side = housing.halfW + gap
+  const cy = (housing.minY + housing.maxY) / 2
   pts.push({ x: cx, y: yBelow })
-  pts.push({ x: cx - side, y: yBelow })
-  pts.push({ x: cx + side, y: yBelow })
   pts.push({ x: cx, y: yAbove })
-  pts.push({ x: cx - side, y: yAbove })
-  pts.push({ x: cx + side, y: yAbove })
+  pts.push({ x: cx - side, y: cy - STAB_OUTER_FROM_CENTER_MM })
+  pts.push({ x: cx + side, y: cy - STAB_OUTER_FROM_CENTER_MM })
+  pts.push({ x: cx - side, y: cy + STAB_OUTER_FROM_CENTER_MM })
+  pts.push({ x: cx + side, y: cy + STAB_OUTER_FROM_CENTER_MM })
 }
 
 /**
@@ -84,9 +87,9 @@ function addStabRing(pts, cx, housing, gap) {
  * at y=+13.8. Cluster-merge collapses extras.
  * 1U with a staggered row below (number row over QWERTY): keep the ortho
  * top pair, drop the bottom X so it does not land on Q/W/E.
- * Stab keys: around each housing, 1.7 mm outside the BACK-CUT outline
- * (housing + back-cut offset), below/left/right, mirrored across that
- * housing so vertical + / Enter get both sides.
+ * Stab keys: 1.7 mm outside the back-cut under/over each housing, and a
+ * left/right pair 1.7 mm outside the back-cut at ±4 mm from that housing's
+ * centre (not in a horizontal line with the below-dots).
  */
 export function keyDotLocals(key, keysArray, generatorOptions) {
   const unitW = unitMm(generatorOptions, "unitWidth")
@@ -183,63 +186,11 @@ function distToLoop(x, y, loop) {
   return d
 }
 
-function distToPath(px, py, path) {
-  if (!path) return Infinity
-  if (path.type === "line" && path.origin && path.end) {
-    return distToSegment(px, py, path.origin[0], path.origin[1], path.end[0], path.end[1])
-  }
-  if ((path.type === "circle" || path.type === "arc") && path.origin && path.radius != null) {
-    const dx = px - path.origin[0]
-    const dy = py - path.origin[1]
-    const dist = Math.hypot(dx, dy)
-    if (path.type === "circle") {
-      return Math.abs(dist - path.radius)
-    }
-    const ang = (Math.atan2(dy, dx) * 180) / Math.PI
-    const a0 = path.startAngle
-    const a1 = path.endAngle
-    const norm = a => {
-      let x = a % 360
-      if (x < 0) x += 360
-      return x
-    }
-    const n = norm(ang)
-    const s = norm(a0)
-    const e = norm(a1)
-    const inArc = s <= e ? n >= s && n <= e : n >= s || n <= e
-    if (inArc) return Math.abs(dist - path.radius)
-    const p0 = [
-      path.origin[0] + path.radius * Math.cos((a0 * Math.PI) / 180),
-      path.origin[1] + path.radius * Math.sin((a0 * Math.PI) / 180),
-    ]
-    const p1 = [
-      path.origin[0] + path.radius * Math.cos((a1 * Math.PI) / 180),
-      path.origin[1] + path.radius * Math.sin((a1 * Math.PI) / 180),
-    ]
-    return Math.min(Math.hypot(px - p0[0], py - p0[1]), Math.hypot(px - p1[0], py - p1[1]))
-  }
-  return Infinity
-}
-
-/** True if the peg centre is in the back-cut or the 1.5 mm disk nicks it. */
+/** True if the peg centre is in a keepout loop or the disk nicks its edge. */
 export function dotHitsBackCut(x, y, backCutModel, radius = DOT_RADIUS_MM) {
   if (!backCutModel) return false
-  const copy = makerjs.model.clone(backCutModel)
-  makerjs.model.originate(copy)
-  if (makerjs.measure.isPointInsideModel([x, y], copy)) {
-    return true
-  }
-  let hit = false
-  const r = radius == null ? DOT_RADIUS_MM : Number(radius)
-  makerjs.model.walk(copy, {
-    onPath: walked => {
-      if (hit) return
-      if (distToPath(x, y, walked.pathContext) < r) {
-        hit = true
-      }
-    },
-  })
-  return hit
+  const loops = modelToLoops(backCutModel)
+  return diskHitsKeepout(x, y, radius, loops)
 }
 
 function pointInLoop(x, y, loop) {
@@ -370,9 +321,6 @@ export function buildPlacedDots(keysArray, generatorOptions, layerName, backCutM
   const points = []
   for (const key of keysArray) {
     for (const p of keyDotWorld(key, keysArray, generatorOptions)) {
-      if (dotHitsBackCut(p.x, p.y, backCutModel, DOT_RADIUS_MM)) {
-        continue
-      }
       if (boxKeepouts.length && diskHitsKeepout(p.x, p.y, DOT_RADIUS_MM, boxKeepouts)) {
         continue
       }
