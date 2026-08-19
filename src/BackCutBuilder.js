@@ -232,18 +232,7 @@ function simplifyColinear(pts) {
   return out
 }
 
-export function unionRectsToLoop(rects) {
-  if (!rects || !rects.length) return []
-  if (rects.length === 1) {
-    const r = rects[0]
-    return [
-      { x: r.minX, y: r.maxY },
-      { x: r.maxX, y: r.maxY },
-      { x: r.maxX, y: r.minY },
-      { x: r.minX, y: r.minY },
-    ]
-  }
-
+function boundaryEdgesFromRects(rects) {
   const xs = [...new Set(rects.flatMap(r => [r.minX, r.maxX]))].sort((a, b) => a - b)
   const ys = [...new Set(rects.flatMap(r => [r.minY, r.maxY]))].sort((a, b) => a - b)
   const cols = xs.length - 1
@@ -276,18 +265,11 @@ export function unionRectsToLoop(rects) {
       add(xs[i], ys[j], xs[i], ys[j + 1])
     }
   }
+  return { edges: [...edgeMap.values()], ek }
+}
 
-  const edges = [...edgeMap.values()]
-  if (!edges.length) return []
-
-  const topY = Math.max(...edges.map(e => Math.max(e.y1, e.y2)))
-  let current = edges.find(e =>
-    Math.abs(e.y1 - e.y2) < 1e-9 &&
-    e.x2 > e.x1 &&
-    Math.abs(e.y1 - topY) < 1e-9
-  ) || edges[0]
-
-  const used = new Set()
+function traceBoundaryLoop(edges, ek, start, used) {
+  let current = start
   const loop = [{ x: current.x1, y: current.y1 }]
   for (let n = 0; n < edges.length + 2; n++) {
     loop.push({ x: current.x2, y: current.y2 })
@@ -310,6 +292,47 @@ export function unionRectsToLoop(rects) {
     }
   }
   return simplifyColinear(loop)
+}
+
+function pickStartEdge(edges, ek, used) {
+  const free = edges.filter(e => !used.has(ek(e.x1, e.y1, e.x2, e.y2)))
+  if (!free.length) return null
+  const topY = Math.max(...free.map(e => Math.max(e.y1, e.y2)))
+  return free.find(e =>
+    Math.abs(e.y1 - e.y2) < 1e-9 &&
+    e.x2 > e.x1 &&
+    Math.abs(e.y1 - topY) < 1e-9
+  ) || free[0]
+}
+
+/** All outer (and hole) loops from a set of axis-aligned rects. */
+export function unionRectsToLoops(rects) {
+  if (!rects || !rects.length) return []
+  if (rects.length === 1) {
+    const r = rects[0]
+    return [[
+      { x: r.minX, y: r.maxY },
+      { x: r.maxX, y: r.maxY },
+      { x: r.maxX, y: r.minY },
+      { x: r.minX, y: r.minY },
+    ]]
+  }
+  const { edges, ek } = boundaryEdgesFromRects(rects)
+  if (!edges.length) return []
+  const used = new Set()
+  const loops = []
+  for (let n = 0; n < edges.length; n++) {
+    const start = pickStartEdge(edges, ek, used)
+    if (!start) break
+    const loop = traceBoundaryLoop(edges, ek, start, used)
+    if (loop.length >= 3) loops.push(loop)
+    else break
+  }
+  return loops
+}
+
+export function unionRectsToLoop(rects) {
+  return unionRectsToLoops(rects)[0] || []
 }
 
 function snapLoop(loop, eps = 0.03) {

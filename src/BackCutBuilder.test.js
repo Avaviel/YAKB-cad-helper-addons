@@ -1,7 +1,7 @@
 import Decimal from "decimal.js"
 import makerjs from "makerjs"
 import { Key } from "./Key"
-import { buildBackCutPart, unionRectsToLoop, offsetLoop, jogBlend } from "./BackCutBuilder"
+import { buildBackCutPart, unionRectsToLoop, unionRectsToLoops, offsetLoop, jogBlend } from "./BackCutBuilder"
 
 function keyAt(width, height, extras = {}) {
   return new Key(
@@ -65,6 +65,14 @@ test("switch plus two stab housings is a bone, not a full-width bar", () => {
   expect(Math.max(...ys)).toBeCloseTo(7)
   expect(pointIn(0, 0, loop)).toBe(true)
   expect(pointIn(0, -8, loop)).toBe(false)
+})
+
+test("separated rects become two loops", () => {
+  const loops = unionRectsToLoops([
+    { minX: 0, minY: 0, maxX: 10, maxY: 10 },
+    { minX: 20, minY: 0, maxX: 30, maxY: 10 },
+  ])
+  expect(loops).toHaveLength(2)
 })
 
 test("offset grows the bone outline by 1mm without filling the middle", () => {

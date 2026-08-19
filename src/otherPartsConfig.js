@@ -168,7 +168,7 @@ export function familyForCutoutType(cutoutType) {
  *   Link-HOLE_CUTS    — hole stamps + the Link outline
  *   Link-MX_HOTSWAP_* — selected hotswap fit
  *   Shell             — inner/outer case outline
- *   Keys              — 1U / 2U / … key rectangles (drawing 3.2)
+ *   Keys              — 1U / 2U key rectangles + combined mass (drawing 3.2)
  *
  * FUTURE — Kailh Choc: add Link-CHOC_* (or similar) layers; keep Top-* + one download.
  */

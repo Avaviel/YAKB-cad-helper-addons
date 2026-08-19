@@ -16,6 +16,7 @@ import {
   familyForCutoutType,
 } from "./otherPartsConfig"
 import { backCutDefaultsForFamily } from "./BackCutBuilder"
+import { KEYS_DEFAULTS } from "./KeyOutlineBuilder"
 import { todayISODate } from "./TitleBlockBuilder"
 import {
   buildExportAssembly,
@@ -932,7 +933,8 @@ function App() {
                 <strong> Top-*</strong> = switch plate, dots, back cut;
                 <strong> Link-*</strong> = hotswap and hole cuts;
                 <strong> Shell</strong> = case outline (offset from the plate, then from itself);
-                <strong> Keys</strong> = 1U / 2U / … key rectangles (drawing 3.2), overlaid on the plate.
+                <strong> Keys</strong> = 1U / 2U / … key rectangles (drawing 3.2), overlaid on the plate,
+                with a combined mass for case design.
               </p>
               <Form className="ms-3 me-3 text-start">
                 <Row>
@@ -1017,7 +1019,8 @@ function App() {
                     Cut / Extrude plus the amount print in that drawing&apos;s title block (same DXF layer as the drawing).
                     The note box is that drawing&apos;s title-block NOTES (not cut/extrude). The overall title block uses the Notes field above.
                     Top-Dots are optional support bosses (H in the column webs). Uncheck Include Top-Dots to omit that layer.
-                    Keys (drawing 3.2) is the 1U / 2U layout rectangles over the plate — not a sandwich part.
+                    Keys (drawing 3.2) is the 1U / 2U layout rectangles over the plate, with an optional
+                    combined mass for case design.
                   </p>
                   {(exportAssembly.layerGroups || []).map(group => (
                     <div key={group.group} className="mb-4">
@@ -1109,12 +1112,60 @@ function App() {
                             </Form.Text>
                             </>
                           ) : layer.outlineKind === "keys" ? (
+                            <>
+                            <Row className="g-2 mb-2">
+                              <Col md={12}>
+                                <Form.Label className="mb-1">Draw</Form.Label>
+                                <Form.Select
+                                  value={outlineField(layer.id, "keysMode", KEYS_DEFAULTS.keysMode)}
+                                  onChange={e => handleLayerOutlineChange(layer.id, "keysMode", e.target.value)}
+                                  aria-label={`${layer.id}-keys-mode`}
+                                >
+                                  <option value="both">Both</option>
+                                  <option value="individual">Individual keys</option>
+                                  <option value="combined">Combined mass</option>
+                                </Form.Select>
+                              </Col>
+                            </Row>
+                            <Row className="g-2 mb-2">
+                              <Col md={4}>
+                                <Form.Label className="mb-1">Key fillet (mm)</Form.Label>
+                                <Form.Control
+                                  type="number"
+                                  step="0.1"
+                                  value={outlineField(layer.id, "fillet", KEYS_DEFAULTS.fillet)}
+                                  onChange={e => handleLayerOutlineChange(layer.id, "fillet", e.target.value)}
+                                  aria-label={`${layer.id}-fillet`}
+                                />
+                              </Col>
+                              <Col md={4}>
+                                <Form.Label className="mb-1">Mass offset (mm)</Form.Label>
+                                <Form.Control
+                                  type="number"
+                                  step="0.1"
+                                  value={outlineField(layer.id, "offset", KEYS_DEFAULTS.offset)}
+                                  onChange={e => handleLayerOutlineChange(layer.id, "offset", e.target.value)}
+                                  aria-label={`${layer.id}-offset`}
+                                />
+                              </Col>
+                              <Col md={4}>
+                                <Form.Label className="mb-1">Mass rounding (mm)</Form.Label>
+                                <Form.Control
+                                  type="number"
+                                  step="0.1"
+                                  value={outlineField(layer.id, "round", KEYS_DEFAULTS.round)}
+                                  onChange={e => handleLayerOutlineChange(layer.id, "round", e.target.value)}
+                                  aria-label={`${layer.id}-round`}
+                                />
+                              </Col>
+                            </Row>
                             <Form.Text className="text-muted d-block mb-2">
-                              One rectangle per key at the layout size (1U = unit width × unit height,
-                              2U twice as wide, and so on). ISO / stepped keys also draw the
-                              secondary rectangle. This overlay sits over the plate in Together
-                              and Split; it is not offset like Shell.
+                              Each key is the layout cell (1U = unit × unit) with a corner fillet
+                              (default 1 mm, same as KLE&apos;s mm keycap). Combined unions touching
+                              keys into a solid for case design, then expands by mass offset and
+                              rounds the outer corners. Split islands stay separate blobs.
                             </Form.Text>
+                            </>
                           ) : layer.outlineKind === "dots" ? (
                             <Form.Text className="text-muted d-block mb-2">
                               1U: four corners. Staggered 1U (Q under numbers): a pair 5.25 mm below
