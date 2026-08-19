@@ -63,6 +63,7 @@ function App() {
   const [clipStatus, setClipStatus] = useState("")
   const [layerNotes, setLayerNotes] = useState({})
   const [layerOutlines, setLayerOutlines] = useState({})
+  const [appliedOutlines, setAppliedOutlines] = useState({})
 
   const [switchCutoutType, setSwitchCutoutType] = useState("mx-basic")
   const [stabilizerCutoutType, setStabilizerCutoutType] = useState("mx-basic")
@@ -125,18 +126,18 @@ function App() {
       !!key.shift6UStabilizers,
       !!key.skipOrientationFix,
     ])
-    const outlineGeom = {}
-    for (const [id, row] of Object.entries(layerOutlines || {})) {
+    const appliedGeom = {}
+    for (const [id, row] of Object.entries(appliedOutlines || {})) {
       if (!row || typeof row !== "object") continue
       const next = { ...row }
       delete next.op
       delete next.opMm
-      if (Object.keys(next).length) outlineGeom[id] = next
+      if (Object.keys(next).length) appliedGeom[id] = next
     }
     return JSON.stringify({
       keySig,
       outlines: (parsed && parsed.outlines) || [],
-      outlineGeom,
+      outlineGeom: appliedGeom,
       switchCutoutType,
       stabilizerCutoutType,
       acousticCutoutType,
@@ -166,7 +167,7 @@ function App() {
     stampFit,
     mirrorStamps,
     includeDots,
-    layerOutlines,
+    appliedOutlines,
   ])
 
   const titleExportOptions = () => {
@@ -184,7 +185,7 @@ function App() {
       mirrorStamps: !!mirrorStamps,
       outlines: (parsed && parsed.outlines) || [],
       layerNotes: appliedNotes,
-      layerOutlines,
+      layerOutlines: appliedOutlines,
       keyboardTitle: appliedTitle.keyboardTitle || keyboardTitle,
       titleBlock: {
         date: appliedTitle.date || titleDate,
@@ -263,7 +264,7 @@ function App() {
     } catch (error) {
       console.log('Title export failed:', error)
     }
-  }, [geometryModel, appliedTitle, appliedNotes, layerOutlines])
+  }, [geometryModel, appliedTitle, appliedNotes, appliedOutlines])
 
 
   const downloadExport = (fileData, extension) => {
@@ -340,6 +341,7 @@ function App() {
         notes: titleNotes,
       })
       setAppliedNotes(layerNotes)
+      setAppliedOutlines(layerOutlines)
       if (kleText && String(kleText).trim()) {
         persistLayerState(layerNotes, layerOutlines, keyboardTitle)
       }
@@ -352,6 +354,7 @@ function App() {
     titleJobNo,
     titleNotes,
     layerNotes,
+    layerOutlines,
     switchCutoutType,
     stabilizerCutoutType,
     acousticCutoutType,
@@ -420,6 +423,7 @@ function App() {
       }
       if (hasOutlines) {
         setLayerOutlines(parsed.outlines)
+        setAppliedOutlines(parsed.outlines)
       }
       setKleText(text)
       return
@@ -443,6 +447,7 @@ function App() {
     setLayerNotes({})
     setAppliedNotes({})
     setLayerOutlines({})
+    setAppliedOutlines({})
     setKleText(text)
   }
 
@@ -465,7 +470,6 @@ function App() {
       },
     }
     setLayerOutlines(next)
-    persistLayerState(layerNotes, next)
   }
 
   const handleStampFamilyChange = (familyId) => {
@@ -1040,7 +1044,7 @@ function App() {
                                 <Form.Label className="mb-1">Offset from plate (mm)</Form.Label>
                                 <Form.Control
                                   type="number"
-                                  step="0.1"
+                                  step="any"
                                   value={outlineField(layer.id, "fromPlate", defaultShellFromPlate)}
                                   onChange={e => handleLayerOutlineChange(layer.id, "fromPlate", e.target.value)}
                                   aria-label={`${layer.id}-from-plate`}
@@ -1050,7 +1054,7 @@ function App() {
                                 <Form.Label className="mb-1">Offset from self (mm)</Form.Label>
                                 <Form.Control
                                   type="number"
-                                  step="0.1"
+                                  step="any"
                                   value={outlineField(layer.id, "fromSelf", defaultShellFromSelf)}
                                   onChange={e => handleLayerOutlineChange(layer.id, "fromSelf", e.target.value)}
                                   aria-label={`${layer.id}-from-self`}
@@ -1060,7 +1064,7 @@ function App() {
                                 <Form.Label className="mb-1">Rounding (mm)</Form.Label>
                                 <Form.Control
                                   type="number"
-                                  step="0.1"
+                                  step="any"
                                   value={outlineField(layer.id, "fillet", zoneDefaults.fillet)}
                                   onChange={e => handleLayerOutlineChange(layer.id, "fillet", e.target.value)}
                                   aria-label={`${layer.id}-fillet`}
@@ -1074,7 +1078,7 @@ function App() {
                                 <Form.Label className="mb-1">Offset from switch + stabs (mm)</Form.Label>
                                 <Form.Control
                                   type="number"
-                                  step="0.1"
+                                  step="any"
                                   value={outlineField(layer.id, "offset", backCutDefaultsForFamily(stampSwitchFamily).offset)}
                                   onChange={e => handleLayerOutlineChange(layer.id, "offset", e.target.value)}
                                   aria-label={`${layer.id}-offset`}
@@ -1086,7 +1090,7 @@ function App() {
                                     <Form.Label className="mb-1">Bump out (mm)</Form.Label>
                                     <Form.Control
                                       type="number"
-                                      step="0.1"
+                                      step="any"
                                       value={outlineField(layer.id, "bump", backCutDefaultsForFamily(stampSwitchFamily).bump)}
                                       onChange={e => handleLayerOutlineChange(layer.id, "bump", e.target.value)}
                                       aria-label={`${layer.id}-bump`}
@@ -1096,7 +1100,7 @@ function App() {
                                     <Form.Label className="mb-1">Blend / notch (mm)</Form.Label>
                                     <Form.Control
                                       type="number"
-                                      step="0.1"
+                                      step="any"
                                       value={outlineField(layer.id, "notch", backCutDefaultsForFamily(stampSwitchFamily).notch)}
                                       onChange={e => handleLayerOutlineChange(layer.id, "notch", e.target.value)}
                                       aria-label={`${layer.id}-notch`}
@@ -1119,7 +1123,7 @@ function App() {
                                 <Form.Label className="mb-1">Key fillet (mm)</Form.Label>
                                 <Form.Control
                                   type="number"
-                                  step="0.1"
+                                  step="any"
                                   value={outlineField(layer.id, "fillet", KEYS_DEFAULTS.fillet)}
                                   onChange={e => handleLayerOutlineChange(layer.id, "fillet", e.target.value)}
                                   aria-label={`${layer.id}-fillet`}
@@ -1138,7 +1142,7 @@ function App() {
                                 <Form.Label className="mb-1">Offset (mm)</Form.Label>
                                 <Form.Control
                                   type="number"
-                                  step="0.1"
+                                  step="any"
                                   value={outlineField(layer.id, "offset", KEYS_MASS_DEFAULTS.offset)}
                                   onChange={e => handleLayerOutlineChange(layer.id, "offset", e.target.value)}
                                   aria-label={`${layer.id}-offset`}
@@ -1148,7 +1152,7 @@ function App() {
                                 <Form.Label className="mb-1">Rounding (mm)</Form.Label>
                                 <Form.Control
                                   type="number"
-                                  step="0.1"
+                                  step="any"
                                   value={outlineField(layer.id, "round", KEYS_MASS_DEFAULTS.round)}
                                   onChange={e => handleLayerOutlineChange(layer.id, "round", e.target.value)}
                                   aria-label={`${layer.id}-round`}
@@ -1175,7 +1179,7 @@ function App() {
                                 <Form.Label className="mb-1">Offset (mm)</Form.Label>
                                 <Form.Control
                                   type="number"
-                                  step="0.1"
+                                  step="any"
                                   value={outlineField(layer.id, "offset", zoneDefaults.offset)}
                                   onChange={e => handleLayerOutlineChange(layer.id, "offset", e.target.value)}
                                   aria-label={`${layer.id}-offset`}
@@ -1185,7 +1189,7 @@ function App() {
                                 <Form.Label className="mb-1">Rounding (mm)</Form.Label>
                                 <Form.Control
                                   type="number"
-                                  step="0.1"
+                                  step="any"
                                   value={outlineField(layer.id, "fillet", zoneDefaults.fillet)}
                                   onChange={e => handleLayerOutlineChange(layer.id, "fillet", e.target.value)}
                                   aria-label={`${layer.id}-fillet`}
@@ -1209,7 +1213,7 @@ function App() {
                               <Form.Label className="mb-1">Amount (mm)</Form.Label>
                               <Form.Control
                                 type="number"
-                                step="0.1"
+                                step="any"
                                 value={outlineField(layer.id, "opMm", layerFeatureDefault(layer.id).opMm)}
                                 onChange={e => handleLayerOutlineChange(layer.id, "opMm", e.target.value)}
                                 aria-label={`${layer.id}-op-mm`}
