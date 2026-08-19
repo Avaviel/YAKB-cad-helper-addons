@@ -851,6 +851,17 @@ function buildKeyBackCut(key, switchGenerator, stabilizerGenerator, settings, ge
       rects.push(...attachStabToSwitch(switchBox, stab))
     }
     outlineLoop = offsetLoop(unionRectsToLoop(rects), local.offset)
+    if (hasStabs) {
+      bumpPlan = {
+        mode: "switchTB",
+        switchBox: {
+          minX: switchBox.minX - local.offset,
+          minY: switchBox.minY - local.offset,
+          maxX: switchBox.maxX + local.offset,
+          maxY: switchBox.maxY + local.offset,
+        },
+      }
+    }
   }
 
   const outline = outlineFromLoop(outlineLoop, local, bumpPlan)

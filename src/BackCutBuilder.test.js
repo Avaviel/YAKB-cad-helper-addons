@@ -111,6 +111,22 @@ test("1U back cut stays a switch-sized square with side bumps", () => {
   expect(Math.abs(ext.high[0] - ext.high[1])).toBeLessThan(0.2)
 })
 
+test("MX tight-fit 2U bobbles sit on the switch, not the stab housings", () => {
+  const model = buildBackCutPart(
+    [keyAt(2, 1)],
+    options({ stabilizerCutoutType: "mx-small" }),
+    "Top-BACK_CUT"
+  )
+  const leaf = model.models.BackCut0
+  const bumps = Object.entries((leaf && leaf.models) || {}).filter(([id]) => /^bump/i.test(id))
+  expect(bumps.length).toBeGreaterThanOrEqual(1)
+  for (const [, bump] of bumps) {
+    const ext = makerjs.measure.modelExtents(bump)
+    const cx = (ext.low[0] + ext.high[0]) / 2
+    expect(Math.abs(cx)).toBeLessThan(8)
+  }
+})
+
 test("2U back cut swallows both MX stabs and is wider than the switch", () => {
   const model = buildBackCutPart([keyAt(2, 1)], options(), "Top-BACK_CUT")
   const ext = makerjs.measure.modelExtents(model)

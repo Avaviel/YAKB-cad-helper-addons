@@ -3,12 +3,19 @@ import Decimal from "decimal.js"
 import { isKeyStaggered } from "./overkill"
 
 export const DOT_RADIUS_MM = 1.5
-/** Slide H uprights off the 1U corners toward the switch (stagger-safe). */
-export const H_INSET_MM = 4.5
-/** Under a stab key, sit below the MX pocket+bobble, between the housings. */
+/** 1U X corners: half of 19.05. */
+export const X_HALF_MM = 9.525
+/** Staggered 1U: pair at y = -5.25, x = ±9.525. */
+export const STAGGER_DOWN_Y_MM = -5.25
+/** 19.05 - 5.25: same as the key above's y = -5.25. */
+export const STAGGER_ABOVE_Y_MM = 13.8
+/** Under each stab housing, below the switch centre. */
 export const STAB_BELOW_Y_MM = -12.5
-export const STAB_BROUGHT_IN_X_MM = 4.5
-const POCKET_CLEAR_MM = 0.2
+/** Outboard pair, slightly below centre. */
+export const STAB_OUTBOARD_Y_MM = -5
+/** Outside the stab housing (2U: 11.938 + 3.5 + 4.1 ≈ 19.5). */
+export const STAB_OUTBOARD_FROM_HOUSING_MM = 4.1
+const MX_HOUSING_HALF_MM = 3.5
 
 function toNum(value) {
   if (value == null) return 0
@@ -23,21 +30,40 @@ function unitMm(generatorOptions, which) {
   return Number.isFinite(n) && n > 0 ? n : 19.05
 }
 
-/** Stab cutouts start at 2U (same threshold as StabilizerMXBasic). */
-export function keyHasStabs(key) {
+function keySizeU(key) {
   const w = toNum(key && key.width)
   const h = toNum(key && key.height)
-  const size = key && !key.skipOrientationFix && h > w ? h : w
-  return size >= 2
+  return key && !key.skipOrientationFix && h > w ? h : w
+}
+
+/** Stab cutouts start at 2U (same threshold as StabilizerMXBasic). */
+export function keyHasStabs(key) {
+  return keySizeU(key) >= 2
+}
+
+/** MX plate-mount stab centres (mm from switch). Same table as the cutout generators. */
+export function mxStabSpacing(key) {
+  const size = keySizeU(key)
+  if (size < 2) return null
+  if (size >= 8) return { left: 66.675, right: 66.675 }
+  if (size >= 7) return { left: 57.15, right: 57.15 }
+  if (size >= 6.25) return { left: 50, right: 50 }
+  if (size >= 6) {
+    if (key && key.shift6UStabilizers) return { left: 57.15, right: 38.1 }
+    return { left: 47.625, right: 47.625 }
+  }
+  if (size >= 3) return { left: 19.05, right: 19.05 }
+  return { left: 11.938, right: 11.938 }
 }
 
 /**
  * Key-local millimetres, switch at origin, +Y up (stamp space).
  *
- * 1U: H uprights at x=±halfU, y=±4.5 — column webs, not row-seam corners.
- * Staggered 1U: same H (the inset *is* the stagger fix).
- * Stab keys: standard 1U tops (pulled in if staggered), two brought-in
- * under the switch, two outer bottom corners of the key.
+ * 1U ortho: four X corners (±9.525, ±9.525).
+ * Staggered 1U: (±9.525, -5.25) plus a centre boss at y=+13.8 (the key
+ * above's y=-5.25). Cluster-merge collapses extras.
+ * Stab keys: one boss under each housing at y=-12.5, plus an outboard
+ * pair at y=-5, 4.1 mm outside the housing (~±19.5 on a 2U).
  */
 export function keyDotLocals(key, keysArray, generatorOptions) {
   const unitW = unitMm(generatorOptions, "unitWidth")
@@ -47,24 +73,28 @@ export function keyDotLocals(key, keysArray, generatorOptions) {
   const w = toNum(key.width)
   const h = toNum(key.height)
   const swapped = !!(key && !key.skipOrientationFix && h > w)
-  const sizeU = swapped ? h : w
-  const halfKeyW = (sizeU / 2) * unitW
   const staggered = isKeyStaggered(key, keysArray)
   const pts = []
 
   if (keyHasStabs(key)) {
-    const topY = staggered ? H_INSET_MM : halfV
-    pts.push({ x: -halfU, y: topY })
-    pts.push({ x: halfU, y: topY })
-    pts.push({ x: -STAB_BROUGHT_IN_X_MM, y: STAB_BELOW_Y_MM })
-    pts.push({ x: STAB_BROUGHT_IN_X_MM, y: STAB_BELOW_Y_MM })
-    pts.push({ x: -halfKeyW, y: -halfV })
-    pts.push({ x: halfKeyW, y: -halfV })
+    const spacing = mxStabSpacing(key)
+    if (spacing) {
+      pts.push({ x: -spacing.left, y: STAB_BELOW_Y_MM })
+      pts.push({ x: spacing.right, y: STAB_BELOW_Y_MM })
+      const outL = spacing.left + MX_HOUSING_HALF_MM + STAB_OUTBOARD_FROM_HOUSING_MM
+      const outR = spacing.right + MX_HOUSING_HALF_MM + STAB_OUTBOARD_FROM_HOUSING_MM
+      pts.push({ x: -outL, y: STAB_OUTBOARD_Y_MM })
+      pts.push({ x: outR, y: STAB_OUTBOARD_Y_MM })
+    }
+  } else if (staggered) {
+    pts.push({ x: -halfU, y: STAGGER_DOWN_Y_MM })
+    pts.push({ x: halfU, y: STAGGER_DOWN_Y_MM })
+    pts.push({ x: 0, y: unitH + STAGGER_DOWN_Y_MM })
   } else {
-    pts.push({ x: -halfU, y: H_INSET_MM })
-    pts.push({ x: halfU, y: H_INSET_MM })
-    pts.push({ x: -halfU, y: -H_INSET_MM })
-    pts.push({ x: halfU, y: -H_INSET_MM })
+    pts.push({ x: -halfU, y: halfV })
+    pts.push({ x: halfU, y: halfV })
+    pts.push({ x: -halfU, y: -halfV })
+    pts.push({ x: halfU, y: -halfV })
   }
 
   if (swapped) {
@@ -93,31 +123,9 @@ export function keyDotWorld(key, keysArray, generatorOptions) {
   })
 }
 
-function distToSegment(px, py, ax, ay, bx, by) {
-  const dx = bx - ax
-  const dy = by - ay
-  const len2 = dx * dx + dy * dy
-  if (len2 < 1e-18) return Math.hypot(px - ax, py - ay)
-  let t = ((px - ax) * dx + (py - ay) * dy) / len2
-  t = Math.max(0, Math.min(1, t))
-  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy))
-}
-
-function distToLoop(x, y, loop) {
-  let d = Infinity
-  for (let i = 0; i < loop.length; i++) {
-    const a = loop[i]
-    const b = loop[(i + 1) % loop.length]
-    d = Math.min(d, distToSegment(x, y, a.x, a.y, b.x, b.y))
-  }
-  return d
-}
-
 export function diskHitsKeepout(x, y, radius, loops) {
-  const r = radius + POCKET_CLEAR_MM
   for (const loop of loops || []) {
     if (pointInLoop(x, y, loop)) return true
-    if (distToLoop(x, y, loop) < r) return true
   }
   return false
 }
@@ -168,8 +176,8 @@ function circlesModel(points, layerName, radius = DOT_RADIUS_MM) {
 }
 
 /**
- * H on 1U, stagger-safe tops, stab extras, then drop any peg whose disk
- * nicks the ungrown back-cut (whole peg gone, no crescents).
+ * Place H/X/stagger/stab pegs, then drop any whose centre sits inside
+ * the ungrown back-cut (whole peg gone, no crescents).
  */
 export function buildPlacedDots(keysArray, generatorOptions, layerName, backCutModel) {
   if (!keysArray || !keysArray.length) {

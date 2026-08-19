@@ -1095,16 +1095,18 @@ function App() {
                               )}
                             </Row>
                             <Form.Text className="text-muted d-block mb-2">
-                              MX Basic / Small / Alps: switch plus the two stab housings, stuck onto the switch, then offset. No full-width bar between the stabs. Bobbles on the four outer sides.
-                              MX Spec already includes the bar, so that outline is expanded as-is and only the switch top and bottom get bobbles.
+                              MX Basic / Small / Alps: switch plus the two stab housings, stuck onto the switch, then offset. No full-width bar between the stabs.
+                              Bobbles sit on the switch top and bottom (the key centre), not on the stab housings.
+                              MX Spec already includes the bar, so that outline is expanded as-is with the same switch bobbles.
                               New corners use the stabilizer cutout fillet radius.
                             </Form.Text>
                             </>
                           ) : layer.outlineKind === "dots" ? (
                             <Form.Text className="text-muted d-block mb-2">
-                              H-shaped pegs in the column webs so the plate can flex. Stab keys keep
-                              standard tops, two brought-in under the switch, and two outer bottom corners.
-                              Overlapping pegs merge to one. A peg that nicks the back-cut is deleted whole.
+                              1U: four corners. Staggered 1U: a pair 5.25 mm below centre and one boss
+                              13.8 mm above. Stab keys: one boss under each housing (12.5 mm below)
+                              plus an outboard pair. Overlapping pegs merge. A peg whose centre sits
+                              in the back-cut is deleted whole.
                             </Form.Text>
                           ) : layer.outlineKind === "plate" ? (
                             <Row className="g-2 mb-2">
