@@ -168,6 +168,7 @@ export function familyForCutoutType(cutoutType) {
  *   Link-HOLE_CUTS    — hole stamps + the Link outline
  *   Link-MX_HOTSWAP_* — selected hotswap fit
  *   Shell             — inner/outer case outline
+ *   Keys              — 1U / 2U / … key rectangles (drawing 3.2)
  *
  * FUTURE — Kailh Choc: add Link-CHOC_* (or similar) layers; keep Top-* + one download.
  */
@@ -209,12 +210,13 @@ export function getExportAssembly(switchFamilyId, fitId, options = {}) {
     'Link-HOLE_CUTS',
     hotswapLayer,
     'Shell',
+    'Keys',
   ].filter(Boolean)
 
   return {
     id: 'FullExport',
     label: 'Plate export',
-    description: 'All drawings in one multi-layer DXF/SVG (Top + Link + Shell)',
+    description: 'All drawings in one multi-layer DXF/SVG (Top + Link + Shell + Keys)',
     includeMainPlate: true,
     mainPlateLayerName: 'Top-SWITCH_PLATE',
     stamps,
@@ -239,6 +241,12 @@ export function getExportAssembly(switchFamilyId, fitId, options = {}) {
         group: 'Shell',
         layers: [
           { id: 'Shell', layerName: 'Shell', label: 'Shell', outlineKind: 'shell' },
+        ],
+      },
+      {
+        group: 'Keys',
+        layers: [
+          { id: 'Keys', layerName: 'Keys', label: 'Keys', outlineKind: 'keys' },
         ],
       },
     ],

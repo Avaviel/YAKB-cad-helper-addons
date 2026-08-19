@@ -21,7 +21,7 @@ import {
 
 test("title-block DXF layer names do not contain periods", () => {
   expect(titleBlockLayerName("1.1")).toBe("TITLE_BLOCK_1_1")
-  expect(titleBlockLayerName("1.1-3.1")).toBe("TITLE_BLOCK")
+  expect(titleBlockLayerName("1.1-3.2")).toBe("TITLE_BLOCK")
   expect(titleBlockLayerName("2.2")).toBe("TITLE_BLOCK_2_2")
 })
 
@@ -33,6 +33,7 @@ test("drawing numbers follow the Top / Link / Shell scheme", () => {
   expect(drawingInfoForLayer("Link-MX_HOTSWAP_BF").drawingNo).toBe("2.2")
   expect(drawingInfoForLayer("Link-CHOC_HOTSWAP").drawingNo).toBe("2.2")
   expect(drawingInfoForLayer("Shell").drawingNo).toBe("3.1")
+  expect(drawingInfoForLayer("Keys").drawingNo).toBe("3.2")
 })
 
 test("title block sits at the bottom-right of the global extents", () => {

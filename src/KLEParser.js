@@ -95,6 +95,8 @@ export function parseKle(kleText) {
     let height = new Decimal(1);
     let width2 = null;
     let height2 = null;
+    let x2 = null;
+    let y2 = null;
 
     // Custom flags for this plategen
     // _rs: Rotate stabilizers independently of the key (useful for bottom row stabs)
@@ -169,6 +171,8 @@ export function parseKle(kleText) {
                         })
                     } else if (!decal) {
                         let newKey = new Key(currX, currY, width, height, width2, height2, currAngle, currRotX, currRotY, independentSwitchAngle, stabilizerAngle, shift6UStabilizers, skipOrientationFix)
+                        newKey.x2 = x2
+                        newKey.y2 = y2
                         keys.push(newKey)
                     }
                     decal = false
@@ -179,6 +183,8 @@ export function parseKle(kleText) {
                     height = new Decimal(1)
                     width2 = null
                     height2 = null
+                    x2 = null
+                    y2 = null
                     independentSwitchAngle = new Decimal(0)
                     stabilizerAngle = new Decimal(0)
                     shift6UStabilizers = false
@@ -227,6 +233,12 @@ export function parseKle(kleText) {
                     }
                     if (element.hasOwnProperty('h2')) {
                         height2 = new Decimal(element.h2)
+                    }
+                    if (element.hasOwnProperty('x2')) {
+                        x2 = new Decimal(element.x2)
+                    }
+                    if (element.hasOwnProperty('y2')) {
+                        y2 = new Decimal(element.y2)
                     }
                     if (element.hasOwnProperty('_rs')) {
                         stabilizerAngle = new Decimal(element._rs)

@@ -114,6 +114,10 @@ function App() {
       String(key.centerY),
       String(key.width),
       String(key.height),
+      String(key.width2),
+      String(key.height2),
+      String(key.x2),
+      String(key.y2),
       String(key.angle),
       String(key.independentSwitchAngle),
       String(key.stabilizerAngle),
@@ -564,7 +568,7 @@ function App() {
                 />
                 <Form.Text className="text-muted d-block mb-3">
                   Saved as KLE <code>name</code>, <code>_titleBlock</code>, and <code>_yakb</code> (cutouts, Choc spacing, fillets, stamps).
-                  Copy / Paste carries those settings. Drawing No. is set by layer (1.1–3.1).
+                  Copy / Paste carries those settings. Drawing No. is set by layer (1.1–3.2).
                   Cut / Extrude and the amount live on each drawing&apos;s own title block.
                   The Notes field here prints only on the overall title block. Each drawing uses its section note.
                 </Form.Text>
@@ -879,6 +883,7 @@ function App() {
                   { title: "Top", svg: exportOutput?.previewTop },
                   { title: "Link", svg: exportOutput?.previewLink },
                   { title: "Shell", svg: exportOutput?.previewShell },
+                  { title: "Keys", svg: exportOutput?.previewKeys },
                 ]
               : (exportOutput?.previewEach || [])
             ).map(pane => (
@@ -926,7 +931,8 @@ function App() {
                 One multi-layer DXF/SVG with all drawings on separate layers.
                 <strong> Top-*</strong> = switch plate, dots, back cut;
                 <strong> Link-*</strong> = hotswap and hole cuts;
-                <strong> Shell</strong> = case outline (offset from the plate, then from itself).
+                <strong> Shell</strong> = case outline (offset from the plate, then from itself);
+                <strong> Keys</strong> = 1U / 2U / … key rectangles (drawing 3.2), overlaid on the plate.
               </p>
               <Form className="ms-3 me-3 text-start">
                 <Row>
@@ -1011,6 +1017,7 @@ function App() {
                     Cut / Extrude plus the amount print in that drawing&apos;s title block (same DXF layer as the drawing).
                     The note box is that drawing&apos;s title-block NOTES (not cut/extrude). The overall title block uses the Notes field above.
                     Top-Dots are optional support bosses (H in the column webs). Uncheck Include Top-Dots to omit that layer.
+                    Keys (drawing 3.2) is the 1U / 2U layout rectangles over the plate — not a sandwich part.
                   </p>
                   {(exportAssembly.layerGroups || []).map(group => (
                     <div key={group.group} className="mb-4">
@@ -1101,6 +1108,13 @@ function App() {
                               New corners use the stabilizer cutout fillet radius.
                             </Form.Text>
                             </>
+                          ) : layer.outlineKind === "keys" ? (
+                            <Form.Text className="text-muted d-block mb-2">
+                              One rectangle per key at the layout size (1U = unit width × unit height,
+                              2U twice as wide, and so on). ISO / stepped keys also draw the
+                              secondary rectangle. This overlay sits over the plate in Together
+                              and Split; it is not offset like Shell.
+                            </Form.Text>
                           ) : layer.outlineKind === "dots" ? (
                             <Form.Text className="text-muted d-block mb-2">
                               1U: four corners. Staggered 1U (Q under numbers): a pair 5.25 mm below
