@@ -69,41 +69,74 @@ function applyLayer(model, layerName) {
 
 /** Axis-aligned key rectangle in CAD mm (KLE y-down → CAD y-up). */
 export function keyRectMm(xU, yU, wU, hU, unitW, unitH) {
-  const minX = xU * unitW
-  const maxX = (xU + wU) * unitW
-  const maxY = -yU * unitH
-  const minY = maxY - hU * unitH
+  const minX = snapMm(xU * unitW)
+  const maxX = snapMm((xU + wU) * unitW)
+  const maxY = snapMm(-yU * unitH)
+  const minY = snapMm(maxY - hU * unitH)
   return { minX, minY, maxX, maxY }
 }
 
-function shortestEdge(loop) {
-  let d = Infinity
-  for (let i = 0; i < loop.length; i++) {
-    const a = loop[i]
-    const b = loop[(i + 1) % loop.length]
-    d = Math.min(d, Math.hypot(b.x - a.x, b.y - a.y))
+function edgeLen(a, b) {
+  return Math.hypot(b.x - a.x, b.y - a.y)
+}
+
+function snapMm(v) {
+  return Math.round(Number(v) * 1000) / 1000
+}
+
+function mergeShortEdges(loop, minLen = 0.08) {
+  let pts = (loop || []).map(p => ({ x: p.x, y: p.y }))
+  if (pts.length < 3) return pts
+  let guard = 0
+  while (pts.length >= 4 && guard++ < 40) {
+    const n = pts.length
+    const next = []
+    let dropped = false
+    for (let i = 0; i < n; i++) {
+      const a = pts[i]
+      const b = pts[(i + 1) % n]
+      if (edgeLen(a, b) < minLen) {
+        dropped = true
+        continue
+      }
+      next.push(a)
+    }
+    if (!dropped || next.length < 3) break
+    pts = next
   }
-  return d
+  const n = pts.length
+  const out = []
+  for (let i = 0; i < n; i++) {
+    const a = pts[(i - 1 + n) % n]
+    const b = pts[i]
+    const c = pts[(i + 1) % n]
+    const cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x)
+    if (Math.abs(cross) > 1e-6) out.push(b)
+  }
+  return out.length >= 3 ? out : loop
 }
 
 function filletLoopModel(loop, radius) {
-  const n = loop.length
+  const pts = mergeShortEdges(loop)
+  const n = pts.length
   const paths = {}
   for (let i = 0; i < n; i++) {
-    const a = loop[i]
-    const b = loop[(i + 1) % n]
+    const a = pts[i]
+    const b = pts[(i + 1) % n]
     paths["e" + i] = new makerjs.paths.Line([a.x, a.y], [b.x, b.y])
   }
-  const maxR = shortestEdge(loop) / 2 - 0.02
-  const rad = Math.min(radius, maxR)
-  if (rad > 0.001 && n >= 3) {
-    for (let i = 0; i < n; i++) {
-      const a = paths["e" + i]
-      const b = paths["e" + ((i + 1) % n)]
-      if (!a || !b || !makerjs.path.fillet) continue
-      const arc = makerjs.path.fillet(a, b, rad)
-      if (arc) paths["f" + i] = arc
-    }
+  if (!(radius > 0.001) || n < 3 || !makerjs.path.fillet) {
+    return { paths }
+  }
+  for (let i = 0; i < n; i++) {
+    const a = paths["e" + i]
+    const b = paths["e" + ((i + 1) % n)]
+    const la = edgeLen(pts[i], pts[(i + 1) % n])
+    const lb = edgeLen(pts[(i + 1) % n], pts[(i + 2) % n])
+    const rad = Math.min(radius, la / 2 - 0.02, lb / 2 - 0.02)
+    if (!(rad > 0.001) || !a || !b) continue
+    const arc = makerjs.path.fillet(a, b, rad)
+    if (arc) paths["f" + i] = arc
   }
   return { paths }
 }

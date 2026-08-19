@@ -82,7 +82,7 @@ test("ISO enter draws one L outline from the stem plus secondary rectangle", () 
   const ext = makerjs.measure.modelExtents(model)
   expect(ext.width).toBeCloseTo(1.5 * 19.05, 5)
   expect(ext.height).toBeCloseTo(38.1, 5)
-  expect(ext.low[0]).toBeCloseTo(-0.25 * 19.05, 5)
+  expect(ext.low[0]).toBeCloseTo(-4.762, 3)
 })
 
 test("Choc 1U uses 18 x 17", () => {
@@ -135,6 +135,37 @@ test("mass offset expands the combined outline", () => {
   const grown = buildKeyMass(keys, withKeys({ "Keys-MASS": { offset: 2, round: 0 } }))
   expect(makerjs.measure.modelExtents(raw).width).toBeCloseTo(19.05, 5)
   expect(makerjs.measure.modelExtents(grown).width).toBeCloseTo(23.05, 5)
+})
+
+test("mass fillets every island, including a staggered main block", () => {
+  const main = [
+    fakeKey({ x: 0, y: 0, w: 1.5, h: 1 }),
+    fakeKey({ x: 1.5, y: 0, w: 1, h: 1 }),
+    fakeKey({ x: 0, y: 1, w: 1.75, h: 1 }),
+    fakeKey({ x: 1.75, y: 1, w: 1, h: 1 }),
+    fakeKey({ x: 0, y: 2, w: 2.25, h: 1 }),
+    fakeKey({ x: 2.25, y: 2, w: 1, h: 1 }),
+  ]
+  const pad = [
+    fakeKey({ x: 10, y: 0, w: 1, h: 1 }),
+    fakeKey({ x: 11, y: 0, w: 1, h: 1 }),
+    fakeKey({ x: 10, y: 1, w: 1, h: 1 }),
+    fakeKey({ x: 11, y: 1, w: 1, h: 1 }),
+  ]
+  const model = buildKeyMass([...main, ...pad], withKeys({ "Keys-MASS": { offset: 0, round: 1 } }))
+  const islands = Object.values(model.models.G0.models)
+  expect(islands.length).toBe(2)
+  expect(countArcs(islands[0])).toBeGreaterThan(0)
+  expect(countArcs(islands[1])).toBeGreaterThan(0)
+})
+
+test("a tiny stagger jog does not wipe fillets off the rest of the mass", () => {
+  const keys = [
+    fakeKey({ x: 0, y: 0, w: 2, h: 1 }),
+    fakeKey({ x: 0.002, y: 1, w: 2, h: 1 }),
+  ]
+  const model = buildKeyMass(keys, withKeys({ "Keys-MASS": { offset: 0, round: 1 } }))
+  expect(countArcs(model)).toBeGreaterThan(0)
 })
 
 test("Keys is 3.2 and Keys-MASS is 3.3", () => {
