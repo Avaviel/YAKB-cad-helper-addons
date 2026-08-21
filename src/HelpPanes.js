@@ -60,6 +60,7 @@ export function DataHelpPane() {
                 {' '}<code>fromPlate</code> (default 0.5) then <code>fromSelf</code> (default 5).
                 {' '}<code>Keys</code> is drawing 3.2 (1U / 2U rectangles, <code>fillet</code>).
                 {' '}<code>Keys-MASS</code> is drawing 3.3 (combined blob, <code>offset</code> + <code>round</code>).
+                {' '}<code>Top-LED</code> is drawing 1.4, optional via <code>_yakb.includeLed</code>.
                 {' '}<code>op</code> is <code>cut</code> or <code>extrude</code> (either/or);
                 {' '}<code>opMm</code> is the amount in mm. Both print in that drawing&apos;s title block.
             </p>

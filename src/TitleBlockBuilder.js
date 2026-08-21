@@ -14,6 +14,7 @@ const DRAWING_NUMBERS = {
   "Top-SWITCH_PLATE": "1.1",
   "Top-BACK_CUT": "1.2",
   "Top-Dots": "1.3",
+  "Top-LED": "1.4",
   "Link-HOLE_CUTS": "2.1",
   Shell: "3.1",
   Keys: "3.2",

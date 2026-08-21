@@ -83,6 +83,7 @@ function App() {
   // Left-right mirror of stamp geometry only
   const [mirrorStamps, setMirrorStamps] = useState(false)
   const [includeDots, setIncludeDots] = useState(true)
+  const [includeLed, setIncludeLed] = useState(false)
   // Single full export (preview + dxf + svg)
   const [exportOutput, setExportOutput] = useState(null)
   const [geometryModel, setGeometryModel] = useState(null)
@@ -92,7 +93,10 @@ function App() {
   const [chocSpacingId, setChocSpacingId] = useState("18x17")
 
   const selectedFamily = switchFamilies.find(f => f.id === stampSwitchFamily) || switchFamilies[0]
-  const dotsOptions = { includeDots: includeDots && selectedFamily?.includeDots !== false }
+  const dotsOptions = {
+    includeDots: includeDots && selectedFamily?.includeDots !== false,
+    includeLed: !!includeLed,
+  }
   const exportSummary = getExportSummary(stampSwitchFamily, stampFit, dotsOptions)
   const exportAssembly = getExportAssembly(stampSwitchFamily, stampFit, dotsOptions)
   const zoneDefaults = useMemo(() => {
@@ -151,6 +155,7 @@ function App() {
       stampFit,
       mirrorStamps,
       includeDots,
+      includeLed,
     })
   }, [
     kleText,
@@ -167,6 +172,7 @@ function App() {
     stampFit,
     mirrorStamps,
     includeDots,
+    includeLed,
     appliedOutlines,
   ])
 
@@ -286,6 +292,7 @@ function App() {
     stampFit,
     mirrorStamps,
     includeDots,
+    includeLed,
     chocSpacingId,
   })
 
@@ -306,6 +313,7 @@ function App() {
     if (yakb.chocSpacingId) setChocSpacingId(yakb.chocSpacingId)
     if (yakb.mirrorStamps != null) setMirrorStamps(!!yakb.mirrorStamps)
     if (yakb.includeDots != null) setIncludeDots(!!yakb.includeDots)
+    if (yakb.includeLed != null) setIncludeLed(!!yakb.includeLed)
   }
 
   const persistLayerState = (notes, outlines, title, titleBlock) => {
@@ -368,6 +376,7 @@ function App() {
     stampFit,
     mirrorStamps,
     includeDots,
+    includeLed,
     chocSpacingId,
   ])
 
@@ -1000,6 +1009,23 @@ function App() {
                     />
                     <Form.Check
                       type="checkbox"
+                      id="include-led"
+                      className="mb-2"
+                      checked={!!includeLed}
+                      onChange={e => setIncludeLed(e.target.checked)}
+                      label={
+                        <span>
+                          <strong>Include LED cutouts</strong>
+                          <span className="text-muted">
+                            {' '}— drawing 1.4 Top-LED. A 7 × 1.5 mm slot with 0.75 mm
+                            round ends, centred 5.1 mm below each switch. Off unless you
+                            need through-plate LEDs.
+                          </span>
+                        </span>
+                      }
+                    />
+                    <Form.Check
+                      type="checkbox"
                       id="mirror-stamps"
                       checked={mirrorStamps}
                       onChange={e => setMirrorStamps(e.target.checked)}
@@ -1007,7 +1033,7 @@ function App() {
                         <span>
                           <strong>Mirror stamps</strong>
                           <span className="text-muted">
-                            {' '}— left-right flip of stamp geometry (hotswap, hole cuts, back cut, dots).
+                            {' '}— left-right flip of stamp geometry (hotswap, hole cuts, back cut, dots, LED).
                           </span>
                         </span>
                       }
@@ -1024,6 +1050,7 @@ function App() {
                     Cut / Extrude plus the amount print in that drawing&apos;s title block (same DXF layer as the drawing).
                     The note box is that drawing&apos;s title-block NOTES (not cut/extrude). The overall title block uses the Notes field above.
                     Top-Dots are optional support bosses (H in the column webs). Uncheck Include Top-Dots to omit that layer.
+                    Include LED cutouts adds drawing 1.4 (7 × 1.5 mm slot, 5.1 mm below each switch).
                     Keys (3.2) is each key rectangle; Keys-MASS (3.3) is the combined blob for case design.
                     Both always export.
                   </p>
@@ -1172,6 +1199,12 @@ function App() {
                               outside the back-cut under each housing; left/right pair 1.7 mm out
                               and 4 mm from that housing centre. A peg in or nicking the back-cut,
                               or outside the plate outline, is deleted. Overlapping pegs merge.
+                            </Form.Text>
+                          ) : layer.outlineKind === "led" ? (
+                            <Form.Text className="text-muted d-block mb-2">
+                              7 mm wide × 1.5 mm tall slot, 0.75 mm radius on each end (tangent
+                              to the top and bottom). The slot centre is 5.1 mm below the switch
+                              centre, on the switch centreline. One per key. Drawing 1.4.
                             </Form.Text>
                           ) : layer.outlineKind === "plate" ? (
                             <Row className="g-2 mb-2">

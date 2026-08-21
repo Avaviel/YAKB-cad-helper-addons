@@ -379,6 +379,9 @@ export function normalizeYakbSettings(raw) {
     if (raw.includeDots != null) {
         out.includeDots = !!raw.includeDots
     }
+    if (raw.includeLed != null) {
+        out.includeLed = !!raw.includeLed
+    }
     return out
 }
 

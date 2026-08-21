@@ -26,17 +26,20 @@ test("yakb plate settings write back and survive a second key row", () => {
       stampSwitchFamily: "choc",
       stampFit: "standard",
       includeDots: false,
+      includeLed: true,
     },
   })
   expect(written).toContain("_yakb")
   expect(written).toContain("choc-cpg1350")
   expect(written).toContain("includeDots")
+  expect(written).toContain("includeLed")
   expect(written).toContain("Napping")
   const state = readKleLayerState(written)
   expect(state.yakb.switchCutoutType).toBe("choc-cpg1350")
   expect(state.yakb.unitWidth).toBe(18)
   expect(state.yakb.chocSpacingId).toBe("18x17")
   expect(state.yakb.includeDots).toBe(false)
+  expect(state.yakb.includeLed).toBe(true)
   const withExtraKey = written.replace('"Napping"', '"Napping"],\n  [{w:1},"Esc"')
   const again = writeKleLayerState(withExtraKey, {
     notes: {},

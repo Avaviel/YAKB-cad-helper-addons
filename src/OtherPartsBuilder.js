@@ -18,6 +18,7 @@ import { buildBackCutPart } from './BackCutBuilder'
 import { clusterMergeCircles, isKeyStaggered, stripTopStampCircles } from './overkill'
 import { buildPlacedDots } from './DotsBuilder'
 import { buildKeyOutlines, buildKeyMass, KEYS_LAYER, KEYS_MASS_LAYER } from './KeyOutlineBuilder'
+import { buildLedCutouts, LED_LAYER } from './LedCutBuilder'
 
 /**
  * Convert a stamp JSON document into a maker.js model.
@@ -278,6 +279,13 @@ export function buildExportAssembly(assembly, keysArray, generatorOptions, mainP
       }
       continue
     }
+    if (stamp.type === "led" || key === "TopLed") {
+      const leds = buildLedCutouts(keysArray, generatorOptions, stamp.layerName || LED_LAYER)
+      if (leds) {
+        canvas.models[key] = leds
+      }
+      continue
+    }
     if (!stamp.stampData) {
       continue
     }
@@ -319,6 +327,7 @@ const assemblyModelOrder = [
   "TopSwitchPlate",
   "TopBackCut",
   "TopDots",
+  "TopLed",
   "LinkHoleCuts",
   "LinkHotswap",
   "Shell",
@@ -356,6 +365,9 @@ function layerSortRank(name) {
   }
   if (base === "Top-Dots") {
     return 25
+  }
+  if (base === "Top-LED") {
+    return 27
   }
   if (base.indexOf("Top") === 0) {
     return 15
@@ -574,6 +586,7 @@ function layerNameForModel(key, model) {
   }
   if (key === "TopSwitchPlate") return "Top-SWITCH_PLATE"
   if (key === "TopDots") return "Top-Dots"
+  if (key === "TopLed") return LED_LAYER
   if (key === "TopBackCut") return "Top-BACK_CUT"
   if (key === "LinkHoleCuts") return "Link-HOLE_CUTS"
   if (key === "LinkHotswap") return "Link-MX_HOTSWAP"
@@ -589,6 +602,7 @@ function outlineIdCandidates(key, model) {
   const ids = []
   if (key === "TopSwitchPlate") ids.push("Top-SWITCH_PLATE")
   if (key === "TopDots") ids.push("Top-Dots")
+  if (key === "TopLed") ids.push(LED_LAYER)
   if (key === "TopBackCut") ids.push("Top-BACK_CUT")
   if (key === "LinkHoleCuts") ids.push("Link-HOLE_CUTS")
   if (key === "LinkHotswap") ids.push("Link-MX_HOTSWAP", "Link-CHOC_HOTSWAP")
@@ -757,7 +771,7 @@ function withoutEmbeddedTitleBlocks(model) {
 }
 
 const previewGroupKeys = {
-  top: ["TopSwitchPlate", "TopBackCut", "TopDots"],
+  top: ["TopSwitchPlate", "TopBackCut", "TopDots", "TopLed"],
   link: ["LinkHotswap", "LinkHoleCuts"],
   shell: ["Shell"],
   keys: ["Keys"],
