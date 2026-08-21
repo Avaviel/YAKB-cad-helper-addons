@@ -8,10 +8,10 @@ This project is a fork of [ai03’s plate generator (YAKB)](https://github.com/a
 
 ## What it’s for
 
-- Generate MX switch plates and related cutouts from KLE data  
-- Export extra stamp layers (for example MX hotswap socket patterns) for multi-layer 3D-print workflows  
-- **MX** hotswap fits today (**tight** / **better fit**)  
-- **Kailh Choc** support is planned  
+- Generate MX and Kailh Choc PG1350 switch plates and related cutouts from KLE data  
+- Export extra stamp layers for multi-layer 3D-print workflows  
+- **MX** hotswap fits (**tight** / **better fit**)  
+- **Kailh Choc PG1350** hotswap stamps and 18×17 mm (and other) spacing presets
 
 Not just a generic plate tool — it’s specifically to make **hotswap + 3D-printed keyboard** CAD generation easier.
 
@@ -21,7 +21,7 @@ Not just a generic plate tool — it’s specifically to make **hotswap + 3D-pri
 - Multiple switch / stabilizer cutout types  
 - Fillet radius, unit size, and kerf controls  
 - Output preview; export DXF or SVG  
-- Optional **other plate parts** (stamps) with separate downloads  
+- Optional **other plate parts** (stamps) with separate downloads — MX and Choc PG1350  
 - Entirely client-side  
 
 ## Upstream
