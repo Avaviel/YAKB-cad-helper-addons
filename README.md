@@ -15,16 +15,6 @@ This project is a fork of [ai03’s plate generator (YAKB)](https://github.com/a
 
 Not just a generic plate tool — it’s specifically to make **hotswap + 3D-printed keyboard** CAD generation easier.
 
-## Try it live
-
-**This site:** https://avaviel.github.io/YAKB-cad-helper-addons/
-
-**Source:** https://github.com/Avaviel/YAKB-cad-helper-addons
-
-**Companion layout editor (KLE CAD):** https://avaviel.github.io/keyboard-layout-editor-CAD/
-
-(Upstream live demo of the original plategen: [kbplate.ai03.me](https://kbplate.ai03.me/))
-
 ## Features
 
 - Accurate plate generation (most calculations via [decimal.js](https://github.com/MikeMcl/decimal.js/))  

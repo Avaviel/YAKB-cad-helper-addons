@@ -36,7 +36,7 @@ export function DataHelpPane() {
             </p>
             <br />
             <h3>Outline corners (from KLE CAD)</h3>
-            <p>In <a href="https://avaviel.github.io/keyboard-layout-editor-CAD/" target="_blank" rel="noreferrer">KLE CAD</a>, use <strong>Add Corner</strong> and set each marker&apos;s zone. Corners are not switch holes. Official keyboard-layout-editor.com will not accept these CAD fields. Paste KLE CAD Raw data here as-is (including <code>_zones</code>).</p>
+            <p>In KLE CAD, use <strong>Add Corner</strong> and set each marker&apos;s zone. Corners are not switch holes. Official keyboard-layout-editor.com will not accept these CAD fields. Paste KLE CAD Raw data here as-is (including <code>_zones</code>).</p>
             <h4 style={{ textTransform: "lowercase" }}>_z</h4>
             <p>Value type: Numerical (zone number, 1+)</p>
             <p>Outline island / segment. All corners with the same zone are connected in order.</p>
@@ -199,9 +199,9 @@ export function CompanionPane() {
                 Without those fields a layout should still load there, but this pair is meant to work together.
             </p>
             <div className="cad-companion">
-                <a href="https://avaviel.github.io/keyboard-layout-editor-CAD/" target="_blank" rel="noopener noreferrer">KLE CAD</a>
+                <a href="/keyboard-layout-editor-CAD/" target="_blank" rel="noopener noreferrer">KLE CAD</a>
                 <span className="arrow" aria-hidden="true">→</span>
-                <a className="here" href="https://avaviel.github.io/YAKB-cad-helper-addons/" target="_blank" rel="noopener noreferrer">This site</a>
+                <a className="here" href="/YAKB-cad-helper-addons/" target="_blank" rel="noopener noreferrer">This site</a>
                 <span className="arrow" aria-hidden="true">→</span>
                 <a href="https://github.com/Avaviel/YAKB-cad-helper-addons" target="_blank" rel="noopener noreferrer">Source</a>
                 <span className="arrow" aria-hidden="true">→</span>
@@ -266,14 +266,11 @@ export function AboutPane() {
             <br />
             <h4>Links</h4>
             <p>
-                This site:{' '}
-                <a href="https://avaviel.github.io/YAKB-cad-helper-addons/" target="_blank" rel="noreferrer">avaviel.github.io/YAKB-cad-helper-addons</a>
-                <br />
                 This source:{' '}
                 <a href="https://github.com/Avaviel/YAKB-cad-helper-addons" target="_blank" rel="noreferrer">Avaviel/YAKB-cad-helper-addons</a>
                 <br />
                 Companion layout editor:{' '}
-                <a href="https://avaviel.github.io/keyboard-layout-editor-CAD/" target="_blank" rel="noreferrer">KLE CAD</a>
+                <a href="/keyboard-layout-editor-CAD/" target="_blank" rel="noreferrer">KLE CAD</a>
                 {' '}
                 (<a href="https://github.com/Avaviel/keyboard-layout-editor-CAD" target="_blank" rel="noreferrer">source</a>)
                 <br />
