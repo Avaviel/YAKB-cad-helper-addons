@@ -35,6 +35,22 @@
   margin-right: auto;
 }
 
+.field-box {
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  background: #f8f9fa;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  text-align: left;
+}
+
+.field-box-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #212529;
+  margin-bottom: 8px;
+}
+
 .cad-companion {
   display: flex;
   flex-wrap: wrap;

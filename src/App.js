@@ -31,6 +31,14 @@ import logo from './logo.png'
 import './App.css'
 import { DataHelpPane, SwitchCutoutPane, OtherCutoutPane, AdvancedPane, RegistrationHelpPane, CompanionPane, AboutPane } from './HelpPanes'
 
+function FieldBox({ title, children }) {
+  return (
+    <div className="field-box">
+      <div className="field-box-title">{title}</div>
+      {children}
+    </div>
+  )
+}
 
 function App() {
 
@@ -724,7 +732,7 @@ function App() {
 
             <Col lg={4}>
               <h3>Filleting</h3>
-              <p>Recommended 0.5mm; larger radii can cause issues with part fitment.</p>
+              <p>Switch-hole corner radius (not the plate outline). Recommended 0.5 mm; larger radii can cause fitment issues.</p>
               <Form className="ms-3 me-3">
                 <Form.Label>Switch Cutout Fillet Radius</Form.Label>
                 <Form.Control
@@ -1041,18 +1049,12 @@ function App() {
                   </Col>
                 </Row>
                 <div className="mt-3 mb-2">
-                  <h5 style={{ textTransform: "none" }}>Outlines and layer notes</h5>
+                  <h5 style={{ textTransform: "none" }}>Drawings</h5>
                   <p className="text-muted small">
-                    Grouped the same way as the DXF layer names. Only one layer per part gets an outline
-                    (Top-SWITCH_PLATE and Link-HOLE_CUTS). Offset and rounding are in mm.
-                    Shell starts <strong>{defaultShellFromPlate} mm</strong> out from the plate outline, then
-                    another <strong>{defaultShellFromSelf} mm</strong> from itself (inner + outer).
-                    Cut / Extrude plus the amount print in that drawing&apos;s title block (same DXF layer as the drawing).
-                    The note box is that drawing&apos;s title-block NOTES (not cut/extrude). The overall title block uses the Notes field above.
-                    Top-Dots are optional support bosses (H in the column webs). Uncheck Include Top-Dots to omit that layer.
-                    Include LED cutouts adds drawing 1.4 (7 × 1.5 mm slot, 5.1 mm below each switch).
-                    Keys (3.2) is each key rectangle; Keys-MASS (3.3) is the combined blob for case design.
-                    Both always export.
+                    Each drawing is a DXF layer. <strong>Part outline</strong> grows the silhouette from
+                    the zone corners (not the switch holes). <strong>Title block</strong> is cut/extrude
+                    amount and notes for that drawing, not geometry.
+                    Switch-hole corner radius is under Filleting, above.
                   </p>
                   {(exportAssembly.layerGroups || []).map(group => (
                     <div key={group.group} className="mb-4">
@@ -1066,131 +1068,130 @@ function App() {
                             {annotatedLayerName(layer.label, layerNotes[layer.id])}
                           </div>
                           {layer.outlineKind === "shell" ? (
-                            <Row className="g-2 mb-2">
-                              <Col md={4}>
-                                <Form.Label className="mb-1">Offset from plate (mm)</Form.Label>
-                                <Form.Control
-                                  type="number"
-                                  step="any"
-                                  value={outlineField(layer.id, "fromPlate", defaultShellFromPlate)}
-                                  onChange={e => handleLayerOutlineChange(layer.id, "fromPlate", e.target.value)}
-                                  aria-label={`${layer.id}-from-plate`}
-                                />
-                              </Col>
-                              <Col md={4}>
-                                <Form.Label className="mb-1">Offset from self (mm)</Form.Label>
-                                <Form.Control
-                                  type="number"
-                                  step="any"
-                                  value={outlineField(layer.id, "fromSelf", defaultShellFromSelf)}
-                                  onChange={e => handleLayerOutlineChange(layer.id, "fromSelf", e.target.value)}
-                                  aria-label={`${layer.id}-from-self`}
-                                />
-                              </Col>
-                              <Col md={4}>
-                                <Form.Label className="mb-1">Rounding (mm)</Form.Label>
-                                <Form.Control
-                                  type="number"
-                                  step="any"
-                                  value={outlineField(layer.id, "fillet", zoneDefaults.fillet)}
-                                  onChange={e => handleLayerOutlineChange(layer.id, "fillet", e.target.value)}
-                                  aria-label={`${layer.id}-fillet`}
-                                />
-                              </Col>
-                            </Row>
+                            <FieldBox title="Case outline">
+                              <Row className="g-2 mb-2">
+                                <Col md={4}>
+                                  <Form.Label className="mb-1">Outline from plate (mm)</Form.Label>
+                                  <Form.Control
+                                    type="number"
+                                    step="any"
+                                    value={outlineField(layer.id, "fromPlate", defaultShellFromPlate)}
+                                    onChange={e => handleLayerOutlineChange(layer.id, "fromPlate", e.target.value)}
+                                    aria-label={`${layer.id}-from-plate`}
+                                  />
+                                </Col>
+                                <Col md={4}>
+                                  <Form.Label className="mb-1">Outline from self (mm)</Form.Label>
+                                  <Form.Control
+                                    type="number"
+                                    step="any"
+                                    value={outlineField(layer.id, "fromSelf", defaultShellFromSelf)}
+                                    onChange={e => handleLayerOutlineChange(layer.id, "fromSelf", e.target.value)}
+                                    aria-label={`${layer.id}-from-self`}
+                                  />
+                                </Col>
+                                <Col md={4}>
+                                  <Form.Label className="mb-1">Outline rounding (mm)</Form.Label>
+                                  <Form.Control
+                                    type="number"
+                                    step="any"
+                                    value={outlineField(layer.id, "fillet", zoneDefaults.fillet)}
+                                    onChange={e => handleLayerOutlineChange(layer.id, "fillet", e.target.value)}
+                                    aria-label={`${layer.id}-fillet`}
+                                  />
+                                </Col>
+                              </Row>
+                            </FieldBox>
                           ) : layer.outlineKind === "backcut" ? (
-                            <>
-                            <Row className="g-2 mb-2">
-                              <Col md={stampSwitchFamily === "choc" ? 12 : 4}>
-                                <Form.Label className="mb-1">Offset from switch + stabs (mm)</Form.Label>
-                                <Form.Control
-                                  type="number"
-                                  step="any"
-                                  value={outlineField(layer.id, "offset", backCutDefaultsForFamily(stampSwitchFamily).offset)}
-                                  onChange={e => handleLayerOutlineChange(layer.id, "offset", e.target.value)}
-                                  aria-label={`${layer.id}-offset`}
-                                />
-                              </Col>
-                              {stampSwitchFamily !== "choc" && (
-                                <>
-                                  <Col md={4}>
-                                    <Form.Label className="mb-1">Bump out (mm)</Form.Label>
-                                    <Form.Control
-                                      type="number"
-                                      step="any"
-                                      value={outlineField(layer.id, "bump", backCutDefaultsForFamily(stampSwitchFamily).bump)}
-                                      onChange={e => handleLayerOutlineChange(layer.id, "bump", e.target.value)}
-                                      aria-label={`${layer.id}-bump`}
-                                    />
-                                  </Col>
-                                  <Col md={4}>
-                                    <Form.Label className="mb-1">Blend / notch (mm)</Form.Label>
-                                    <Form.Control
-                                      type="number"
-                                      step="any"
-                                      value={outlineField(layer.id, "notch", backCutDefaultsForFamily(stampSwitchFamily).notch)}
-                                      onChange={e => handleLayerOutlineChange(layer.id, "notch", e.target.value)}
-                                      aria-label={`${layer.id}-notch`}
-                                    />
-                                  </Col>
-                                </>
-                              )}
-                            </Row>
-                            <Form.Text className="text-muted d-block mb-2">
-                              MX Basic / Small / Alps: switch plus the two stab housings, stuck onto the switch, then offset. No full-width bar between the stabs.
-                              Bobbles sit on the switch top and bottom (the key centre), not on the stab housings.
-                              MX Spec already includes the bar, so that outline is expanded as-is with the same switch bobbles.
-                              New corners use the stabilizer cutout fillet radius.
-                            </Form.Text>
-                            </>
+                            <FieldBox title="Pocket (not the plate outline)">
+                              <Row className="g-2 mb-2">
+                                <Col md={stampSwitchFamily === "choc" ? 12 : 4}>
+                                  <Form.Label className="mb-1">Grow from switch + stabs (mm)</Form.Label>
+                                  <Form.Control
+                                    type="number"
+                                    step="any"
+                                    value={outlineField(layer.id, "offset", backCutDefaultsForFamily(stampSwitchFamily).offset)}
+                                    onChange={e => handleLayerOutlineChange(layer.id, "offset", e.target.value)}
+                                    aria-label={`${layer.id}-offset`}
+                                  />
+                                </Col>
+                                {stampSwitchFamily !== "choc" && (
+                                  <>
+                                    <Col md={4}>
+                                      <Form.Label className="mb-1">Bump out (mm)</Form.Label>
+                                      <Form.Control
+                                        type="number"
+                                        step="any"
+                                        value={outlineField(layer.id, "bump", backCutDefaultsForFamily(stampSwitchFamily).bump)}
+                                        onChange={e => handleLayerOutlineChange(layer.id, "bump", e.target.value)}
+                                        aria-label={`${layer.id}-bump`}
+                                      />
+                                    </Col>
+                                    <Col md={4}>
+                                      <Form.Label className="mb-1">Blend / notch (mm)</Form.Label>
+                                      <Form.Control
+                                        type="number"
+                                        step="any"
+                                        value={outlineField(layer.id, "notch", backCutDefaultsForFamily(stampSwitchFamily).notch)}
+                                        onChange={e => handleLayerOutlineChange(layer.id, "notch", e.target.value)}
+                                        aria-label={`${layer.id}-notch`}
+                                      />
+                                    </Col>
+                                  </>
+                                )}
+                              </Row>
+                              <Form.Text className="text-muted d-block mb-0">
+                                Grows the back-cut pocket around the switch and stab housings, not the
+                                plate silhouette. Bobbles sit on the switch top and bottom.
+                              </Form.Text>
+                            </FieldBox>
                           ) : layer.outlineKind === "keys" ? (
-                            <>
-                            <Row className="g-2 mb-2">
-                              <Col md={6}>
-                                <Form.Label className="mb-1">Key fillet (mm)</Form.Label>
-                                <Form.Control
-                                  type="number"
-                                  step="any"
-                                  value={outlineField(layer.id, "fillet", KEYS_DEFAULTS.fillet)}
-                                  onChange={e => handleLayerOutlineChange(layer.id, "fillet", e.target.value)}
-                                  aria-label={`${layer.id}-fillet`}
-                                />
-                              </Col>
-                            </Row>
-                            <Form.Text className="text-muted d-block mb-2">
-                              Each key is the layout cell (1U = unit × unit) with a corner fillet
-                              (default 1 mm, typical keycap). Always exported as drawing 3.2.
-                            </Form.Text>
-                            </>
+                            <FieldBox title="Key rectangles">
+                              <Row className="g-2 mb-2">
+                                <Col md={6}>
+                                  <Form.Label className="mb-1">Key-corner rounding (mm)</Form.Label>
+                                  <Form.Control
+                                    type="number"
+                                    step="any"
+                                    value={outlineField(layer.id, "fillet", KEYS_DEFAULTS.fillet)}
+                                    onChange={e => handleLayerOutlineChange(layer.id, "fillet", e.target.value)}
+                                    aria-label={`${layer.id}-fillet`}
+                                  />
+                                </Col>
+                              </Row>
+                              <Form.Text className="text-muted d-block mb-0">
+                                Layout cell (1U = unit × unit), default 1 mm. Not the plate outline.
+                                Drawing 3.2.
+                              </Form.Text>
+                            </FieldBox>
                           ) : layer.outlineKind === "keys-mass" ? (
-                            <>
-                            <Row className="g-2 mb-2">
-                              <Col md={6}>
-                                <Form.Label className="mb-1">Offset (mm)</Form.Label>
-                                <Form.Control
-                                  type="number"
-                                  step="any"
-                                  value={outlineField(layer.id, "offset", KEYS_MASS_DEFAULTS.offset)}
-                                  onChange={e => handleLayerOutlineChange(layer.id, "offset", e.target.value)}
-                                  aria-label={`${layer.id}-offset`}
-                                />
-                              </Col>
-                              <Col md={6}>
-                                <Form.Label className="mb-1">Rounding (mm)</Form.Label>
-                                <Form.Control
-                                  type="number"
-                                  step="any"
-                                  value={outlineField(layer.id, "round", KEYS_MASS_DEFAULTS.round)}
-                                  onChange={e => handleLayerOutlineChange(layer.id, "round", e.target.value)}
-                                  aria-label={`${layer.id}-round`}
-                                />
-                              </Col>
-                            </Row>
-                            <Form.Text className="text-muted d-block mb-2">
-                              Union of touching keys, then offset and round, for case design.
-                              Split islands stay separate blobs. Always exported as drawing 3.3.
-                            </Form.Text>
-                            </>
+                            <FieldBox title="Key-mass outline">
+                              <Row className="g-2 mb-2">
+                                <Col md={6}>
+                                  <Form.Label className="mb-1">Grow key-mass (mm)</Form.Label>
+                                  <Form.Control
+                                    type="number"
+                                    step="any"
+                                    value={outlineField(layer.id, "offset", KEYS_MASS_DEFAULTS.offset)}
+                                    onChange={e => handleLayerOutlineChange(layer.id, "offset", e.target.value)}
+                                    aria-label={`${layer.id}-offset`}
+                                  />
+                                </Col>
+                                <Col md={6}>
+                                  <Form.Label className="mb-1">Mass rounding (mm)</Form.Label>
+                                  <Form.Control
+                                    type="number"
+                                    step="any"
+                                    value={outlineField(layer.id, "round", KEYS_MASS_DEFAULTS.round)}
+                                    onChange={e => handleLayerOutlineChange(layer.id, "round", e.target.value)}
+                                    aria-label={`${layer.id}-round`}
+                                  />
+                                </Col>
+                              </Row>
+                              <Form.Text className="text-muted d-block mb-0">
+                                Union of touching keys, then grow and round, for case design. Drawing 3.3.
+                              </Form.Text>
+                            </FieldBox>
                           ) : layer.outlineKind === "dots" ? (
                             <Form.Text className="text-muted d-block mb-2">
                               1U: four corners. Staggered 1U (Q under numbers): a pair 5.25 mm below
@@ -1207,61 +1208,69 @@ function App() {
                               centre, on the switch centreline. One per key. Drawing 1.4.
                             </Form.Text>
                           ) : layer.outlineKind === "plate" ? (
+                            <FieldBox title="Part outline">
+                              <Row className="g-2 mb-2">
+                                <Col md={6}>
+                                  <Form.Label className="mb-1">Outline offset (mm)</Form.Label>
+                                  <Form.Control
+                                    type="number"
+                                    step="any"
+                                    value={outlineField(layer.id, "offset", zoneDefaults.offset)}
+                                    onChange={e => handleLayerOutlineChange(layer.id, "offset", e.target.value)}
+                                    aria-label={`${layer.id}-offset`}
+                                  />
+                                </Col>
+                                <Col md={6}>
+                                  <Form.Label className="mb-1">Outline rounding (mm)</Form.Label>
+                                  <Form.Control
+                                    type="number"
+                                    step="any"
+                                    value={outlineField(layer.id, "fillet", zoneDefaults.fillet)}
+                                    onChange={e => handleLayerOutlineChange(layer.id, "fillet", e.target.value)}
+                                    aria-label={`${layer.id}-fillet`}
+                                  />
+                                </Col>
+                              </Row>
+                              <Form.Text className="text-muted d-block mb-0">
+                                + out from the zone corners. 0 runs through the corner markers (looks inset).
+                                Not the switch-hole fillet.
+                              </Form.Text>
+                            </FieldBox>
+                          ) : null}
+                          <FieldBox title="Title block">
                             <Row className="g-2 mb-2">
                               <Col md={6}>
-                                <Form.Label className="mb-1">Offset (mm)</Form.Label>
-                                <Form.Control
-                                  type="number"
-                                  step="any"
-                                  value={outlineField(layer.id, "offset", zoneDefaults.offset)}
-                                  onChange={e => handleLayerOutlineChange(layer.id, "offset", e.target.value)}
-                                  aria-label={`${layer.id}-offset`}
-                                />
+                                <Form.Label className="mb-1">Cut or extrude</Form.Label>
+                                <Form.Select
+                                  value={outlineField(layer.id, "op", layerFeatureDefault(layer.id).op)}
+                                  onChange={e => handleLayerOutlineChange(layer.id, "op", e.target.value)}
+                                  aria-label={`${layer.id}-op`}
+                                >
+                                  <option value="cut">Cut</option>
+                                  <option value="extrude">Extrude</option>
+                                </Form.Select>
                               </Col>
                               <Col md={6}>
-                                <Form.Label className="mb-1">Rounding (mm)</Form.Label>
+                                <Form.Label className="mb-1">Amount (mm)</Form.Label>
                                 <Form.Control
                                   type="number"
                                   step="any"
-                                  value={outlineField(layer.id, "fillet", zoneDefaults.fillet)}
-                                  onChange={e => handleLayerOutlineChange(layer.id, "fillet", e.target.value)}
-                                  aria-label={`${layer.id}-fillet`}
+                                  value={outlineField(layer.id, "opMm", layerFeatureDefault(layer.id).opMm)}
+                                  onChange={e => handleLayerOutlineChange(layer.id, "opMm", e.target.value)}
+                                  aria-label={`${layer.id}-op-mm`}
+                                  placeholder="e.g. 1.5"
                                 />
                               </Col>
                             </Row>
-                          ) : null}
-                          <Row className="g-2 mb-2">
-                            <Col md={6}>
-                              <Form.Label className="mb-1">Cut or extrude</Form.Label>
-                              <Form.Select
-                                value={outlineField(layer.id, "op", layerFeatureDefault(layer.id).op)}
-                                onChange={e => handleLayerOutlineChange(layer.id, "op", e.target.value)}
-                                aria-label={`${layer.id}-op`}
-                              >
-                                <option value="cut">Cut</option>
-                                <option value="extrude">Extrude</option>
-                              </Form.Select>
-                            </Col>
-                            <Col md={6}>
-                              <Form.Label className="mb-1">Amount (mm)</Form.Label>
-                              <Form.Control
-                                type="number"
-                                step="any"
-                                value={outlineField(layer.id, "opMm", layerFeatureDefault(layer.id).opMm)}
-                                onChange={e => handleLayerOutlineChange(layer.id, "opMm", e.target.value)}
-                                aria-label={`${layer.id}-op-mm`}
-                                placeholder="e.g. 1.5"
-                              />
-                            </Col>
-                          </Row>
-                          <Form.Label className="mb-1">Note</Form.Label>
-                          <Form.Control
-                            type="text"
-                            value={layerNotes[layer.id] || ""}
-                            placeholder="note for this drawing's title block"
-                            onChange={e => handleLayerNoteChange(layer.id, e.target.value)}
-                            aria-label={`layer-note-${layer.id}`}
-                          />
+                            <Form.Label className="mb-1">Note</Form.Label>
+                            <Form.Control
+                              type="text"
+                              value={layerNotes[layer.id] || ""}
+                              placeholder="prints on this drawing's title block"
+                              onChange={e => handleLayerNoteChange(layer.id, e.target.value)}
+                              aria-label={`layer-note-${layer.id}`}
+                            />
+                          </FieldBox>
                         </div>
                       ))}
                     </div>

@@ -55,14 +55,12 @@ export function DataHelpPane() {
             <h4 style={{ textTransform: "lowercase" }}>_layerOutlines</h4>
             <p>Value type: Object (layer id → offset / rounding / <code>op</code> / <code>opMm</code>)</p>
             <p>
-                Outline offset and rounding in mm. Only <code>Top-SWITCH_PLATE</code> and
-                {' '}<code>Link-HOLE_CUTS</code> carry a part outline. Shell uses
-                {' '}<code>fromPlate</code> (default 0.5) then <code>fromSelf</code> (default 5).
-                {' '}<code>Keys</code> is drawing 3.2 (1U / 2U rectangles, <code>fillet</code>).
-                {' '}<code>Keys-MASS</code> is drawing 3.3 (combined blob, <code>offset</code> + <code>round</code>).
-                {' '}<code>Top-LED</code> is drawing 1.4, optional via <code>_yakb.includeLed</code>.
-                {' '}<code>op</code> is <code>cut</code> or <code>extrude</code> (either/or);
-                {' '}<code>opMm</code> is the amount in mm. Both print in that drawing&apos;s title block.
+                Part-outline fields grow the silhouette from zone corners
+                (<code>Top-SWITCH_PLATE</code>, <code>Link-HOLE_CUTS</code>:
+                {' '}<code>offset</code> / <code>fillet</code>). Shell uses
+                {' '}<code>fromPlate</code> then <code>fromSelf</code>.
+                Back-cut <code>offset</code> grows the pocket from switch + stabs, not the plate.
+                {' '}<code>op</code> / <code>opMm</code> and the note are title-block only.
             </p>
         </div>
     )
