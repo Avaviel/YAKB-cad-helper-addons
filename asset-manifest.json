@@ -1,14 +1,14 @@
 {
   "files": {
-    "main.css": "/YAKB-cad-helper-addons/static/css/main.946d9206.css",
-    "main.js": "/YAKB-cad-helper-addons/static/js/main.26ed37f0.js",
+    "main.css": "/YAKB-cad-helper-addons/static/css/main.551570cd.css",
+    "main.js": "/YAKB-cad-helper-addons/static/js/main.b5189402.js",
     "static/media/logo.png": "/YAKB-cad-helper-addons/static/media/logo.111b0e8963b731411cfd.png",
     "index.html": "/YAKB-cad-helper-addons/index.html",
-    "main.946d9206.css.map": "/YAKB-cad-helper-addons/static/css/main.946d9206.css.map",
-    "main.26ed37f0.js.map": "/YAKB-cad-helper-addons/static/js/main.26ed37f0.js.map"
+    "main.551570cd.css.map": "/YAKB-cad-helper-addons/static/css/main.551570cd.css.map",
+    "main.b5189402.js.map": "/YAKB-cad-helper-addons/static/js/main.b5189402.js.map"
   },
   "entrypoints": [
-    "static/css/main.946d9206.css",
-    "static/js/main.26ed37f0.js"
+    "static/css/main.551570cd.css",
+    "static/js/main.b5189402.js"
   ]
 }
