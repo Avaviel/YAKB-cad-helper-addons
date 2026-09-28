@@ -1309,7 +1309,7 @@ function App() {
                   <Nav.Link eventKey="registration">Registration marks</Nav.Link>
                 </Nav.Item>
                 <Nav.Item className="me-0">
-                  <Nav.Link eventKey="companion">KLE CAD</Nav.Link>
+                  <Nav.Link eventKey="companion">Layout editor</Nav.Link>
                 </Nav.Item>
                 <Nav.Item className="me-0">
                   <Nav.Link eventKey="about">About</Nav.Link>
