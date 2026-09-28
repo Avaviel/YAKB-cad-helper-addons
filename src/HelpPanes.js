@@ -201,6 +201,10 @@ export function CompanionPane() {
                 <span className="arrow" aria-hidden="true">→</span>
                 <a href="https://github.com/Avaviel/YAKB-cad-helper-addons" target="_blank" rel="noopener noreferrer">Source</a>
             </div>
+            <p className="mt-2 mb-0 small text-muted">
+                GitHub Pages:{' '}
+                <a href="https://avaviel.github.io/YAKB-cad-helper-addons" target="_blank" rel="noopener noreferrer">avaviel.github.io/YAKB-cad-helper-addons</a>
+            </p>
         </div>
     )
 }
@@ -263,7 +267,13 @@ export function AboutPane() {
                 This source:{' '}
                 <a href="https://github.com/Avaviel/YAKB-cad-helper-addons" target="_blank" rel="noreferrer">Avaviel/YAKB-cad-helper-addons</a>
                 <br />
-                Companion layout editor:{' '}kle-ng
+                Companion layout editor:{' '}
+                <a href="https://avaviel.com/kle-ng" target="_blank" rel="noreferrer">avaviel.com/kle-ng</a>
+                <br />
+                <span className="small text-muted">
+                  GitHub Pages:{' '}
+                  <a href="https://avaviel.github.io/kle-ng" target="_blank" rel="noreferrer">avaviel.github.io/kle-ng</a>
+                </span>
                 <br />
                 Upstream plategen:{' '}
                 <a href="https://github.com/ai03-2725/yet-another-keyboard-builder" target="_blank" rel="noreferrer">ai03-2725/yet-another-keyboard-builder</a>
