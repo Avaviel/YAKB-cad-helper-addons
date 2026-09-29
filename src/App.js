@@ -561,14 +561,6 @@ function App() {
 
         <h1 style={{ textTransform: "none" }}>YAKB CAD Helper</h1>
         <h5 className="pb-2">Plate tools for 3D-printed keyboards</h5>
-        <p className="mb-2" style={{ maxWidth: "720px", margin: "0 auto" }}>
-          Built to make it easier to generate plates and helper layers for <strong>3D-printed keyboards</strong> that use
-          {' '}<strong>hotswap sockets</strong>. Based on the ai03 Plate Generator (YAKB) for accurate MX cutouts,
-          with extra stamp layers aimed at printed builds.
-        </p>
-        <p className="text-muted mb-0" style={{ maxWidth: "720px", margin: "0 auto" }}>
-          <strong>MX</strong> and <strong>Kailh Choc PG1350</strong> hotswap workflows are available now.
-        </p>
       </div>
 
       <Card className="rounded shadow overflow-hidden mb-5">
@@ -576,7 +568,6 @@ function App() {
           <Row>
             <Col xl={5} className="pt-3 pb-0 ps-4 pe-4">
               <h3>KLE Data</h3>
-              <p>Please see the info block at the bottom for features such as rotating stabilizers.</p>
               <Form className="mt-3 mb-3 text-start" onSubmit={e => e.preventDefault()}>
                 <h5 className="mb-2">Title block</h5>
                 <Form.Label>Title</Form.Label>
@@ -589,10 +580,9 @@ function App() {
                   autoComplete="off"
                 />
                 <Form.Text className="text-muted d-block mb-3">
-                  Saved as KLE <code>name</code>, <code>_titleBlock</code>, and <code>_yakb</code> (cutouts, Choc spacing, fillets, stamps).
-                  Copy / Paste carries those settings. Drawing No. is set by layer (1.1–3.3).
-                  Cut / Extrude and the amount live on each drawing&apos;s own title block.
-                  The Notes field here prints only on the overall title block. Each drawing uses its section note.
+                  Saved into the layout as <code>name</code>, <code>_titleBlock</code> and <code>_yakb</code>
+                  (cutouts, Choc spacing, fillets, stamps); Copy / Paste carries it. Drawing numbers (1.1–3.3)
+                  and cut/extrude amounts live on each drawing. Notes here prints only on the overall title block.
                 </Form.Text>
                 <Row className="g-2">
                   <Col md={6}>
@@ -639,7 +629,7 @@ function App() {
                   </Col>
                 </Row>
                 <Form.Text className="text-muted d-block mt-2 mb-0">
-                  Drawn by is always YAKB CAD Helper. Title and notes write back after you pause; they do not rebuild the plate.
+                  Title and notes apply without rebuilding the plate.
                 </Form.Text>
               </Form>
             </Col>
@@ -684,8 +674,6 @@ function App() {
           <Row>
             <Col lg={4}>
               <h3>Cutouts</h3>
-              <p>Default values are recommended.</p>
-              <br />
               <Form className="ms-3 me-3">
                 <Form.Label>Switch Cutout Type</Form.Label>
                 <Form.Select aria-label="switch-cutout-type"
@@ -732,7 +720,7 @@ function App() {
 
             <Col lg={4}>
               <h3>Filleting</h3>
-              <p>Switch-hole corner radius (not the plate outline). Recommended 0.5 mm; larger radii can cause fitment issues.</p>
+              <p>Switch-hole corner radius, not the plate outline. 0.5 mm works; larger radii can cause fitment issues.</p>
               <Form className="ms-3 me-3">
                 <Form.Label>Switch Cutout Fillet Radius</Form.Label>
                 <Form.Control
@@ -775,7 +763,6 @@ function App() {
 
             <Col lg={4}>
               <h3>Advanced</h3>
-              <p>Best leave these alone unless you know what you are doing.</p>
               <Form className="ms-3 me-3">
                 {isChocWorkflow && (
                   <>
@@ -952,11 +939,6 @@ function App() {
               <h3>Other plate parts</h3>
               <p className="mb-3">
                 One multi-layer DXF/SVG with all drawings on separate layers.
-                <strong> Top-*</strong> = switch plate, dots, back cut;
-                <strong> Link-*</strong> = hotswap and hole cuts;
-                <strong> Shell</strong> = case outline (offset from the plate, then from itself);
-                <strong> Keys</strong> = 1U / 2U key rectangles (drawing 3.2);
-                <strong> Keys-MASS</strong> = combined key blob for case design (drawing 3.3).
               </p>
               <Form className="ms-3 me-3 text-start">
                 <Row>
@@ -974,7 +956,7 @@ function App() {
                       ))}
                     </Form.Select>
                     <Form.Text className="text-muted">
-                      ★ MX and ★ Choc PG1350 include stamp layers. Other cutout types can still generate a plate.
+                      Stamp layers only exist for ★ MX and ★ Choc PG1350; other types still generate a plate.
                     </Form.Text>
                   </Col>
                   <Col md={6} className="mb-3">
@@ -989,11 +971,6 @@ function App() {
                         <option key={fit.id} value={fit.id}>{fit.label}</option>
                       ))}
                     </Form.Select>
-                    <Form.Text className="text-muted">
-                      {stampSwitchFamily === "choc"
-                        ? "Choc PG1350 uses the Choc hotswap stamp."
-                        : "Clearance for the MX hotswap socket stamp only."}
-                    </Form.Text>
                   </Col>
                 </Row>
                 <Row>
@@ -1009,8 +986,8 @@ function App() {
                         <span>
                           <strong>Include Top-Dots</strong>
                           <span className="text-muted">
-                            {' '}— 1.8 mm support bosses for a printed sandwich. Uncheck for a
-                            plain plate (laser/CNC, or if you will place bosses yourself).
+                            1.8 mm support bosses for a printed sandwich. Uncheck for a plain laser/CNC plate,
+                            or to place bosses yourself.
                           </span>
                         </span>
                       }
@@ -1025,9 +1002,8 @@ function App() {
                         <span>
                           <strong>Include LED cutouts</strong>
                           <span className="text-muted">
-                            {' '}— drawing 1.4 Top-LED. A 7 × 1.5 mm slot with 0.75 mm
-                            round ends, centred 5.1 mm below each switch. Off unless you
-                            need through-plate LEDs.
+                            Drawing 1.4 Top-LED: a 7 × 1.5 mm slot with 0.75 mm round ends,
+                            centred 5.1 mm below each switch. Leave off unless you need through-plate LEDs.
                           </span>
                         </span>
                       }
@@ -1041,7 +1017,7 @@ function App() {
                         <span>
                           <strong>Mirror stamps</strong>
                           <span className="text-muted">
-                            {' '}— left-right flip of stamp geometry (hotswap, hole cuts, back cut, dots, LED).
+                            Flips stamp geometry left-right (hotswap, hole cuts, back cut, dots, LED).
                           </span>
                         </span>
                       }
@@ -1051,10 +1027,8 @@ function App() {
                 <div className="mt-3 mb-2">
                   <h5 style={{ textTransform: "none" }}>Drawings</h5>
                   <p className="text-muted small">
-                    Each drawing is a DXF layer. <strong>Part outline</strong> grows the silhouette from
-                    the zone corners (not the switch holes). <strong>Title block</strong> is cut/extrude
-                    amount and notes for that drawing, not geometry.
-                    Switch-hole corner radius is under Filleting, above.
+                    Each drawing below is a DXF layer. Part outline grows the silhouette from the zone
+                    corners, not the switch holes. Its title block holds the cut/extrude amount and notes.
                   </p>
                   {(exportAssembly.layerGroups || []).map(group => (
                     <div key={group.group} className="mb-4">
@@ -1192,21 +1166,6 @@ function App() {
                                 Union of touching keys, then grow and round, for case design. Drawing 3.3.
                               </Form.Text>
                             </FieldBox>
-                          ) : layer.outlineKind === "dots" ? (
-                            <Form.Text className="text-muted d-block mb-2">
-                              1U: four corners. Staggered 1U (Q under numbers): a pair 5.25 mm below
-                              centre and one boss 13.8 mm above. The row above keeps its ortho tops
-                              and drops the bottoms that would land on QWERTY. Stab keys: 1.7 mm
-                              outside the back-cut under each housing; left/right pair 1.7 mm out
-                              and 4 mm from that housing centre. A peg in or nicking the back-cut,
-                              or outside the plate outline, is deleted. Overlapping pegs merge.
-                            </Form.Text>
-                          ) : layer.outlineKind === "led" ? (
-                            <Form.Text className="text-muted d-block mb-2">
-                              7 mm wide × 1.5 mm tall slot, 0.75 mm radius on each end (tangent
-                              to the top and bottom). The slot centre is 5.1 mm below the switch
-                              centre, on the switch centreline. One per key. Drawing 1.4.
-                            </Form.Text>
                           ) : layer.outlineKind === "plate" ? (
                             <FieldBox title="Part outline">
                               <Row className="g-2 mb-2">
@@ -1232,7 +1191,7 @@ function App() {
                                 </Col>
                               </Row>
                               <Form.Text className="text-muted d-block mb-0">
-                                + out from the zone corners. 0 runs through the corner markers (looks inset).
+                                + grows out from the zone corners; 0 runs through the markers (looks inset).
                                 Not the switch-hole fillet.
                               </Form.Text>
                             </FieldBox>
