@@ -126,6 +126,107 @@ function concaveHull(pts, maxEdge = 3) {
     return hull
 }
 
+export function orderRing(pts) {
+    if (!pts || pts.length < 3) {
+        return (pts || []).slice()
+    }
+    let cx = 0
+    let cy = 0
+    for (const p of pts) {
+        cx += p.x
+        cy += p.y
+    }
+    cx /= pts.length
+    cy /= pts.length
+    return pts.slice().sort((a, b) => {
+        const da = Math.atan2(a.y - cy, a.x - cx)
+        const db = Math.atan2(b.y - cy, b.x - cx)
+        if (da !== db) {
+            return da - db
+        }
+        const ra = (a.x - cx) * (a.x - cx) + (a.y - cy) * (a.y - cy)
+        const rb = (b.x - cx) * (b.x - cx) + (b.y - cy) * (b.y - cy)
+        return ra - rb
+    })
+}
+
+function orientPts(a, b, c) {
+    return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
+}
+
+function onSegmentPts(a, b, c) {
+    const eps = 1e-9
+    return (
+        Math.min(a.x, c.x) - eps <= b.x &&
+        b.x <= Math.max(a.x, c.x) + eps &&
+        Math.min(a.y, c.y) - eps <= b.y &&
+        b.y <= Math.max(a.y, c.y) + eps
+    )
+}
+
+function segmentsCrossPts(p1, p2, p3, p4) {
+    const d1 = orientPts(p3, p4, p1)
+    const d2 = orientPts(p3, p4, p2)
+    const d3 = orientPts(p1, p2, p3)
+    const d4 = orientPts(p1, p2, p4)
+    if (d1 * d2 < 0 && d3 * d4 < 0) {
+        return true
+    }
+    if (d1 === 0 && onSegmentPts(p3, p1, p4)) {
+        return true
+    }
+    if (d2 === 0 && onSegmentPts(p3, p2, p4)) {
+        return true
+    }
+    if (d3 === 0 && onSegmentPts(p1, p3, p2)) {
+        return true
+    }
+    if (d4 === 0 && onSegmentPts(p1, p4, p2)) {
+        return true
+    }
+    return false
+}
+
+export function isSimplePolygonPts(pts) {
+    const n = (pts || []).length
+    if (n < 3) {
+        return true
+    }
+    for (let i = 0; i < n; i++) {
+        const a1 = pts[i]
+        const a2 = pts[(i + 1) % n]
+        for (let j = i + 1; j < n; j++) {
+            if (j === (i + 1) % n || i === (j + 1) % n) {
+                continue
+            }
+            if (segmentsCrossPts(a1, a2, pts[j], pts[(j + 1) % n])) {
+                return false
+            }
+        }
+    }
+    return true
+}
+
+function signedAreaPts(pts) {
+    let area = 0
+    for (let i = 0; i < pts.length; i++) {
+        const a = pts[i]
+        const b = pts[(i + 1) % pts.length]
+        area += a.x * b.y - b.x * a.y
+    }
+    return area / 2
+}
+
+function perimeterPts(pts) {
+    let total = 0
+    for (let i = 0; i < pts.length; i++) {
+        const a = pts[i]
+        const b = pts[(i + 1) % pts.length]
+        total += Math.hypot(b.x - a.x, b.y - a.y)
+    }
+    return total
+}
+
 function offsetPolygon(pts, dist) {
     if (!dist || pts.length < 2) {
         return pts
@@ -230,8 +331,28 @@ export function buildOutlineModel(outlines, generatorOptions, options = {}) {
         if (pts.length < 2) {
             continue
         }
-        if (outline.shape !== "path") {
-            pts = concaveHull(pts, 3)
+        if (outline.shape !== "path" && pts.length >= 3) {
+            // Same ring ladder as KLE-CAD's Outer wrap: _zi is click
+            // order, not ring order, so the larger-area simple ring
+            // wins and the hull is only a degenerate fallback.
+            const ring = orderRing(pts)
+            const walkedSimple = isSimplePolygonPts(pts)
+            const ringSimple = isSimplePolygonPts(ring)
+            if (walkedSimple && ringSimple) {
+                const walkedArea = Math.abs(signedAreaPts(pts))
+                const ringArea = Math.abs(signedAreaPts(ring))
+                const eps = 1e-9 * Math.max(1, walkedArea + ringArea)
+                if (
+                    ringArea > walkedArea + eps ||
+                    (Math.abs(ringArea - walkedArea) <= eps && perimeterPts(ring) < perimeterPts(pts))
+                ) {
+                    pts = ring
+                }
+            } else if (ringSimple) {
+                pts = ring
+            } else if (!walkedSimple) {
+                pts = concaveHull(pts, 3)
+            }
         }
         const offsetMm = options.offset != null ? toNum(options.offset, 0) : toNum(outline.offset, 0)
         pts = offsetPolygon(pts, offsetMm / unitNum)
