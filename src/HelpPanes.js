@@ -199,11 +199,11 @@ export function CompanionPane() {
             <div className="cad-companion">
                 <a className="here" href="https://avaviel.com/yacb" target="_blank" rel="noopener noreferrer">This site</a>
                 <span className="arrow" aria-hidden="true">→</span>
-                <a href="https://github.com/Avaviel/YAKB-cad-helper-addons" target="_blank" rel="noopener noreferrer">Source</a>
+                <a href="https://github.com/Avaviel/yacb" target="_blank" rel="noopener noreferrer">Source</a>
             </div>
             <p className="mt-2 mb-0 small text-muted">
                 GitHub Pages:{' '}
-                <a href="https://avaviel.github.io/YAKB-cad-helper-addons" target="_blank" rel="noopener noreferrer">avaviel.github.io/YAKB-cad-helper-addons</a>
+                <a href="https://avaviel.github.io/yacb" target="_blank" rel="noopener noreferrer">avaviel.github.io/yacb</a>
             </p>
         </div>
     )
@@ -265,14 +265,14 @@ export function AboutPane() {
             <h4>Links</h4>
             <p>
                 This source:{' '}
-                <a href="https://github.com/Avaviel/YAKB-cad-helper-addons" target="_blank" rel="noreferrer">Avaviel/YAKB-cad-helper-addons</a>
+                <a href="https://github.com/Avaviel/yacb" target="_blank" rel="noreferrer">Avaviel/yacb</a>
                 <br />
                 Companion layout editor:{' '}
                 <a href="https://avaviel.com/kle-cad" target="_blank" rel="noreferrer">avaviel.com/kle-cad</a>
                 <br />
                 <span className="small text-muted">
                   GitHub Pages:{' '}
-                  <a href="https://avaviel.github.io/kle-ng" target="_blank" rel="noreferrer">avaviel.github.io/kle-ng</a>
+                  <a href="https://avaviel.github.io/kle-cad" target="_blank" rel="noreferrer">avaviel.github.io/kle-cad</a>
                 </span>
                 <br />
                 Upstream plategen:{' '}

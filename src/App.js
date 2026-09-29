@@ -660,9 +660,9 @@ function App() {
           This switch type is not part of the MX / Choc PG1350 stamp workflow yet.
           Plate cutouts may still generate, but hotswap and helper layers are not provided.
           If you want it added,{' '}
-          <a href="https://github.com/Avaviel/YAKB-cad-helper-addons" target="_blank" rel="noreferrer">clone the repository</a>
+          <a href="https://github.com/Avaviel/yacb" target="_blank" rel="noreferrer">clone the repository</a>
           {' '}and add stamps, or{' '}
-          <a href="https://github.com/Avaviel/YAKB-cad-helper-addons/issues" target="_blank" rel="noreferrer">raise an issue</a>.
+          <a href="https://github.com/Avaviel/yacb/issues" target="_blank" rel="noreferrer">raise an issue</a>.
         </Alert>
       )}
 
