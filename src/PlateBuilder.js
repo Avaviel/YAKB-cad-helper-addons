@@ -276,7 +276,16 @@ function offsetPolygon(pts, dist) {
         }
         bx /= bl
         by /= bl
-        const miter = dist / Math.max(0.25, n1x * bx + n1y * by)
+        // Miter limit, mirrored from KLE-CAD's offsetPolygon so DXF
+        // matches the overlay: cut acute corners flat (bevel join)
+        // once the miter exceeds 2x the offset.
+        const cosRaw = n1x * bx + n1y * by
+        if (cosRaw < 0.5) {
+            out.push({ x: cur.x + n1x * dist, y: cur.y + n1y * dist })
+            out.push({ x: cur.x + n2x * dist, y: cur.y + n2y * dist })
+            continue
+        }
+        const miter = dist / cosRaw
         out.push({ x: cur.x + bx * miter, y: cur.y + by * miter })
     }
     return out

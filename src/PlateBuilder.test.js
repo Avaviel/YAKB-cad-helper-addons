@@ -8,10 +8,11 @@ const Z4_CLICKED = [
     { x: 35.5, y: 5.5, zi: 4 },
 ]
 
-function outlineOrigins(zone, vertices) {
+function outlineOrigins(zone, vertices, options) {
     const model = buildOutlineModel(
         [{ zone, fillet: 0, offset: 0, shape: 'convex', vertices }],
         { unitWidth: 1, unitHeight: 1 },
+        options,
     )
     const paths = model.models['OutlineZone' + zone].paths
     return Object.keys(paths)
@@ -79,6 +80,20 @@ describe('zone outline ring order', () => {
         expect(origins).toHaveLength(8)
         const seq = origins.map(([x, y]) => `${x},${-y}`).join(' ')
         expect(seq).toMatch(/(1,0 1,1 3,1 3,0|3,0 3,1 1,1 1,0)/)
+    })
+
+    test('buildOutlineModel bevels needle corners instead of spiking', () => {
+        const origins = outlineOrigins(
+            1,
+            [
+                { centerX: 0, centerY: 0 },
+                { centerX: 1, centerY: 0 },
+                { centerX: 0.5, centerY: 3 },
+            ],
+            { offset: 1, fillet: 0 },
+        )
+        expect(origins).toHaveLength(4)
+        expect(Math.max(...origins.map(([, y]) => Math.abs(y)))).toBeLessThan(5)
     })
 
     test('buildOutlineModel survives degenerate collinear corners via the hull', () => {
