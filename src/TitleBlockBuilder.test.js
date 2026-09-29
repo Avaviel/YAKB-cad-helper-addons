@@ -55,7 +55,7 @@ test("title block keeps the same origin when plate content size changes", () => 
   expect(local[0]).not.toBeCloseTo(originA[0])
 })
 
-test("title block is on TITLE_BLOCK and always credits YAKB CAD Helper", () => {
+test("title block is on TITLE_BLOCK and always credits YACB", () => {
   const block = buildTitleBlock({
     title: "Desk",
     drawingName: "Top-SWITCH_PLATE",
@@ -72,7 +72,7 @@ test("title block is on TITLE_BLOCK and always credits YAKB CAD Helper", () => {
   expect(block.models.frame.paths.headBlank).toBeTruthy()
   expect(block.models.drawnBy).toBeTruthy()
   expect(block.models.feature).toBeFalsy()
-  expect(TITLE_BLOCK_DRAWN_BY).toBe("YAKB CAD Helper")
+  expect(TITLE_BLOCK_DRAWN_BY).toBe("YACB")
   const placed = placeTitleBlock(block, { low: [0, 0], high: [160, 80] })
   expect(placed.origin[0]).toBeCloseTo(160 - TITLE_BLOCK_WIDTH)
   expect(placed.origin[1]).toBeCloseTo(0 - TITLE_BLOCK_MARGIN - TITLE_BLOCK_HEIGHT)

@@ -1,6 +1,6 @@
 ![header](https://github.com/ai03-2725/yet-another-keyboard-builder/blob/main/public/opengraph.jpg)
 
-# YAKB CAD Helper
+# YACB
 
 Helper tooling for **3D-printed mechanical keyboards** that use **hotswap sockets**.
 

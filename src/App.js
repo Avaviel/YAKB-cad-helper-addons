@@ -559,7 +559,7 @@ function App() {
           <Image fluid={true} src={logo} className="m-4" style={{ maxHeight: "100px" }} />
         </a>
 
-        <h1 style={{ textTransform: "none" }}>YAKB CAD Helper</h1>
+        <h1 style={{ textTransform: "none" }}>YACB</h1>
         <h5 className="pb-2">Plate tools for 3D-printed keyboards</h5>
       </div>
 
