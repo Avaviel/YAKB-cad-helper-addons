@@ -276,34 +276,13 @@ function offsetPolygon(pts, dist) {
         }
         bx /= bl
         by /= bl
-        // Miter limit, mirrored from KLE-CAD's offsetPolygon so DXF
-        // matches the overlay: join acute corners with a round arc
-        // instead of a miter. Round (not bevel): a flat cut zigzags
-        // against adjacent dips, an arc stays smooth.
+        // One uniform rule, no join threshold (mirrored from KLE-CAD
+        // so DXF matches the overlay): miter every corner, capped at
+        // 2x the offset, so near-identical corners render the same.
         const cosRaw = n1x * bx + n1y * by
-        if (cosRaw < 0.5) {
-            const radius = Math.abs(dist)
-            const flip = dist < 0 ? Math.PI : 0
-            const a1 = Math.atan2(n1y, n1x) + flip
-            const mid = Math.atan2(by, bx) + flip
-            const a2 = Math.atan2(n2y, n2x) + flip
-            let sweep = a2 - a1
-            while (sweep > Math.PI) sweep -= 2 * Math.PI
-            while (sweep < -Math.PI) sweep += 2 * Math.PI
-            let toMid = mid - a1
-            while (toMid > Math.PI) toMid -= 2 * Math.PI
-            while (toMid < -Math.PI) toMid += 2 * Math.PI
-            if (Math.abs(toMid) > 1e-9 && (sweep > 0) !== (toMid > 0)) {
-                sweep += sweep > 0 ? -2 * Math.PI : 2 * Math.PI
-            }
-            const segs = Math.max(2, Math.ceil(Math.abs(sweep) / (Math.PI / 8)))
-            for (let k = 0; k <= segs; k++) {
-                const a = a1 + (sweep * k) / segs
-                out.push({ x: cur.x + Math.cos(a) * radius, y: cur.y + Math.sin(a) * radius })
-            }
-            continue
-        }
-        const miter = dist / cosRaw
+        const miterLen = Math.abs(dist) / Math.max(cosRaw, 1e-9)
+        const capped = Math.min(miterLen, 2 * Math.abs(dist))
+        const miter = dist < 0 ? -capped : capped
         out.push({ x: cur.x + bx * miter, y: cur.y + by * miter })
     }
     return out
