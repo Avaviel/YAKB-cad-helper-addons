@@ -82,7 +82,7 @@ describe('zone outline ring order', () => {
         expect(seq).toMatch(/(1,0 1,1 3,1 3,0|3,0 3,1 1,1 1,0)/)
     })
 
-    test('buildOutlineModel bevels needle corners instead of spiking', () => {
+    test('buildOutlineModel rounds needle corners instead of spiking', () => {
         const origins = outlineOrigins(
             1,
             [
@@ -92,8 +92,15 @@ describe('zone outline ring order', () => {
             ],
             { offset: 1, fillet: 0 },
         )
-        expect(origins).toHaveLength(4)
+        expect(origins.length).toBeGreaterThan(4)
         expect(Math.max(...origins.map(([, y]) => Math.abs(y)))).toBeLessThan(5)
+        // CAD space negates y, so the apex sits at (0.5, -3): arc points
+        // hold a unit radius around it.
+        const arc = origins.filter(([, y]) => y < -2.5)
+        expect(arc.length).toBeGreaterThanOrEqual(3)
+        for (const [x, y] of arc) {
+            expect(Math.hypot(x - 0.5, y + 3)).toBeCloseTo(1, 6)
+        }
     })
 
     test('buildOutlineModel survives degenerate collinear corners via the hull', () => {
